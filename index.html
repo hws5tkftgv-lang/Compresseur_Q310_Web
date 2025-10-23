@@ -261,10 +261,13 @@
       const o=canvas.getActiveObject(); if(!o || o.type!=='rect') return;
       const m=rectMeta(o); el('title-input').value=m.title||''; el('desc-input').value=m.description||''; el('part-select').value=m.partId||'';
     }
-    canvas.on('selection:created', syncPanel);
+     canvas.on('selection:created', syncPanel);
     canvas.on('selection:updated', syncPanel);
 
-   <script>
+    // <<< FIN du gros script principal >>>
+  })();
+  </script>
+
 // Masquer le bouton "Arrêter le serveur" quand on n'est pas en local
 const ON_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const stopBtn = document.getElementById('stopServerBtn');
@@ -340,3 +343,4 @@ if (stopBtn && !ON_LOCAL) {
 
 </body>
 </html>
+
