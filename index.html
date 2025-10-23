@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Compresseur – Hotspots PRO</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1025; --panel:#0f1738; --accent:#243167; --text:#e9eefc;
+      --muted:#9fb2e6; --btn:#334155; --ok:#16a34a; --warn:#b91c1c;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui, Segoe UI, Arial, sans-serif}
+    header{padding:14px 18px;background:#11183a;border-bottom:1px solid var(--accent);font-weight:700}
+    .container{display:grid;grid-template-columns:1fr 380px;gap:16px;padding:16px}
+    .card{background:var(--panel);border:1px solid var(--accent);border-radius:12px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid var(--accent)}
+    .btn{background:var(--btn);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer}
+    .btn.primary{background:#2563eb}
+    .btn.ok{background:var(--ok)}
+    .btn.warn{background:var(--warn)}
+    .spacer{flex:1}
+    .pad{padding:12px}
+    label{display:block;margin:10px 0 6px;color:var(--muted)}
+    input[type="text"], select, textarea{
+      width:100%;background:#0c1433;color:var(--text);border:1px solid var(--accent);
+      border-radius:8px;padding:10px;outline:none
+    }
+    textarea{min-height:140px;resize:vertical}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .kbd{background:#101a42;padding:2px 6px;border-radius:6px;border:1px solid var(--accent)}
+    .hint{color:var(--muted);font-size:13px}
+    /* zones dessinées */
+    .legend{padding:8px 12px;border-top:1px solid var(--accent);color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>🧰 Compresseur – Schéma interactif (PRO)</header>
+
+  <main class="container">
+    <!-- Canvas & outils -->
+    <section class="card" id="canvasCard">
+      <div class="toolbar controls">
+        <button id="mode-draw" class="btn primary">✏️ Dessiner</button>
+        <button id="mode-select" class="btn">🖐️ Déplacer/Redim.</button>
+        <button id="btn-delete" class="btn">🗑️ Supprimer sel.</button>
+        <button id="btn-clear" class="btn">🧹 Effacer tout</button>
+
+        <span class="spacer"></span>
+
+        <label class="hint">Zoom :
+          <input type="range" id="zoom" min="50" max="200" value="100" style="vertical-align:middle;">
+        </label>
+
+        <label class="hint"><input id="snap" type="checkbox" checked> Magnétisme 8px</label>
+
+        <button id="btn-save" class="btn ok">💾 Export JSON</button>
+        <label class="btn" style="cursor:pointer">📥 Importer JSON
+          <input id="file-load" type="file" accept="application/json" style="display:none">
+        </label>
+
+        <button id="stopServerBtn" class="btn warn">🟥 Arrêter le serveur</button>
+      </div>
+
+      <div class="pad">
+        <canvas id="c" width="1100" height="700"></canvas>
+      </div>
+
+      <div class="legend pad">
+        Astuce : <span class="kbd">Shift</span> = carré • <span class="kbd">Ctrl/Cmd</span> + molette = zoom • Double-clic zone = charger la fiche.
+      </div>
+    </section>
+
+    <!-- Panneau de droite -->
+    <aside class="card">
+      <div class="pad">
+        <h2 style="margin:6px 0 2px">📄 Fiche zone</h2>
+        <small class="hint">Sélectionne un rectangle sur l’image.</small>
+
+        <label>Pièce (inventaire Quincy 310L)
+          <select id="part-select">
+            <option value="">— Sélectionne une pièce —</option>
+          </select>
+        </label>
+
+        <label>Titre
+          <input id="title-input" type="text" placeholder="Titre de la zone">
+        </label>
+
+        <label>Description / Rôle
+          <textarea id="desc-input" placeholder="Texte explicatif…"></textarea>
+        </label>
+
+        <div class="grid2" style="margin-top:8px">
+          <button id="apply-meta" class="btn ok">✅ Appliquer à la zone</button>
+          <button id="center-view" class="btn">🎯 Centrer la zone</button>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--accent);margin:16px 0">
+
+        <h3 style="margin:0 0 8px">🔧 Outils</h3>
+        <div class="grid2">
+          <button id="btn-fit" class="btn">🔍 Ajuster à l’écran</button>
+          <button id="btn-screenshot" class="btn">📸 PNG (avec zones)</button>
+        </div>
+
+        <p class="hint" style="margin-top:12px">Autosave dans le navigateur (localStorage).</p>
+      </div>
+    </aside>
+  </main>
+
+  <!-- =================== LOGIQUE =================== -->
+  <script>
+  (function(){
+    const $ = s => document.querySelector(s);
+    const el = id => document.getElementById(id);
+
+    const BG_URL = "assets/compresseur_bg.png";   // <- ton image confirmée
+    const SNAP = 8;
+
+    // Fabric
+    const canvas = new fabric.Canvas('c', { backgroundColor:'#0a1330', selection:true, preserveObjectStacking:true });
+    let zoom = 1;
+
+    function setZoom(z){ zoom=z; canvas.setZoom(z); canvas.requestRenderAll(); }
+    function gSnap(v){ return el('snap').checked ? Math.round(v/SNAP)*SNAP : v; }
+    function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
+
+    // Charger l’inventaire
+    let INVENTORY = [];
+    fetch('quincy_310L_parts.json')
+      .then(r=>r.json())
+      .then(data=>{
+        INVENTORY = data;
+        const s=el('part-select');
+        s.innerHTML = '<option value="">— Sélectionne une pièce —</option>' +
+          INVENTORY.map(p=>`<option value="${p.id}">${p.code ? (p.code+" — ") : ""}${p.nom}</option>`).join('');
+      })
+      .catch(()=>{ /* silencieux si absent */ });
+
+    // Charger image de fond
+    fabric.Image.fromURL(BG_URL, (img)=>{
+      const cw=canvas.getWidth(), ch=canvas.getHeight();
+      const scale=Math.min(cw/img.width, ch/img.height);
+      img.set({left:0, top:0, selectable:false, evented:false});
+      img.scale(scale);
+      img.set('id','__BG__');
+      canvas.add(img); img.sendToBack();
+      canvas.requestRenderAll();
+      loadAutosave();
+    }, { crossOrigin:'anonymous' });
+
+    // Modes
+    let drawMode = true;
+    function setDraw(){ drawMode=true; el('mode-draw').classList.add('primary'); el('mode-select').classList.remove('primary'); }
+    function setSelect(){ drawMode=false; el('mode-draw').classList.remove('primary'); el('mode-select').classList.add('primary'); }
+    el('mode-draw').onclick=setDraw; el('mode-select').onclick=setSelect; setDraw();
+
+    // Dessin de rectangles
+    let start=null, temp=null;
+    canvas.on('mouse:down', (opt)=>{
+      if(!drawMode) return;
+      const p=canvas.getPointer(opt.e);
+      start=p;
+      temp=new fabric.Rect({
+        left:p.x, top:p.y, width:1, height:1,
+        fill:'rgba(255,0,0,0.22)', stroke:'#ff4d4d', strokeWidth:2,
+        selectable:true, hasControls:true, hasBorders:true
+      });
+      canvas.add(temp);
+    });
+    canvas.on('mouse:move', (opt)=>{
+      if(!drawMode || !temp || !start) return;
+      const p=canvas.getPointer(opt.e);
+      const x=Math.min(p.x,start.x), y=Math.min(p.y,start.y);
+      const w=Math.abs(p.x-start.x), h=Math.abs(p.y-start.y);
+      temp.set({left:x, top:y, width:w, height:h}); canvas.requestRenderAll();
+    });
+    canvas.on('mouse:up', ()=>{
+      if(!drawMode || !temp) return;
+      temp.set({left:gSnap(temp.left), top:gSnap(temp.top), width:gSnap(temp.width), height:gSnap(temp.height)});
+      temp.setCoords(); temp=null; start=null; autosave();
+    });
+
+    // Snap au déplacement/redim
+    canvas.on('object:moving', e=>{ const o=e.target; if(o && o.id!=='__BG__'){ o.left=gSnap(o.left); o.top=gSnap(o.top);} });
+    canvas.on('object:scaling', e=>{
+      const o=e.target; if(o && o.id!=='__BG__'){
+        o.width=gSnap(o.width*o.scaleX); o.height=gSnap(o.height*o.scaleY); o.scaleX=1; o.scaleY=1; o.setCoords();
+      }
+    });
+    canvas.on('object:modified', autosave);
+
+    // Double-clic pour charger la fiche
+    canvas.on('mouse:dblclick', (e)=>{
+      const obj=canvas.findTarget(e.e,true);
+      if(obj && obj.type==='rect'){ canvas.setActiveObject(obj); const m=rectMeta(obj);
+        el('title-input').value=m.title||""; el('desc-input').value=m.description||""; el('part-select').value=m.partId||"";
+      }
+    });
+
+    // Liens panneau
+    el('apply-meta').onclick=()=>{
+      const o=canvas.getActiveObject(); if(!o || o.type!=='rect'){ alert('Sélectionne une zone.'); return; }
+      const m=rectMeta(o);
+      m.partId=el('part-select').value; m.title=el('title-input').value; m.description=el('desc-input').value; autosave();
+    };
+    el('center-view').onclick=()=>{
+      const o=canvas.getActiveObject(); if(!o) return;
+      const cx=o.left+o.width/2, cy=o.top+o.height/2;
+      canvas.absolutePan({x:cx-canvas.getWidth()/2, y:cy-canvas.getHeight()/2});
+    };
+
+    // Toolbar
+    el('btn-delete').onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==='rect'){ canvas.remove(o); autosave(); } };
+    el('btn-clear').onclick=()=>{ canvas.getObjects().filter(o=>o.type==='rect').forEach(o=>canvas.remove(o)); autosave(); };
+    el('zoom').oninput=(e)=>{ setZoom(Number(e.target.value)/100); };
+    window.addEventListener('wheel', (e)=>{ if(!e.ctrlKey) return; e.preventDefault(); const d=e.deltaY>0?-0.05:0.05; const z=Math.min(2, Math.max(0.5, zoom+d)); el('zoom').value=Math.round(z*100); setZoom(z); }, {passive:false});
+    el('btn-fit').onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==='__BG__'); if(!bg) return; const cw=canvas.getWidth(), ch=canvas.getHeight(); const sc=Math.min(cw/bg.width, ch/bg.height); setZoom(sc); canvas.absolutePan({x:0,y:0}); };
+    el('btn-screenshot').onclick=()=>{ canvas.discardActiveObject(); canvas.requestRenderAll(); const data=canvas.toDataURL({format:'png'}); const a=document.createElement('a'); a.href=data; a.download='hotspots_capture.png'; a.click(); };
+
+    // Export/Import
+    function exportJSON(){
+      const bg=canvas.getObjects().find(o=>o.id==='__BG__');
+      const rects=canvas.getObjects().filter(o=>o.type==='rect');
+      const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
+      const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
+      return {
+        image: BG_URL,
+        canvas_size:{w:canvas.getWidth(),h:canvas.getHeight()},
+        base_size:{w:ow,h:oh},
+        items: rects.map((r,i)=>({ id:`zone_${i+1}`, x:r.left/ow, y:r.top/oh, w:r.width/ow, h:r.height/oh, meta:rectMeta(r) }))
+      };
+    }
+    function importJSON(data){
+      canvas.getObjects().filter(o=>o.type==='rect').forEach(o=>canvas.remove(o));
+      const bg=canvas.getObjects().find(o=>o.id==='__BG__');
+      const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
+      const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
+      (data.items||[]).forEach(it=>{
+        const r=new fabric.Rect({ left:it.x*ow, top:it.y*oh, width:it.w*ow, height:it.h*oh, fill:'rgba(255,0,0,0.22)', stroke:'#ff4d4d', strokeWidth:2, selectable:true, hasControls:true, hasBorders:true });
+        r.data=it.meta||{partId:'',title:'',description:''};
+        canvas.add(r);
+      });
+      canvas.requestRenderAll();
+    }
+    el('btn-save').onclick=()=>{ const data=exportJSON(); const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='hotspots_export.json'; a.click(); URL.revokeObjectURL(a.href); };
+    el('file-load').onchange=(ev)=>{ const f=ev.target.files[0]; if(!f) return; f.text().then(txt=>{ try{ importJSON(JSON.parse(txt)); autosave(); }catch{ alert('JSON invalide'); } }); };
+
+    // Autosave
+    const LS_KEY='hotspots_pro_autosave_v1';
+    function autosave(){ const data=exportJSON(); localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+    function loadAutosave(){ const raw=localStorage.getItem(LS_KEY); if(!raw) return; try{ importJSON(JSON.parse(raw)); }catch{} }
+
+    // Synchroniser la fiche quand on sélectionne une zone
+    function syncPanel(){
+      const o=canvas.getActiveObject(); if(!o || o.type!=='rect') return;
+      const m=rectMeta(o); el('title-input').value=m.title||''; el('desc-input').value=m.description||''; el('part-select').value=m.partId||'';
+    }
+    canvas.on('selection:created', syncPanel);
+    canvas.on('selection:updated', syncPanel);
+
+   <script>
+// Masquer le bouton "Arrêter le serveur" quand on n'est pas en local
+const ON_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const stopBtn = document.getElementById('stopServerBtn');
+if (stopBtn && !ON_LOCAL) {
+  stopBtn.style.display = 'none';
+}
+</script>
+
+<script>
+(() => {
+  // Récupère les éléments de la fiche zone
+  const partSelect =
+    document.getElementById('part-select') ||
+    document.querySelector('#pieceSelect') ||
+    document.querySelector('aside select, .fiche-zone select');
+
+  const titleInput =
+    document.getElementById('title-input') ||
+    document.getElementById('zoneTitle') ||
+    document.querySelector('input[placeholder="Titre de la zone"]');
+
+  const descInput =
+    document.getElementById('desc-input') ||
+    document.getElementById('zoneDesc') ||
+    document.querySelector('textarea[placeholder*="explicatif"], textarea');
+
+  if (!partSelect || !titleInput || !descInput) return; // sécurité
+
+  // On stockera ici le JSON chargé
+  let INVENTAIRE = [];
+
+  // Charge le JSON s'il n'est pas déjà chargé autre part
+  // (Si tu as déjà un fetch ailleurs qui remplit la liste, garde-le; ce fetch-ci est un filet de sécurité)
+  fetch('quincy_310L_parts.json')
+    .then(r => r.json())
+    .then(data => {
+      // Si ta liste est vide, on la peuple; sinon on garde ce que tu as
+      const dejaPeuple = partSelect.options.length > 1;
+      INVENTAIRE = data;
+
+      if (!dejaPeuple) {
+        partSelect.innerHTML =
+          '<option value="">— Sélectionne une pièce —</option>' +
+          data.map(p => `<option value="${p.id ?? p.code}">${p.nom}</option>`).join('');
+      }
+    })
+    .catch(() => { /* ignore si déjà géré ailleurs */ });
+
+  // Remplit Titre & Description quand on change de pièce
+  function fillFieldsFromSelection() {
+    const value = String(partSelect.value);
+    const text  = partSelect.options[partSelect.selectedIndex]?.text || '';
+
+    // Essaie par id/code, sinon par libellé
+    const piece =
+      INVENTAIRE.find(p => String(p.id) === value || String(p.code) === value) ||
+      INVENTAIRE.find(p => p.nom === text);
+
+    if (!piece) return;
+
+    titleInput.value = piece.nom || '';
+    const role = piece.role || piece.rôle || '';   // rôle/rôle (au cas où)
+    const desc = piece.description || piece.desc || '';
+    descInput.value = [role, desc].filter(Boolean).join(' — ');
+  }
+
+  partSelect.addEventListener('change', fillFieldsFromSelection);
+
+  // Si une pièce est déjà sélectionnée au chargement, remplis tout de suite
+  if (partSelect.value) fillFieldsFromSelection();
+})();
+</script>
+
+</body>
+</html>

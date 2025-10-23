@@ -1,0 +1,426 @@
+[
+  {
+    "id": "filtre_air",
+    "nom": "Filtre à air capoté",
+    "role": "Filtrer l’air d’admission",
+    "description": "Réduit les poussières à l’entrée, protège les soupapes et cylindres.",
+    "page_ref": "Intro p.2",
+    "oem_hint": ""
+  },
+  {
+    "id": "element_filtre_air",
+    "nom": "Élément de filtre d’air",
+    "role": "Remplacement périodique",
+    "description": "Cartouche interne du filtre à air; essentielle pour la VE.",
+    "page_ref": "Intro p.2",
+    "oem_hint": ""
+  },
+  {
+    "id": "silencieux_admission",
+    "nom": "Silencieux d’admission",
+    "role": "Atténuer le bruit d’entrée",
+    "description": "Version capotée/hooded; se monte côté aspiration.",
+    "page_ref": "Intro p.2",
+    "oem_hint": ""
+  },
+  {
+    "id": "cylindre_lp",
+    "nom": "Cylindre basse pression (LP)",
+    "role": "Chambre compression 1ère étape",
+    "description": "Reçoit l’air ambiant via soupapes d’admission LP.",
+    "page_ref": "Groupes cyl./têtes p.10–11",
+    "oem_hint": ""
+  },
+  {
+    "id": "cylindre_hp",
+    "nom": "Cylindre haute pression (HP)",
+    "role": "Chambre compression 2e étape",
+    "description": "Reçoit l’air refroidi de l’intercooler.",
+    "page_ref": "Groupes cyl./têtes p.12–13",
+    "oem_hint": ""
+  },
+  {
+    "id": "piston_lp",
+    "nom": "Piston LP",
+    "role": "Compression 1ère étape",
+    "description": "Alésage typique ~3,5\", segments adaptés au LP.",
+    "page_ref": "Piston/Bielle LP p.8–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "piston_hp",
+    "nom": "Piston HP",
+    "role": "Compression 2e étape",
+    "description": "Alésage typique ~2,5\", travaille à pression plus élevée.",
+    "page_ref": "Piston/Bielle HP p.6–7",
+    "oem_hint": ""
+  },
+  {
+    "id": "segments_lp",
+    "nom": "Segments de piston LP",
+    "role": "Étanchéité piston/cylindre",
+    "description": "Jeux/positionnement à respecter pour bonne VE.",
+    "page_ref": "Piston/Bielle LP p.8–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "segments_hp",
+    "nom": "Segments de piston HP",
+    "role": "Étanchéité piston/cylindre",
+    "description": "Matériaux adaptés à T°/P plus élevées.",
+    "page_ref": "Piston/Bielle HP p.6–7",
+    "oem_hint": ""
+  },
+  {
+    "id": "axe_piston",
+    "nom": "Axis de piston",
+    "role": "Articulation piston–bielle",
+    "description": "Montage serré contrôlé; lubrification par barbotage/pression.",
+    "page_ref": "Pistons p.6–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "bielle_lp",
+    "nom": "Bielle LP",
+    "role": "Transmission mouvement",
+    "description": "Pied sur axe piston; tête sur maneton vilebrequin.",
+    "page_ref": "Piston/Bielle LP p.8–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "bielle_hp",
+    "nom": "Bielle HP",
+    "role": "Transmission mouvement",
+    "description": "Analogues LP mais cotes différentes.",
+    "page_ref": "Piston/Bielle HP p.6–7",
+    "oem_hint": ""
+  },
+  {
+    "id": "coussinets_bielle",
+    "nom": "Coussinets de bielle",
+    "role": "Palier lisse tête de bielle",
+    "description": "Film d’huile; contrôle jeu radial.",
+    "page_ref": "Groupes vilebrequin p.3–5",
+    "oem_hint": ""
+  },
+  {
+    "id": "vilebrequin",
+    "nom": "Vilebrequin",
+    "role": "Convertir rotation en translation",
+    "description": "Manetons, perçages huile, équilibrage.",
+    "page_ref": "Vilebrequin p.3",
+    "oem_hint": ""
+  },
+  {
+    "id": "paliers_vilbrequin",
+    "nom": "Paliers principaux",
+    "role": "Support vilebrequin",
+    "description": "Roulements/bronzes selon version; lub. forcée.",
+    "page_ref": "Carter/porte-palier p.4–5",
+    "oem_hint": ""
+  },
+  {
+    "id": "carter",
+    "nom": "Carter (crankcase)",
+    "role": "Structure et réservoir d’huile",
+    "description": "Loge paliers, pompe à huile, circuits d’huile.",
+    "page_ref": "Carter p.4",
+    "oem_hint": ""
+  },
+  {
+    "id": "porte_palier",
+    "nom": "Porte-palier (bearing carrier)",
+    "role": "Support palier + pompe",
+    "description": "Intègre filtration d’huile selon révision.",
+    "page_ref": "Porte-palier p.5",
+    "oem_hint": ""
+  },
+  {
+    "id": "pompe_huile",
+    "nom": "Pompe à huile",
+    "role": "Distribution d’huile sous pression",
+    "description": "Alimente vilebrequin, bielles, têtes.",
+    "page_ref": "Porte-palier p.5",
+    "oem_hint": ""
+  },
+  {
+    "id": "filtre_huile",
+    "nom": "Filtre à huile",
+    "role": "Filtration lubrifiant",
+    "description": "Retient particules; entretien régulier.",
+    "page_ref": "Porte-palier p.5",
+    "oem_hint": ""
+  },
+  {
+    "id": "crepine_huile",
+    "nom": "Crépine d’aspiration",
+    "role": "Protection pompe à huile",
+    "description": "Maille avant pompe; évite gros débris.",
+    "page_ref": "Carter p.4–5",
+    "oem_hint": ""
+  },
+  {
+    "id": "jauge_huile",
+    "nom": "Jauge/dipstick",
+    "role": "Contrôle niveau d’huile",
+    "description": "Lecture niveau mini/maxi.",
+    "page_ref": "Carter p.4",
+    "oem_hint": ""
+  },
+  {
+    "id": "bouchon_remplissage",
+    "nom": "Bouchon de remplissage d’huile",
+    "role": "Remplir le carter",
+    "description": "Avec évent/reniflard selon versions.",
+    "page_ref": "Carter p.4",
+    "oem_hint": ""
+  },
+  {
+    "id": "reniflard",
+    "nom": "Breather/reniflard",
+    "role": "Évacuation vapeurs carter",
+    "description": "Limite surpressions internes carter.",
+    "page_ref": "Carter p.4",
+    "oem_hint": ""
+  },
+  {
+    "id": "joint_carter",
+    "nom": "Joint de carter",
+    "role": "Étanchéité carter",
+    "description": "Joint papier/fibre; se remplace à chaque dépose.",
+    "page_ref": "Jeux de joints p.19",
+    "oem_hint": ""
+  },
+  {
+    "id": "joint_couvre_carter",
+    "nom": "Joint couvercle carter",
+    "role": "Étanchéité couvercle",
+    "description": "Empêche fuite huile/air.",
+    "page_ref": "Jeux de joints p.19",
+    "oem_hint": ""
+  },
+  {
+    "id": "soupape_admission_lp",
+    "nom": "Soupape d’admission LP",
+    "role": "Admettre l’air cylindre LP",
+    "description": "Actionnée par diff. de pression.",
+    "page_ref": "Soupapes LP p.8–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "soupape_decharge_lp",
+    "nom": "Soupape de décharge LP",
+    "role": "Évacuer air comprimé LP",
+    "description": "Vers l’intercooler; clapet anti-retour local.",
+    "page_ref": "Soupapes LP p.8–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "soupape_admission_hp",
+    "nom": "Soupape d’admission HP",
+    "role": "Admettre l’air cylindre HP",
+    "description": "Depuis l’intercooler (refroidi).",
+    "page_ref": "Soupapes HP p.6–7",
+    "oem_hint": ""
+  },
+  {
+    "id": "soupape_decharge_hp",
+    "nom": "Soupape de décharge HP",
+    "role": "Évacuer air vers refoulement",
+    "description": "Vers ligne de refoulement/réservoir.",
+    "page_ref": "Soupapes HP p.6–7",
+    "oem_hint": ""
+  },
+  {
+    "id": "plaque_valves",
+    "nom": "Platine/siège de soupapes",
+    "role": "Support/distribution soupapes",
+    "description": "Plateaux/sièges et visserie associée.",
+    "page_ref": "Soupapes LP/HP p.6–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "ressorts_soupapes",
+    "nom": "Ressorts de soupapes",
+    "role": "Rappel fermeture",
+    "description": "Caractéristiques LP/HP selon étage.",
+    "page_ref": "Soupapes LP/HP p.6–9",
+    "oem_hint": ""
+  },
+  {
+    "id": "intercooler",
+    "nom": "Intercooler",
+    "role": "Refroidir air entre LP et HP",
+    "description": "Réduit T°, travail HP et humidité.",
+    "page_ref": "Schémas p.10–13",
+    "oem_hint": ""
+  },
+  {
+    "id": "tubulure_intercooler",
+    "nom": "Tubulure d’intercooler",
+    "role": "Liaison LP→intercooler→HP",
+    "description": "Tuyauteries + raccords/olive.",
+    "page_ref": "Schémas p.10–13",
+    "oem_hint": ""
+  },
+  {
+    "id": "clapet_antiretour",
+    "nom": "Clapet anti-retour",
+    "role": "Empêcher retour d’air",
+    "description": "Sécurité refoulement; protège soupapes.",
+    "page_ref": "Contrôles p.18",
+    "oem_hint": ""
+  },
+  {
+    "id": "dechargeur_admission",
+    "nom": "Déchargeur d’admission",
+    "role": "Démarrage à vide/contrôle charge",
+    "description": "Pilote l’ouverture admission pour no-load.",
+    "page_ref": "Contrôle L/LS/LVD p.14–16",
+    "oem_hint": ""
+  },
+  {
+    "id": "pilot_valve",
+    "nom": "Valve pilote",
+    "role": "Commander déchargeurs par pression",
+    "description": "Réglage consigne/différentiel.",
+    "page_ref": "Pilot valves p.17",
+    "oem_hint": ""
+  },
+  {
+    "id": "ligne_pilotage",
+    "nom": "Ligne de pilotage",
+    "role": "Transmettre pression de commande",
+    "description": "Capillaire/rigide selon montage.",
+    "page_ref": "Contrôles p.14–17",
+    "oem_hint": ""
+  },
+  {
+    "id": "soupape_securite",
+    "nom": "Soupape de sûreté",
+    "role": "Protection surpression",
+    "description": "Tarée; monte sur refoulement/réservoir.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "pressostat",
+    "nom": "Pressostat",
+    "role": "Commande marche/arrêt",
+    "description": "Coupe moteur selon consigne (mode simple).",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "manometre_refoulement",
+    "nom": "Manomètre de refoulement",
+    "role": "Afficher pression sortie",
+    "description": "Lecture maintenance/diagnostic.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "thermometre_inter",
+    "nom": "Thermomètre intercooler",
+    "role": "Surveiller T° inter-étage",
+    "description": "Aide au diagnostic VE/refroidissement.",
+    "page_ref": "Schémas p.10–13",
+    "oem_hint": ""
+  },
+  {
+    "id": "volant",
+    "nom": "Volant/Flywheel",
+    "role": "Inertie + ventilation",
+    "description": "Pales de refroidissement intégrées.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "courroies",
+    "nom": "Courroies de transmission",
+    "role": "Transmettre puissance moteur→pompe",
+    "description": "Sélection selon poulies/puissance.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "poulie_moteur",
+    "nom": "Poulie moteur",
+    "role": "Adapter la vitesse",
+    "description": "Diamètre/stries selon courroies.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "poulie_pompe",
+    "nom": "Poulie pompe",
+    "role": "Adapter la vitesse pompe",
+    "description": "Doit correspondre au volant/rapport.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "garde_courroies",
+    "nom": "Garde-courroies",
+    "role": "Sécurité",
+    "description": "Empêche contact pièces tournantes.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "joint_culasse",
+    "nom": "Joint de culasse",
+    "role": "Étanchéité tête/cylindre",
+    "description": "À remplacer à chaque démontage.",
+    "page_ref": "Jeux de joints p.19",
+    "oem_hint": ""
+  },
+  {
+    "id": "kit_joints",
+    "nom": "Kit joints complet",
+    "role": "Maintenance périodique",
+    "description": "Ensemble joints/consommables révision.",
+    "page_ref": "Jeux de joints p.19–20",
+    "oem_hint": ""
+  },
+  {
+    "id": "visserie_tete",
+    "nom": "Visserie de tête/cylindre",
+    "role": "Fixation tête/cylindre",
+    "description": "Couples de serrage à respecter.",
+    "page_ref": "Schémas p.10–13",
+    "oem_hint": ""
+  },
+  {
+    "id": "vidange_reservoir",
+    "nom": "Robinet de purge réservoir",
+    "role": "Évacuer condensats",
+    "description": "Entretien réservoir d’air.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "drain_intercooler",
+    "nom": "Purge intercooler",
+    "role": "Évacuer condensats inter-étage",
+    "description": "Évite eau dans cylindre HP.",
+    "page_ref": "Schémas p.10–13",
+    "oem_hint": ""
+  },
+  {
+    "id": "support_base",
+    "nom": "Châssis / base support",
+    "role": "Supporter l’ensemble",
+    "description": "Pad anti-vib., points d’ancrage.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  },
+  {
+    "id": "silentblocs",
+    "nom": "Silentblocs",
+    "role": "Limiter vibrations",
+    "description": "Entre groupe et base.",
+    "page_ref": "Typical unit p.21–23",
+    "oem_hint": ""
+  }
+]
