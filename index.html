@@ -1,546 +1,590 @@
-
 <!doctype html>
-<html lang="fr" translate="no">
+<html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Compresseur – Hotspots PRO</title>
-  <link rel="icon" href="data:," />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
-  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compresseur – Schéma interactif (PRO)</title>
+
+  <!-- Styles externes -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Styles minimaux de secours -->
   <style>
-    :root{ --bg:#0b1025; --panel:#0f1738; --accent:#243167; --text:#e9eefc; --muted:#9fb2e6; --btn:#334155; --ok:#16a34a; --warn:#b91c1c; }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui, Segoe UI, Arial, sans-serif}
-    header{padding:14px 18px;background:#11183a;border-bottom:1px solid var(--accent);font-weight:700}
-    .container{display:grid;grid-template-columns:1fr 380px;gap:16px;padding:16px}
-    .card{background:var(--panel);border:1px solid var(--accent);border-radius:12px}
-    .toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid var(--accent)}
-    .btn{background:var(--btn);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer}
-    .btn.primary{background:#2563eb}
-    .btn.ok{background:var(--ok)}
-    .btn.warn{background:var(--warn)}
-    .spacer{flex:1}
-    .pad{padding:12px}
-    label{display:block;margin:10px 0 6px;color:var(--muted)}
-    input[type="text"], select, textarea{width:100%;background:#0c1433;color:var(--text);border:1px solid var(--accent);border-radius:8px;padding:10px;outline:none}
-    textarea{min-height:120px;resize:vertical}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .kbd{background:#101a42;padding:2px 6px;border-radius:6px;border:1px solid var(--accent)}
-    .hint{color:var(--muted);font-size:13px}
-    .legend{padding:8px 12px;border-top:1px solid var(--accent);color:var(--muted)}
-    @media (max-width:980px){ .container{grid-template-columns:1fr} }
-    /* tactile : on gère les gestes nous-mêmes dans le canvas */
-    canvas, #c, .canvas-container{ -webkit-user-select:none; -webkit-touch-callout:none; touch-action:none; }
+    :root { color-scheme: dark; }
+    body { margin: 0; background:#0e1730; color:#dfe7ff; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:12px 16px; }
+    .btn { padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#1a2548; color:#eaf1ff; cursor:pointer; }
+    .btn:hover { filter:brightness(1.05); }
+    .btn.primary { background:#1f3b91; }
+    .btn.danger { background:#8c2130; }
+    .btn.success { background:#1e7a34; }
+    .btn.active { background:#0078ff; color:#fff; font-weight:700; border:2px solid #004a9f; box-shadow:0 0 6px rgba(0,120,255,.7); }
+    .hidden { display:none !important; }
+    .wrap { display:grid; grid-template-columns: 1fr 360px; gap:16px; padding:12px 12px 16px; }
+    @media (max-width: 1100px){ .wrap{ grid-template-columns:1fr; } }
+    .stage { background:#0d1530; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; min-height:60vh; }
+    .panel { background:#0f1a3a; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:12px; }
+    .panel h3 { margin:6px 0 12px; }
+    .row { margin:8px 0; display:flex; flex-direction:column; gap:6px; }
+    label { font-size:.9rem; opacity:.9; }
+    select, input[type="text"], textarea { width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:#0b1533; color:#eaf1ff; }
+    textarea { min-height:140px; resize:vertical; }
+    .small { font-size:.8rem; opacity:.7; }
+    .spacer { flex:1; }
+    .chip { padding:6px 10px; background:#1a2548; border-radius:10px; border:1px solid rgba(255,255,255,.12);}
+    .hr { height:1px; background:rgba(255,255,255,.08); margin:10px 0;}
   </style>
+
+  <!-- FabricJS -->
+  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 </head>
 <body>
-  <header>🧰 Compresseur – Schéma interactif (PRO)</header>
 
-  <main class="container">
-    <!-- Canvas & outils -->
-    <section class="card" id="canvasCard">
-      <div class="toolbar">
-        <button id="mode-draw" class="btn primary">✏️ Dessiner</button>
-        <button id="mode-select" class="btn">🖐️ Déplacer/Redim.</button>
-        <button id="mode-pan" class="btn">🖱️ Pan</button>
+  <!-- Barre d’outils -->
+  <div class="toolbar">
+    <button id="btn-draw" class="btn primary">✏️ Dessiner</button>
+    <button id="btn-move" class="btn">🧿 Déplacer/Redim.</button>
+    <button id="btn-pan" class="btn">✋ Pan</button>
+    <button id="btn-select" class="btn">🖱️ Sélection</button>
+    <button id="btn-delete" class="btn">🗑️ Supprimer sel.</button>
+    <button id="btn-clear" class="btn">🧼 Effacer tout</button>
 
-        <button id="btn-delete" class="btn">🗑️ Supprimer sel.</button>
-        <button id="btn-clear" class="btn">🧹 Effacer tout</button>
+    <span id="toggle-fit" class="btn chip">Mode: <strong>Tout voir</strong></span>
+    <button id="btn-fit" class="btn">🖼️ Ajuster à l’écran</button>
 
-        <button id="toggle-fit" class="btn">Mode: Tout voir</button>
-        <button id="btn-fit" class="btn">🔍 Ajuster à l’écran</button>
+    <span class="chip">Zoom : <input id="zoom" type="range" min="25" max="300" step="1" value="100" /></span>
+    <label class="chip">Magnétisme <span id="gridVal">8</span>px <input id="gridSlider" type="range" min="0" max="32" step="1" value="8" /></label>
 
-        <span class="spacer"></span>
+    <span class="spacer"></span>
 
-        <label class="hint" style="display:flex;align-items:center;gap:6px">
-          Zoom :
-          <input type="range" id="zoom" min="50" max="250" value="100">
-        </label>
+    <button id="btn-export" class="btn success">💾 Export JSON</button>
+    <label class="btn">
+      📥 Importer JSON
+      <input id="fileImport" type="file" accept=".json,application/json" style="display:none" />
+    </label>
+    <button id="btn-screenshot" class="btn">🖨️ PNG</button>
+    <button id="btn-stop-server" class="btn danger hidden">⛔ Arrêter le serveur</button>
+  </div>
 
-        <label class="hint"><input id="snap" type="checkbox" checked> Magnétisme 8px</label>
+  <!-- Zone + panneau -->
+  <div class="wrap">
+    <div class="stage">
+      <canvas id="c"></canvas>
+    </div>
 
-        <button id="btn-save" class="btn ok">💾 Export JSON</button>
-        <label class="btn" style="cursor:pointer">📥 Importer JSON
-          <input id="file-load" type="file" accept="application/json" style="display:none">
-        </label>
+    <aside class="panel">
+      <h3>📘 Fiche zone</h3>
+      <p class="small">Sélectionne un rectangle sur l’image ou clique une zone en mode <strong>Sélection</strong>.</p>
 
-        <button id="btn-screenshot" class="btn">📸 PNG</button>
-        <button id="stopServerBtn" class="btn warn">🟥 Arrêter le serveur</button>
+      <div class="row">
+        <label for="inventorySelect">Pièce (inventaire Quincy 310L)</label>
+        <select id="inventorySelect">
+          <option value="">— Sélectionne une pièce —</option>
+        </select>
       </div>
 
-      <div class="pad">
-        <canvas id="c" width="1100" height="700"></canvas>
+      <div class="row">
+        <label for="partTitle">Titre</label>
+        <input id="partTitle" type="text" placeholder="Titre de la zone" />
       </div>
 
-      <div class="legend pad">
-        Astuce : <span class="kbd">Shift</span> = carré • <span class="kbd">Ctrl/Cmd</span> + molette = zoom • Double-clic zone = charger la fiche • <span class="kbd">2 doigts</span> = pinch-zoom + pan.
+      <div class="row">
+        <label for="partDescription">Description / Rôle</label>
+        <textarea id="partDescription" placeholder="Texte explicatif…"></textarea>
       </div>
-    </section>
 
-    <!-- Panneau de droite -->
-    <aside class="card">
-      <div class="pad">
-        <h2 style="margin:6px 0 2px">📄 Fiche zone</h2>
-        <small class="hint">Sélectionne un rectangle sur l’image.</small>
+      <div class="row" style="display:flex; gap:8px;">
+        <button id="btn-apply" class="btn success" style="flex:1;">✅ Appliquer à la zone</button>
+        <button id="btn-center" class="btn" style="flex:1;">🎯 Centrer la zone</button>
+      </div>
 
-        <label>Pièce (inventaire Quincy 310L)
-          <select id="part-select"><option value="">— Sélectionne une pièce —</option></select>
-        </label>
+      <div class="hr"></div>
 
-        <label>Titre
-          <input id="title-input" type="text" placeholder="Titre de la zone">
-        </label>
-
-        <label>Description / Rôle
-          <textarea id="desc-input" placeholder="Texte explicatif…"></textarea>
-        </label>
-
-        <div class="grid2" style="margin-top:8px">
-          <button id="apply-meta" class="btn ok">✅ Appliquer à la zone</button>
-          <button id="center-view" class="btn">🎯 Centrer la zone</button>
-        </div>
-
-        <hr style="border:0;border-top:1px solid var(--accent);margin:16px 0">
-
-        <h3 style="margin:0 0 8px">🔧 Outils</h3>
-        <div class="grid2">
-          <button id="clear-filter" class="btn">Afficher toutes les zones</button>
-        </div>
-
-        <p class="hint" style="margin-top:12px">Autosave : enregistrement local automatique (navigateur).</p>
+      <div class="row">
+        <button id="btn-show-all" class="btn">👁️ Afficher toutes les zones</button>
+        <span class="small">Autosave : enregistrement local automatique (navigateur).</span>
       </div>
     </aside>
-  </main>
+  </div>
 
-  <!-- =================== LOGIQUE (clé en main) =================== -->
   <script>
-  (function(){
-    const $ = (id) => document.getElementById(id);
-
-    // ---------- Constantes ----------
-    const BG_URL = "actif/compresseur_bg.png";
-    const SNAP = 8;
-    const LS_KEY = "hotspots_pro_autosave_v1";
-    let FIT_MODE = "contain";               // "contain" (tout voir) / "cover" (remplir)
-    const ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;   // limites pour pinch + slider
-
-    // ---------- Canvas ----------
-    const canvas = new fabric.Canvas("c", {
-      backgroundColor:"#0a1330",
-      selection:true,
-      preserveObjectStacking:true
+    // ================== STATE & CONST ==================
+    const canvas = new fabric.Canvas('c', {
+      backgroundColor: '#0b1533',
+      selection: false,
+      preserveObjectStacking: true
     });
-    canvas.allowTouchScrolling = true;
 
-    let zoom = 1;
-    function setZoom(z){
-      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
-      canvas.setZoom(zoom);
-      $("zoom").value = Math.round(zoom * 100);
+    // Taille initiale
+    function resizeCanvasToStage() {
+      const stage = document.querySelector('.stage');
+      canvas.setWidth(stage.clientWidth);
+      canvas.setHeight(Math.max(520, window.innerHeight * 0.65));
       canvas.requestRenderAll();
     }
-    function gSnap(v){ return $("snap").checked ? Math.round(v/SNAP)*SNAP : v; }
-    function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
+    window.addEventListener('resize', () => {
+      resizeCanvasToStage();
+      fitBackgroundImage(bgImgRef, true);
+    });
 
-    // ---------- Image de fond ----------
-    function fitBackgroundImage(img){
-      const cw = canvas.getWidth(), ch = canvas.getHeight();
-      const scale = (FIT_MODE === "cover")
-        ? Math.max(cw / img.width, ch / img.height)
-        : Math.min(cw / img.width, ch / img.height);
-      const w = img.width * scale, h = img.height * scale;
-      img.set({ left:(cw - w)/2, top:(ch - h)/2, selectable:false, evented:false });
-      img.scale(scale); img.set("id","__BG__"); img.setCoords();
-    }
-    function removeOldBackgrounds(){
-      canvas.getObjects('image').forEach(o=>{
-        if (o.id === '__BG__' || o._isBG === true) canvas.remove(o);
-      });
-    }
-    function loadBackground(){
-      removeOldBackgrounds();
-      fabric.Image.fromURL(BG_URL, (img)=>{
-        img._isBG = true;
-        fitBackgroundImage(img);
-        canvas.add(img); img.sendToBack();
-        canvas.requestRenderAll();
-        loadAutosave(); // zones après l'image
-      }, { crossOrigin: "anonymous" });
+    let FIT_MODE = 'contain'; // 'contain' | 'cover'
+    let isDrawing = false;
+    let isMoveMode = false;
+    let isPanMode = false;
+    let isSelectMode = false;
+
+    let drawingRect = null;
+    let startPoint = null;
+    let bgImgRef = null;
+    let zoomLevel = 1;
+    let gridSize = 8; // px
+    const LS_KEY = 'quincy_310L_layout_v2';
+
+    // ================== UTILS ==================
+    function setActiveButton(id) {
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      const el = document.getElementById(id);
+      if (el) el.classList.add('active');
     }
 
-    // ---------- Inventaire ----------
-    let INVENTORY = [];
-    fetch("quincy_310L_parts.json")
-      .then(r=>r.json())
-      .then(data=>{
-        INVENTORY = data || [];
-        const s = $("part-select");
-        s.innerHTML =
-          '<option value="">— Sélectionne une pièce —</option>' +
-          INVENTORY.map(p => `<option value="${p.id ?? ""}">${p.code ? (p.code+' — ') : ''}${p.nom ?? ''}</option>`).join("");
-      })
-      .catch(()=>{}); // silencieux
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
-    // ---------- Surlignage par pièce ----------
-    function highlightByPart(partId){
-      const has = !!partId;
-      canvas.getObjects().forEach(o=>{
-        if(o.type !== "rect") return;
-        const match = (o.data?.partId || "") === partId;
-        o.set({ opacity: has ? (match ? 1 : 0.15) : 1, stroke: match ? "#22c55e" : "#ff4d4d" });
-      });
-      canvas.requestRenderAll();
-    }
-    $("part-select").addEventListener("change", ()=>{
-      const value = $("part-select").value;
-      const piece = INVENTORY.find(p => String(p.id) === String(value));
-      if (piece) {
-        $("title-input").value = piece.nom || "";
-        const role = piece.role || piece.rôle || "";
-        const desc = piece.description || piece.desc || "";
-        $("desc-input").value = [role, desc].filter(Boolean).join(" — ");
-      }
-      highlightByPart(value || "");
-    });
-    $("clear-filter").addEventListener("click", ()=>{
-      $("part-select").value = ""; highlightByPart("");
-    });
-
-    // ---------- Modes (dessin / sélection / pan bouton) ----------
-    let drawMode = true;
-    function setDraw(){ drawMode=true; $("mode-draw").classList.add("primary"); $("mode-select").classList.remove("primary"); $("mode-pan").classList.remove("primary"); canvas.skipTargetFind=false; canvas.defaultCursor="default"; }
-    function setSelect(){ drawMode=false; $("mode-draw").classList.remove("primary"); $("mode-select").classList.add("primary"); $("mode-pan").classList.remove("primary"); canvas.skipTargetFind=false; canvas.defaultCursor="default"; }
-    $("mode-draw").onclick=setDraw; $("mode-select").onclick=setSelect; setDraw();
-
-    // ---------- Pan libre (bouton) ----------
-    let panMode = false, isDragging = false, lastX = 0, lastY = 0;
-    function getPoint(e){ return e.touches && e.touches[0] ? {x:e.touches[0].clientX, y:e.touches[0].clientY} : {x:e.clientX, y:e.clientY}; }
-    $("mode-pan").addEventListener("click", ()=>{
-      panMode = !panMode;
-      $("mode-pan").classList.toggle("primary", panMode);
-      drawMode = false;
-      $("mode-draw").classList.remove("primary");
-      $("mode-select").classList.remove("primary");
-      canvas.skipTargetFind = panMode; // éviter d’attraper des rectangles
-      canvas.defaultCursor  = panMode ? "grab" : "default";
-      canvas.hoverCursor    = panMode ? "grab" : "move";
-    });
-    canvas.on("mouse:down",(opt)=>{
-      if(!panMode) return;
-      isDragging = true;
-      const p = getPoint(opt.e);
-      lastX = p.x; lastY = p.y;
-      canvas.setCursor("grabbing");
-      canvas.requestRenderAll();
-    });
-    canvas.on("mouse:move",(opt)=>{
-      if(!panMode || !isDragging) return;
-      const p = getPoint(opt.e);
-      const dx = p.x - lastX, dy = p.y - lastY;
-      lastX = p.x; lastY = p.y;
-      canvas.relativePan(new fabric.Point(dx, dy));
-    });
-    canvas.on("mouse:up",()=>{
-      if(!panMode) return;
-      isDragging = false;
-      canvas.setCursor("grab");
-    });
-
-    // ---------- Pinch-zoom + pan (2 doigts) ----------
-    let touchStartZoom = 1, pinchPrev = null;
-    function touchInfo(e){
-      const t = e.touches; if(!t || t.length < 2) return null;
-      const x1=t[0].clientX, y1=t[0].clientY, x2=t[1].clientX, y2=t[1].clientY;
-      const cx=(x1+x2)/2, cy=(y1+y2)/2;
-      const dist=Math.hypot(x2-x1, y2-y1);
-      return {cx, cy, dist};
-    }
-    canvas.upperCanvasEl.addEventListener("touchstart",(e)=>{
-      if(e.touches.length===2){
-        e.preventDefault();
-        pinchPrev = touchInfo(e);
-        touchStartZoom = zoom;
-      }
-    }, {passive:false});
-    canvas.upperCanvasEl.addEventListener("touchmove",(e)=>{
-      if(e.touches.length===2 && pinchPrev){
-        e.preventDefault();
-        const now = touchInfo(e); if(!now) return;
-        // Zoom relatif
-        const scale = now.dist / pinchPrev.dist;
-        const targetZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, touchStartZoom * scale));
-        const point = new fabric.Point(now.cx, now.cy);
-        canvas.zoomToPoint(point, targetZoom);
-        zoom = targetZoom;
-        $("zoom").value = Math.round(zoom * 100);
-        // Pan selon déplacement du centre
-        const dx = now.cx - pinchPrev.cx, dy = now.cy - pinchPrev.cy;
-        canvas.relativePan(new fabric.Point(dx, dy));
-        pinchPrev = now;
-      }
-    }, {passive:false});
-    canvas.upperCanvasEl.addEventListener("touchend",(e)=>{
-      if(e.touches.length < 2) pinchPrev = null;
-    }, {passive:false});
-
-    // ---------- Dessin rectangles ----------
-    let start=null, temp=null;
-    canvas.on("mouse:down",(opt)=>{
-      if(!drawMode || panMode || (opt.e.touches && opt.e.touches.length===2)) return;
-      const p=canvas.getPointer(opt.e);
-      start=p;
-      temp=new fabric.Rect({
-        left:p.x, top:p.y, width:1, height:1,
-        fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2,
-        selectable:true, hasControls:true, hasBorders:true
-      });
-      canvas.add(temp);
-    });
-    canvas.on("mouse:move",(opt)=>{
-      if(!drawMode || panMode || !temp || !start) return;
-      const p=canvas.getPointer(opt.e);
-      const x=Math.min(p.x,start.x), y=Math.min(p.y,start.y);
-      const w=Math.abs(p.x-start.x), h=Math.abs(p.y-start.y);
-      temp.set({left:x, top:y, width:w, height:h}); canvas.requestRenderAll();
-    });
-    canvas.on("mouse:up",()=>{
-      if(!drawMode || panMode || !temp) return;
-      temp.set({left:gSnap(temp.left), top:gSnap(temp.top), width:gSnap(temp.width), height:gSnap(temp.height)});
-      temp.setCoords(); temp=null; start=null; autosave();
-    });
-
-    // Snap déplacements/redim + save
-    canvas.on("object:moving", e=>{
-      const o=e.target; if(o && o.id!=="__BG__"){ o.left=gSnap(o.left); o.top=gSnap(o.top);}
-    });
-    canvas.on("object:scaling", e=>{
-      const o=e.target; if(o && o.id!=="__BG__"){
-        o.width=gSnap(o.width*o.scaleX); o.height=gSnap(o.height*o.scaleY);
-        o.scaleX=1; o.scaleY=1; o.setCoords();
-      }
-    });
-    canvas.on("object:modified", e=>{ const o=e.target; if(o && o.type==="rect") autosave(); });
-
-    // Double-clic = charger fiche
-    canvas.on("mouse:dblclick",(e)=>{
-      if(panMode) return;
-      const obj=canvas.findTarget(e.e,true);
-      if(obj && obj.type==="rect"){
-        canvas.setActiveObject(obj);
-        const m=rectMeta(obj);
-        $("title-input").value=m.title||"";
-        $("desc-input").value=m.description||"";
-        $("part-select").value=m.partId||"";
-      }
-    });
-
-    // Panneau
-    $("apply-meta").onclick=()=>{
-      const o=canvas.getActiveObject(); if(!o || o.type!=="rect"){ alert("Sélectionne une zone."); return; }
-      const m=rectMeta(o);
-      m.partId=$("part-select").value; m.title=$("title-input").value; m.description=$("desc-input").value;
-      highlightByPart($("part-select").value || "");
-      autosave();
-    };
-    $("center-view").onclick=()=>{
-      const o=canvas.getActiveObject(); if(!o) return;
-      const cx=o.left+o.width/2, cy=o.top+o.height/2;
-      canvas.absolutePan({x:cx-canvas.getWidth()/2, y:cy-canvas.getHeight()/2});
-    };
-
-    // Toolbar
-    $("btn-delete").onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==="rect"){ canvas.remove(o); autosave(); } };
-    $("btn-clear").onclick =()=>{ canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o)); autosave(); };
-    $("zoom").oninput     =(e)=> setZoom(Number(e.target.value)/100);
-    <button id="btn-select" title="Sélection de zone">Sélection</button>
-    // === Mode Sélection de zone ===
-let isSelectMode = false;
-
-// Active le mode Sélection
-$("#btn-select").on("click", () => {
-  isSelectMode = true;
-
-  // Empêche la sélection multiple Fabric et le redimensionnement quand on est en mode sélection
-  canvas.selection = false;
-  canvas.discardActiveObject();
-
-  // Les zones ne doivent pas être "attrapables" pour édition en mode sélection
-  canvas.getObjects().forEach(o => {
-    if (o.id !== "__BG__") {  // garde ton id de fond
-      o.selectable = false;
-      o.evented = true;       // mais on veut quand même recevoir le clic
-      o.hoverCursor = "pointer";
-    }
-  });
-
-  setActiveButton && setActiveButton("btn-select"); // si tu as déjà cette utilité
-  canvas.requestRenderAll();
-});
-
-// Clic sur une zone en mode Sélection => n'affiche que celle-ci + préremplit l'inventaire
-canvas.on("mouse:up", (e) => {
-  if (!isSelectMode) return;
-  const target = e.target;
-  if (!target) return;
-  if (target.id === "__BG__") return;
-
-  // Pâlir toutes les autres zones
-  canvas.getObjects().forEach(o => {
-    if (o.id === "__BG__") return;
-    o.opacity = (o === target) ? 1 : 0.15;   // option B : pâlir (si tu veux cacher: mets 0)
-  });
-  canvas.requestRenderAll();
-
-  // Récupérer l'id de pièce attaché à la zone (plusieurs possibilités selon ton modèle)
-  const pieceId =
-    target.pieceId ??
-    target.partId ??
-    (target.data && (target.data.pieceId || target.data.partId)) ??
-    target.customPieceId;
-
-  if (pieceId != null && typeof INVENTAIRE_QUINCY_310L !== "undefined") {
-    const p = INVENTAIRE_QUINCY_310L.find(x => String(x.id) === String(pieceId));
-    if (p) {
-      // Remplir le panneau d’info (adapte les ids si différents chez toi)
-      const t = document.getElementById("partTitle");
-      const d = document.getElementById("partDescription");
-      if (t) t.value = p.nom || p.name || "";
-      if (d) d.value = p.desc || p.description || "";
-
-      // Sélectionner l’item dans la liste inventaire si elle existe
-      const sel = document.getElementById("inventorySelect");
-      if (sel) sel.value = p.id;
-    }
-  }
-});
-
-// (Optionnel) Bouton "Afficher toutes les zones" si tu l'as déjà : on réinitialise l'opacité
-// Adapte l'id du bouton si le tien est différent.
-$("#btn-show-all").on("click", () => {
-  canvas.getObjects().forEach(o => {
-    if (o.id !== "__BG__") o.opacity = 1;
-  });
-  canvas.requestRenderAll();
-});
-
-
-
-    // Ajuster à l’écran selon mode courant
-    $("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg); canvas.requestRenderAll(); autosave(); };
-
-    // Basculer contain/cover
-    const toggleBtn = $("toggle-fit");
-    function refreshToggleLabel(){ if(toggleBtn){ toggleBtn.textContent = (FIT_MODE==='contain') ? 'Mode: Tout voir' : 'Mode: Remplir'; } }
-    toggleBtn.addEventListener('click', ()=>{
-      FIT_MODE = (FIT_MODE==='contain') ? 'cover' : 'contain';
-      refreshToggleLabel();
-      const bg=canvas.getObjects().find(o=>o.id==='__BG__');
-      if(bg){ fitBackgroundImage(bg); canvas.requestRenderAll(); autosave(); }
-    });
-    refreshToggleLabel();
-
-    // Capture PNG
-    $("btn-screenshot").onclick=()=>{
-      canvas.discardActiveObject(); canvas.requestRenderAll();
-      const data=canvas.toDataURL({format:"png"});
-      const a=document.createElement("a"); a.href=data; a.download="hotspots_capture.png"; a.click();
-    };
-
-    // ---------- Export / Import JSON ----------
-    function exportJSON(){
-      const bg=canvas.getObjects().find(o=>o.id==="__BG__");
-      const rects=canvas.getObjects().filter(o=>o.type==="rect");
-      const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
-      const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
+    function toNormalized(obj) {
+      // Sauvegarde normalisée 0..1 (zone relative au fond)
+      const bg = bgImgRef;
+      const w = bg ? bg.getScaledWidth() : canvas.getWidth();
+      const h = bg ? bg.getScaledHeight() : canvas.getHeight();
+      const bx = bg ? bg.left : 0;
+      const by = bg ? bg.top  : 0;
+      const r = obj.getBoundingRect(true, true);
       return {
-        image:BG_URL,
-        canvas_size:{w:canvas.getWidth(),h:canvas.getHeight()},
-        base_size:{w:ow,h:oh},
-        items: rects.map((r,i)=>({
-          id:`zone_${i+1}`,
-          x:r.left/ow, y:r.top/oh, w:r.width/ow, h:r.height/oh,
-          meta:rectMeta(r)
-        }))
+        type: 'rect',
+        x: (r.left - bx) / w,
+        y: (r.top  - by) / h,
+        w: r.width / w,
+        h: r.height / h,
+        pieceId: obj.pieceId ?? null,
+        title: obj.title ?? '',
+        desc: obj.desc ?? ''
       };
     }
-    // import robuste (ancien px OU normalisé 0..1)
-    function importJSON(data){
-      const bg  = canvas.getObjects().find(o => o.id === "__BG__");
-      const ow  = bg ? bg.width  * bg.scaleX : canvas.getWidth();
-      const oh  = bg ? bg.height * bg.scaleY : canvas.getHeight();
 
-      let items = data?.items || data?.zones || data;
-      if (!Array.isArray(items)) { alert("JSON non reconnu (pas de 'items')."); return; }
+    function fromNormalized(z) {
+      const bg = bgImgRef;
+      const w = bg.getScaledWidth();
+      const h = bg.getScaledHeight();
+      const bx = bg.left;
+      const by = bg.top;
+      const left = bx + z.x * w;
+      const top  = by + z.y * h;
+      const width  = z.w * w;
+      const height = z.h * h;
 
-      // efface zones actuelles
-      canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o));
-
-      items.forEach((it)=>{
-        let x = it.x ?? it.left ?? it.l ?? 0;
-        let y = it.y ?? it.top  ?? it.t ?? 0;
-        let w = it.w ?? it.width  ?? it.wd ?? 0;
-        let h = it.h ?? it.height ?? it.ht ?? 0;
-        const looksAbs = (x>1 || y>1 || w>1 || h>1);
-        if (!looksAbs) { x*=ow; y*=oh; w*=ow; h*=oh; }
-
-        const r=new fabric.Rect({
-          left:x, top:y, width:w, height:h,
-          fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2,
-          selectable:true, hasControls:true, hasBorders:true
-        });
-        r.data = it.meta || { partId: it.partId || "", title: it.title || "", description: it.description || it.desc || "" };
-        canvas.add(r);
+      const rect = new fabric.Rect({
+        left, top, width, height,
+        fill: 'rgba(0, 255, 0, 0.15)',
+        stroke: 'rgba(0,255,0,0.9)',
+        strokeWidth: 2,
+        rx: 6, ry: 6,
+        selectable: isMoveMode,
+        hasControls: true
       });
-
-      canvas.requestRenderAll();
-      autosave();
+      rect.pieceId = z.pieceId ?? null;
+      rect.title = z.title ?? '';
+      rect.desc = z.desc ?? '';
+      canvas.add(rect);
+      canvas.bringToFront(rect);
+      return rect;
     }
 
-    $("btn-save").onclick=()=>{
-      const data=exportJSON();
-      const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-      const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob);
-      a.download="hotspots_export.json";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-    $("file-load").onchange=(ev)=>{
-      const f=ev.target.files[0]; if(!f) return;
-      f.text().then(txt=>{
-        try{ importJSON(JSON.parse(txt)); }
-        catch(e){ alert("JSON invalide : "+e.message); }
-      });
-    };
+    function save() {
+      const zones = canvas.getObjects().filter(o => o !== bgImgRef).map(toNormalized);
+      const payload = { fit: FIT_MODE, zones };
+      localStorage.setItem(LS_KEY, JSON.stringify(payload));
+    }
 
-    // ---------- Autosave ----------
-    function autosave(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(exportJSON())); }catch{} }
-    function loadAutosave(){
-      try{
+    function loadSaved() {
+      try {
         const raw = localStorage.getItem(LS_KEY);
-        if(!raw) return;
+        if (!raw) return;
         const data = JSON.parse(raw);
-        if(data?.image && data.image !== BG_URL) return; // ignore si image changée
-        importJSON(data);
-      }catch{}
+        if (data.fit) FIT_MODE = data.fit;
+        (data.zones || []).forEach(fromNormalized);
+        refreshToggleLabel();
+      } catch(e){ console.warn('No saved layout', e); }
     }
 
-    // ---------- Démarrage / Resize ----------
-    loadBackground();
-    window.addEventListener("resize", ()=>{
-      const bg=canvas.getObjects().find(o=>o.id==="__BG__");
-      if(!bg) return;
-      fitBackgroundImage(bg); canvas.requestRenderAll();
-    }, {passive:true});
+    function exportJSON() {
+      const zones = canvas.getObjects().filter(o => o !== bgImgRef).map(toNormalized);
+      const blob = new Blob([JSON.stringify({ fit: FIT_MODE, zones }, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'quincy_310L_layout.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
 
-    // ---------- Masquer "Arrêter le serveur" hors local ----------
-    const ON_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-    const stopBtn = $("stopServerBtn");
-    if (stopBtn && !ON_LOCAL) stopBtn.style.display = "none";
-  })();
+    function importJSON(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          // reset zones
+          canvas.getObjects().slice().forEach(o => { if (o !== bgImgRef) canvas.remove(o); });
+          // compat: pixels anciens => détecter si valeurs > 1
+          if (Array.isArray(data)) {
+            // ancien format: tableau simple
+            (data || []).forEach(z => {
+              // supposer pixels → normaliser contre le fond actuel
+              const w = bgImgRef.getScaledWidth();
+              const h = bgImgRef.getScaledHeight();
+              const bx = bgImgRef.left, by = bgImgRef.top;
+              const norm = {
+                type:'rect',
+                x: (z.x - bx)/w, y:(z.y - by)/h, w: z.w/w, h: z.h/h,
+                pieceId: z.pieceId ?? null, title: z.title ?? '', desc: z.desc ?? ''
+              };
+              fromNormalized(norm);
+            });
+          } else {
+            // nouveau format {fit, zones}
+            FIT_MODE = data.fit || 'contain';
+            (data.zones || []).forEach(fromNormalized);
+          }
+          refreshToggleLabel();
+          canvas.requestRenderAll();
+          save();
+        } catch(e){
+          alert('Fichier JSON invalide.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ================== BACKGROUND ==================
+    function fitBackgroundImage(img, keepZoom=false) {
+      if (!img) return;
+      const cw = canvas.getWidth(), ch = canvas.getHeight();
+      const iw = img.width, ih = img.height;
+      const scale = (FIT_MODE === 'contain')
+        ? Math.min(cw / iw, ch / ih)
+        : Math.max(cw / iw, ch / ih);
+      img.scale(scale);
+      img.set({
+        left: (cw - iw * scale) / 2,
+        top : (ch - ih * scale) / 2,
+        selectable: false,
+        evented: false
+      });
+      if (!keepZoom) {
+        zoomLevel = 1;
+        canvas.setZoom(1);
+        canvas.requestRenderAll();
+        document.getElementById('zoom').value = 100;
+      }
+    }
+
+    function refreshToggleLabel(){
+      const e = document.getElementById('toggle-fit');
+      e.innerHTML = `Mode: <strong>${FIT_MODE === 'contain' ? 'Tout voir' : 'Remplir'}</strong>`;
+    }
+
+    function loadBackground() {
+      fabric.Image.fromURL('actif/compresseur_bg.png', (img) => {
+        img.set({ id: '__BG__' });
+        bgImgRef = img;
+        canvas.add(img);
+        canvas.sendToBack(img);
+        fitBackgroundImage(img);
+        loadSaved(); // charger zones après l’image
+      }, { crossOrigin: 'anonymous' });
+    }
+
+    // ================== INVENTAIRE ==================
+    let INVENTAIRE_QUINCY_310L = [];
+    async function loadInventory() {
+      try {
+        const res = await fetch('./quincy_310L_parts.json', { cache: 'no-store' });
+        INVENTAIRE_QUINCY_310L = await res.json();
+        const sel = document.getElementById('inventorySelect');
+        sel.innerHTML = '<option value="">— Sélectionne une pièce —</option>' +
+          INVENTAIRE_QUINCY_310L.map(p=>`<option value="${p.id}">${p.code ? '['+p.code+'] ' : ''}${p.nom || p.name}</option>`).join('');
+      } catch(e){
+        console.warn('Inventaire non chargé', e);
+      }
+    }
+
+    function applyPanelTo(obj) {
+      if (!obj) return;
+      const id = document.getElementById('inventorySelect').value;
+      const title = document.getElementById('partTitle').value || '';
+      const desc  = document.getElementById('partDescription').value || '';
+      obj.pieceId = id ? Number(id) : null;
+      obj.title = title;
+      obj.desc = desc;
+      save();
+      canvas.requestRenderAll();
+    }
+
+    // ================== MODES & INTERACTIONS ==================
+    function setMode({draw=false, move=false, pan=false, select=false}) {
+      isDrawing = draw;
+      isMoveMode = move;
+      isPanMode = pan;
+      isSelectMode = select;
+
+      // Sélectabilité des zones
+      canvas.getObjects().forEach(o => {
+        if (o === bgImgRef) return;
+        o.selectable = isMoveMode;
+        o.evented = !isMoveMode || isSelectMode || isPanMode;
+      });
+
+      // Curseur
+      canvas.defaultCursor = isPanMode ? 'grab' : 'default';
+      canvas.hoverCursor = isSelectMode ? 'pointer' : 'move';
+    }
+
+    // Dessin de rectangles
+    canvas.on('mouse:down', (opt) => {
+      if (isPanMode) {
+        canvas.defaultCursor = 'grabbing';
+        canvas.isDragging = true;
+        canvas.lastPosX = opt.e.clientX;
+        canvas.lastPosY = opt.e.clientY;
+        return;
+      }
+      if (!isDrawing) return;
+
+      const p = canvas.getPointer(opt.e);
+      startPoint = p;
+      drawingRect = new fabric.Rect({
+        left: p.x, top: p.y, width: 1, height: 1,
+        fill:'rgba(0,255,0,0.15)', stroke:'rgba(0,255,0,0.9)', strokeWidth:2,
+        rx:6, ry:6, selectable:false
+      });
+      canvas.add(drawingRect);
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (canvas.isDragging && isPanMode) {
+        const e = opt.e;
+        const v = new fabric.Point(e.clientX - canvas.lastPosX, e.clientY - canvas.lastPosY);
+        canvas.relativePan(v);
+        canvas.lastPosX = e.clientX; canvas.lastPosY = e.clientY;
+        return;
+      }
+
+      if (!isDrawing || !drawingRect || !startPoint) return;
+      const p = canvas.getPointer(opt.e);
+      const left = Math.min(p.x, startPoint.x);
+      const top  = Math.min(p.y, startPoint.y);
+      let w = Math.abs(p.x - startPoint.x);
+      let h = Math.abs(p.y - startPoint.y);
+
+      // magnétisme
+      if (gridSize > 0) {
+        const snap = (v) => Math.round(v / gridSize) * gridSize;
+        w = Math.max(1, snap(w));
+        h = Math.max(1, snap(h));
+      }
+      drawingRect.set({ left, top, width:w, height:h });
+      canvas.requestRenderAll();
+    });
+
+    canvas.on('mouse:up', () => {
+      canvas.defaultCursor = isPanMode ? 'grab' : 'default';
+      canvas.isDragging = false;
+
+      if (!isDrawing || !drawingRect) return;
+      // une fois dessiné → on passe en move mode pour cette zone
+      drawingRect.selectable = true;
+      drawingRect = null;
+      startPoint = null;
+      save();
+    });
+
+    // Click sélection pédagogique
+    canvas.on('mouse:up', (e) => {
+      if (!isSelectMode) return;
+      const target = e.target;
+      if (!target || target === bgImgRef) return;
+
+      // Pâlir les autres zones
+      canvas.getObjects().forEach(o => {
+        if (o === bgImgRef) return;
+        o.opacity = (o === target) ? 1 : 0.15;
+      });
+      canvas.requestRenderAll();
+
+      // Remplir panneau depuis pieceId
+      const pieceId =
+        target.pieceId ??
+        target.partId ??
+        (target.data && (target.data.pieceId || target.data.partId)) ??
+        target.customPieceId;
+
+      if (pieceId != null && INVENTAIRE_QUINCY_310L.length) {
+        const p = INVENTAIRE_QUINCY_310L.find(x => String(x.id) === String(pieceId));
+        if (p) {
+          const t = document.getElementById('partTitle');
+          const d = document.getElementById('partDescription');
+          const s = document.getElementById('inventorySelect');
+          if (t) t.value = p.nom || p.name || '';
+          if (d) d.value = p.desc || p.description || '';
+          if (s) s.value = p.id;
+        }
+      } else {
+        // sinon, mettre les données déjà stockées
+        document.getElementById('partTitle').value = target.title || '';
+        document.getElementById('partDescription').value = target.desc || '';
+      }
+    });
+
+    // Pinch-zoom mobile
+    let lastDistance = 0;
+    canvas.upperCanvasEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) lastDistance = getTouchDist(e);
+    }, {passive:false});
+    canvas.upperCanvasEl.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const d = getTouchDist(e);
+        if (lastDistance) {
+          const delta = d - lastDistance;
+          const factor = 1 + (delta / 300);
+          const newZoom = clamp(canvas.getZoom() * factor, 0.25, 3);
+          canvas.zoomToPoint({ x: e.touches[0].clientX, y: e.touches[0].clientY }, newZoom);
+          document.getElementById('zoom').value = Math.round(newZoom * 100);
+        }
+        lastDistance = d;
+      }
+    }, {passive:false});
+    function getTouchDist(e){ const [a,b] = e.touches; const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.hypot(dx,dy); }
+
+    // Molette zoom desktop
+    canvas.on('mouse:wheel', (opt) => {
+      const delta = -opt.e.deltaY;
+      const zoom = clamp(canvas.getZoom() * (1 + delta/1000), 0.25, 3);
+      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+      document.getElementById('zoom').value = Math.round(zoom*100);
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+    });
+
+    // ================== UI HOOKS ==================
+    document.getElementById('btn-draw').addEventListener('click', () => {
+      setMode({draw:true});
+      setActiveButton('btn-draw');
+    });
+
+    document.getElementById('btn-move').addEventListener('click', () => {
+      setMode({move:true});
+      setActiveButton('btn-move');
+    });
+
+    document.getElementById('btn-pan').addEventListener('click', () => {
+      setMode({pan:true});
+      setActiveButton('btn-pan');
+    });
+
+    document.getElementById('btn-select').addEventListener('click', () => {
+      setMode({select:true});
+      setActiveButton('btn-select');
+    });
+
+    document.getElementById('btn-delete').addEventListener('click', () => {
+      const o = canvas.getActiveObject();
+      if (o && o !== bgImgRef) { canvas.remove(o); save(); }
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (!confirm('Effacer toutes les zones ?')) return;
+      canvas.getObjects().slice().forEach(o => { if (o !== bgImgRef) canvas.remove(o); });
+      save();
+    });
+
+    document.getElementById('zoom').addEventListener('input', (e) => {
+      const z = clamp(Number(e.target.value)/100, 0.25, 3);
+      canvas.setZoom(z);
+      canvas.requestRenderAll();
+    });
+
+    document.getElementById('gridSlider').addEventListener('input', (e) => {
+      gridSize = Number(e.target.value)||0;
+      document.getElementById('gridVal').textContent = gridSize;
+    });
+
+    document.getElementById('toggle-fit').addEventListener('click', () => {
+      FIT_MODE = (FIT_MODE === 'contain') ? 'cover' : 'contain';
+      refreshToggleLabel();
+      if (bgImgRef) fitBackgroundImage(bgImgRef);
+      save();
+    });
+
+    document.getElementById('btn-fit').addEventListener('click', () => {
+      if (bgImgRef) fitBackgroundImage(bgImgRef);
+      canvas.requestRenderAll();
+    });
+
+    document.getElementById('btn-export').addEventListener('click', exportJSON);
+
+    document.getElementById('fileImport').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      importJSON(f);
+      e.target.value = '';
+    });
+
+    document.getElementById('btn-screenshot').addEventListener('click', () => {
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      const url = canvas.toDataURL({format:'png', quality:1});
+      const a = document.createElement('a');
+      a.href = url; a.download = 'quincy_310L.png';
+      a.click();
+    });
+
+    document.getElementById('btn-apply').addEventListener('click', () => {
+      const o = canvas.getActiveObject();
+      if (!o || o === bgImgRef) { alert('Sélectionne une zone.'); return; }
+      applyPanelTo(o);
+    });
+
+    document.getElementById('btn-center').addEventListener('click', () => {
+      const o = canvas.getActiveObject();
+      if (!o || o === bgImgRef) return;
+      canvas.setViewportTransform([1,0,0,1,0,0]); // reset pan/zoom
+      canvas.centerObject(o);
+      canvas.setActiveObject(o);
+      canvas.requestRenderAll();
+    });
+
+    document.getElementById('btn-show-all').addEventListener('click', () => {
+      canvas.getObjects().forEach(o => { if (o !== bgImgRef) o.opacity = 1; });
+      canvas.requestRenderAll();
+    });
+
+    // Cacher le bouton "Arrêter le serveur" en ligne, l’afficher en local
+    (function(){
+      const b = document.getElementById('btn-stop-server');
+      const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
+      if (isLocal) b.classList.remove('hidden'); else b.classList.add('hidden');
+    })();
+
+    // ================== BOOT ==================
+    resizeCanvasToStage();
+    loadBackground();
+    loadInventory();
+    setMode({draw:false, move:true});  // par défaut : déplacer/redim
+    setActiveButton('btn-move');
+
+    // Sauvegarde périodique (secours)
+    setInterval(save, 5000);
   </script>
 </body>
 </html>
+
+
 
