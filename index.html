@@ -128,6 +128,44 @@
     selection: true,
     preserveObjectStacking: true,
   });
+// --- PANORAMIQUE (déplacer la vue) ---
+// Raccourcis : maintenir Espace OU bouton milieu/droit de la souris et glisser
+let isPanning = false;
+let spaceDown = false;
+
+// éviter le menu contextuel si on pan avec clic droit
+document.getElementById('canvasCard')
+  .addEventListener('contextmenu', e => e.preventDefault());
+
+// Espace enfoncé = mode pan
+window.addEventListener('keydown', (e)=>{ if (e.code === 'Space') spaceDown = true; });
+window.addEventListener('keyup',   (e)=>{ if (e.code === 'Space') spaceDown = false; });
+
+canvas.on('mouse:down', (opt) => {
+  const e = opt.e;
+  // bouton 1 = gauche, 2 = milieu, 3 = droit
+  const wantPan = spaceDown || e.button === 1 || e.button === 2;
+  if (wantPan) {
+    isPanning = true;
+    canvas.setCursor('grabbing');
+    canvas.requestRenderAll();
+  }
+});
+
+canvas.on('mouse:move', (opt) => {
+  if (!isPanning) return;
+  const e = opt.e;
+  // déplacement relatif fourni par le navigateur
+  const dx = e.movementX || 0;
+  const dy = e.movementY || 0;
+  canvas.relativePan(new fabric.Point(dx, dy));
+});
+
+canvas.on('mouse:up', () => {
+  if (!isPanning) return;
+  isPanning = false;
+  canvas.setCursor('default');
+});
 
   let zoom = 1;
   function setZoom(z){ zoom=z; canvas.setZoom(z); canvas.requestRenderAll(); }
@@ -310,6 +348,7 @@
 
 </body>
 </html>
+
 
 
 
