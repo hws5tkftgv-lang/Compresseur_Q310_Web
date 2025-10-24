@@ -354,6 +354,78 @@
     $("btn-delete").onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==="rect"){ canvas.remove(o); autosave(); } };
     $("btn-clear").onclick =()=>{ canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o)); autosave(); };
     $("zoom").oninput     =(e)=> setZoom(Number(e.target.value)/100);
+    <button id="btn-select" title="Sélection de zone">Sélection</button>
+    // === Mode Sélection de zone ===
+let isSelectMode = false;
+
+// Active le mode Sélection
+$("#btn-select").on("click", () => {
+  isSelectMode = true;
+
+  // Empêche la sélection multiple Fabric et le redimensionnement quand on est en mode sélection
+  canvas.selection = false;
+  canvas.discardActiveObject();
+
+  // Les zones ne doivent pas être "attrapables" pour édition en mode sélection
+  canvas.getObjects().forEach(o => {
+    if (o.id !== "__BG__") {  // garde ton id de fond
+      o.selectable = false;
+      o.evented = true;       // mais on veut quand même recevoir le clic
+      o.hoverCursor = "pointer";
+    }
+  });
+
+  setActiveButton && setActiveButton("btn-select"); // si tu as déjà cette utilité
+  canvas.requestRenderAll();
+});
+
+// Clic sur une zone en mode Sélection => n'affiche que celle-ci + préremplit l'inventaire
+canvas.on("mouse:up", (e) => {
+  if (!isSelectMode) return;
+  const target = e.target;
+  if (!target) return;
+  if (target.id === "__BG__") return;
+
+  // Pâlir toutes les autres zones
+  canvas.getObjects().forEach(o => {
+    if (o.id === "__BG__") return;
+    o.opacity = (o === target) ? 1 : 0.15;   // option B : pâlir (si tu veux cacher: mets 0)
+  });
+  canvas.requestRenderAll();
+
+  // Récupérer l'id de pièce attaché à la zone (plusieurs possibilités selon ton modèle)
+  const pieceId =
+    target.pieceId ??
+    target.partId ??
+    (target.data && (target.data.pieceId || target.data.partId)) ??
+    target.customPieceId;
+
+  if (pieceId != null && typeof INVENTAIRE_QUINCY_310L !== "undefined") {
+    const p = INVENTAIRE_QUINCY_310L.find(x => String(x.id) === String(pieceId));
+    if (p) {
+      // Remplir le panneau d’info (adapte les ids si différents chez toi)
+      const t = document.getElementById("partTitle");
+      const d = document.getElementById("partDescription");
+      if (t) t.value = p.nom || p.name || "";
+      if (d) d.value = p.desc || p.description || "";
+
+      // Sélectionner l’item dans la liste inventaire si elle existe
+      const sel = document.getElementById("inventorySelect");
+      if (sel) sel.value = p.id;
+    }
+  }
+});
+
+// (Optionnel) Bouton "Afficher toutes les zones" si tu l'as déjà : on réinitialise l'opacité
+// Adapte l'id du bouton si le tien est différent.
+$("#btn-show-all").on("click", () => {
+  canvas.getObjects().forEach(o => {
+    if (o.id !== "__BG__") o.opacity = 1;
+  });
+  canvas.requestRenderAll();
+});
+
+
 
     // Ajuster à l’écran selon mode courant
     $("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg); canvas.requestRenderAll(); autosave(); };
@@ -471,3 +543,4 @@
   </script>
 </body>
 </html>
+
