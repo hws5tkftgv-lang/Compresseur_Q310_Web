@@ -131,25 +131,33 @@
 
   function applyBackground() {
     console.log("[DEBUG] Chargement image:", BG_URL);
-    fabric.Image.fromURL(
-      BG_URL,
-      function(img) {
-        try {
-          const cw = canvas.getWidth(), ch = canvas.getHeight();
-          const sc = Math.min(cw / img.width, ch / img.height);
-          img.set({ left: 0, top: 0, selectable: false, evented: false });
-          img.scale(sc);
-          img.set('id', '__BG__');
-          canvas.add(img);
-          img.sendToBack();
-          canvas.requestRenderAll();
-          console.log("[DEBUG] Image appliquée.");
-          loadAutosave && loadAutosave();
-        } catch (e) {
-          console.error("[DEBUG] Erreur application image:", e);
-        }
-      },
-      { crossOrigin: 'anonymous' }
+   fabric.Image.fromURL(BG_URL, (img) => {
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+
+  // Calcul du scale optimal
+  const scale = Math.min(cw / img.width, ch / img.height);
+
+  img.set({
+    left: (cw - img.width * scale) / 2,  // Centre horizontalement
+    top: (ch - img.height * scale) / 2,  // Centre verticalement
+    selectable: false,
+    evented: false
+  });
+
+  img.scale(scale);
+  img.set('id','__BG__');
+
+  canvas.add(img);
+  img.sendToBack();
+  canvas.requestRenderAll();
+
+  // Recharge les zones si existantes
+  typeof loadAutosave === 'function' && loadAutosave();
+}, {
+  crossOrigin: 'anonymous'
+});
+
     );
   }
 
@@ -371,6 +379,7 @@ if (stopBtn && !ON_LOCAL) {
 
 </body>
 </html>
+
 
 
 
