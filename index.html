@@ -115,6 +115,8 @@
 
   <!-- =================== LOGIQUE =================== -->
   <script>
+    let FIT_MODE = "contain"; // "contain" = tout visible, "cover" = remplit
+
   (function () {
     const el = (id) => document.getElementById(id);
 
@@ -134,7 +136,7 @@
     function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
 
     // ---------- Image de fond (COVER) ----------
-    function fitBackgroundImage(img, mode = "contain") {
+    function fitBackgroundImage(img, mode = "FIT_MODE") {
       const cw = canvas.getWidth(), ch = canvas.getHeight();
       const scale = (mode === "cover")
         ? Math.max(cw / img.width, ch / img.height)   // remplit le cadre
@@ -148,7 +150,7 @@
     function loadBackground() {
       canvas.getObjects().filter(o => o.id === "__BG__").forEach(o => canvas.remove(o));
       fabric.Image.fromURL(BG_URL, (img) => {
-        fitBackgroundImage(img, "contain");
+        fitBackgroundImage(img, "FIT_MODE");
         canvas.add(img); img.sendToBack();
         canvas.requestRenderAll();
         loadAutosave();
@@ -328,6 +330,7 @@
   </script>
 </body>
 </html>
+
 
 
 
