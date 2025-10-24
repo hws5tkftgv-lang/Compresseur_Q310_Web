@@ -148,7 +148,7 @@
     function loadBackground() {
       canvas.getObjects().filter(o => o.id === "__BG__").forEach(o => canvas.remove(o));
       fabric.Image.fromURL(BG_URL, (img) => {
-        fitBackgroundImage(img, "cover");
+        fitBackgroundImage(img, "contain");
         canvas.add(img); img.sendToBack();
         canvas.requestRenderAll();
         loadAutosave();
@@ -327,5 +327,6 @@
   </script>
 </body>
 </html>
+
 
 
