@@ -322,23 +322,51 @@ canvas.on('mouse:up', () => {
       items: rects.map((r,i)=>({ id:`zone_${i+1}`, x:r.left/ow, y:r.top/oh, w:r.width/ow, h:r.height/oh, meta:rectMeta(r) })) };
   }
   function importJSON(data){
-    canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o));
-    const bg=canvas.getObjects().find(o=>o.id==="__BG__");
-    const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
-    const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
-    (data.items||[]).forEach(it=>{
-      const r=new fabric.Rect({ left:it.x*ow, top:it.y*oh, width:it.w*ow, height:it.h*oh,
-        fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2, selectable:true, hasControls:true, hasBorders:true });
-      r.data=it.meta||{partId:"",title:"",description:""}; canvas.add(r);
-    });
-    canvas.requestRenderAll();
-  }
-  el("btn-save").onclick=()=>{ const data=exportJSON(); const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="hotspots_export.json"; a.click(); URL.revokeObjectURL(a.href); };
-  el("file-load").onchange=(ev)=>{ const f=ev.target.files[0]; if(!f) return; f.text().then(txt=>{ try{ importJSON(JSON.parse(txt)); autosave(); }catch{ alert("JSON invalide"); } }); };
+  // 1) Récupère la taille de base (fond si présent, sinon le canvas)
+  const bg  = canvas.getObjects().find(o => o.id === "__BG__");
+  const ow  = bg ? bg.width  * bg.scaleX : canvas.getWidth();
+  const oh  = bg ? bg.height * bg.scaleY : canvas.getHeight();
 
-  const LS_KEY="hotspots_pro_autosave_v1";
-  function autosave(){ const data=exportJSON(); localStorage.setItem(LS_KEY, JSON.stringify(data)); }
-  function loadAutosave(){ const raw=localStorage.getItem(LS_KEY); if(!raw) return; try{ importJSON(JSON.parse(raw)); }catch{} }
+  // 2) Accepte plusieurs structures: {items:[...]} ou bien un tableau direct
+  let items = data?.items || data?.zones || data;
+  if (!Array.isArray(items)) {
+    alert("JSON non reconnu (champ 'items' introuvable).");
+    return;
+  }
+
+  // 3) Nettoie les rectangles existants
+  canvas.getObjects().filter(o => o.type === "rect").forEach(o => canvas.remove(o));
+
+  // 4) Recrée les zones en tolérant anciens/ nouveaux noms et px/normalisé
+  items.forEach((it, i) => {
+    let x = it.x ?? it.left ?? it.l ?? 0;
+    let y = it.y ?? it.top  ?? it.t ?? 0;
+    let w = it.w ?? it.width  ?? it.wd ?? 0;
+    let h = it.h ?? it.height ?? it.ht ?? 0;
+
+    // Si une des valeurs dépasse 1, on considère que c'est en pixels
+    const looksAbsolute = (x > 1 || y > 1 || w > 1 || h > 1);
+    if (!looksAbsolute) { x *= ow; y *= oh; w *= ow; h *= oh; }
+
+    const r = new fabric.Rect({
+      left: x, top: y, width: w, height: h,
+      fill: "rgba(255,0,0,0.22)", stroke: "#ff4d4d", strokeWidth: 2,
+      selectable: true, hasControls: true, hasBorders: true
+    });
+
+    // Métadonnées: accepte meta ou champs à plat
+    r.data = it.meta || {
+      partId: it.partId || "",
+      title:  it.title  || "",
+      description: it.description || it.desc || ""
+    };
+
+    canvas.add(r);
+  });
+
+  canvas.requestRenderAll();
+  autosave();
+}
 
   // Premier chargement + refit au resize
   loadBackground();
@@ -348,6 +376,7 @@ canvas.on('mouse:up', () => {
 
 </body>
 </html>
+
 
 
 
