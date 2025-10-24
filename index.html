@@ -326,6 +326,7 @@ canvas.on('mouse:up', () => {
   const bg  = canvas.getObjects().find(o => o.id === "__BG__");
   const ow  = bg ? bg.width  * bg.scaleX : canvas.getWidth();
   const oh  = bg ? bg.height * bg.scaleY : canvas.getHeight();
+  }
 
   // 2) Accepte plusieurs structures: {items:[...]} ou bien un tableau direct
   let items = data?.items || data?.zones || data;
@@ -376,6 +377,7 @@ canvas.on('mouse:up', () => {
 
 </body>
 </html>
+
 
 
 
