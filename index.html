@@ -244,7 +244,7 @@
 
     // Ajuster à l’écran = recalcul COVER
     el("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"contain"); canvas.requestRenderAll(); };
-    <button id="toggle-fit" class="btn">Mode: Tout voir</button>
+  
 
     el("btn-screenshot").onclick=()=>{ canvas.discardActiveObject(); canvas.requestRenderAll(); const data=canvas.toDataURL({format:"png"}); const a=document.createElement("a"); a.href=data; a.download="hotspots_capture.png"; a.click(); };
 
@@ -329,6 +329,7 @@
   </script>
 </body>
 </html>
+
 
 
 
