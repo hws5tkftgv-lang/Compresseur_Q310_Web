@@ -126,13 +126,37 @@
     const BG_URL = "assets/compresseur_bg.png";   // <- ton image confirmée
     const SNAP = 8;
 
-    // Fabric
-    const canvas = new fabric.Canvas('c', { backgroundColor:'#0a1330', selection:true, preserveObjectStacking:true });
-    let zoom = 1;
+   <script>
+  const BG_URL = "actif/compresseur_bg.png"; // garde ce chemin
 
-    function setZoom(z){ zoom=z; canvas.setZoom(z); canvas.requestRenderAll(); }
-    function gSnap(v){ return el('snap').checked ? Math.round(v/SNAP)*SNAP : v; }
-    function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
+  function applyBackground() {
+    console.log("[DEBUG] Chargement image:", BG_URL);
+    fabric.Image.fromURL(
+      BG_URL,
+      function(img) {
+        try {
+          const cw = canvas.getWidth(), ch = canvas.getHeight();
+          const sc = Math.min(cw / img.width, ch / img.height);
+          img.set({ left: 0, top: 0, selectable: false, evented: false });
+          img.scale(sc);
+          img.set('id', '__BG__');
+          canvas.add(img);
+          img.sendToBack();
+          canvas.requestRenderAll();
+          console.log("[DEBUG] Image appliquée.");
+          loadAutosave && loadAutosave();
+        } catch (e) {
+          console.error("[DEBUG] Erreur application image:", e);
+        }
+      },
+      { crossOrigin: 'anonymous' }
+    );
+  }
+
+  // Appelle cette fonction là où tu créais déjà le canvas
+  // (après: const canvas = new fabric.Canvas('c', {...}))
+  applyBackground();
+</script>
 
     // Charger l’inventaire
     let INVENTORY = [];
@@ -347,5 +371,6 @@ if (stopBtn && !ON_LOCAL) {
 
 </body>
 </html>
+
 
 
