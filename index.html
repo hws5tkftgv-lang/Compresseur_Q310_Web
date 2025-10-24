@@ -170,15 +170,21 @@ refreshToggleLabel();
 }
 
 function loadBackground() {
-  // retire l’ancien fond s’il existe
-  canvas.getObjects().filter(o => o.id === "__BG__").forEach(o => canvas.remove(o));
+  // 1) Supprimer TOUTE image de fond précédente (même si l'id n'avait pas été mis)
+  canvas.getObjects('image').forEach(o => {
+    if (o.id === '__BG__' || o._isBG === true) canvas.remove(o);
+  });
+
+  // 2) Charger l'unique image
   fabric.Image.fromURL(BG_URL, (img) => {
-   
+    img._isBG = true;                      // marqueur au cas où
+    img.set({ id: '__BG__', selectable: false, evented: false });
+    fitBackgroundImage(img, FIT_MODE);
     canvas.add(img);
     img.sendToBack();
     canvas.requestRenderAll();
-    if (typeof loadAutosave === "function") loadAutosave();
-  }, { crossOrigin: "anonymous" });
+    if (typeof loadAutosave === 'function') loadAutosave();
+  }, { crossOrigin: 'anonymous' });
 }
 
 // au démarrage
@@ -375,6 +381,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
   </script>
 </body>
 </html>
+
 
 
 
