@@ -134,27 +134,58 @@
     function gSnap(v){ return el("snap").checked ? Math.round(v/SNAP)*SNAP : v; }
     function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
 
-    // ---------- Image de fond (COVER) ----------
-    function fitBackgroundImage(img, mode = "contain") {
-      const cw = canvas.getWidth(), ch = canvas.getHeight();
-      const scale = (mode === "cover")
-        ? Math.max(cw / img.width, ch / img.height)   // remplit le cadre
-        : Math.min(cw / img.width, ch / img.height);  // tout visible
-      const w = img.width * scale, h = img.height * scale;
-      img.set({ left: (cw - w)/2, top: (ch - h)/2, selectable: false, evented: false });
-      img.scale(scale);
-      img.set("id", "__BG__");
-    }
+  // ======= BACKGROUND – version sûre =======
+const BG_URL = "actif/compresseur_bg.png";
+let FIT_MODE = "contain"; // "contain" = tout voir, "cover" = remplir
 
-    function loadBackground() {
-      canvas.getObjects().filter(o => o.id === "__BG__").forEach(o => canvas.remove(o));
-      fabric.Image.fromURL(BG_URL, (img) => {
-        fitBackgroundImage(img, "contain");
-        canvas.add(img); img.sendToBack();
-        canvas.requestRenderAll();
-        loadAutosave();
-      }, { crossOrigin: "anonymous" });
-    }
+function fitBackgroundImage(img, mode = FIT_MODE) {
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+  const scale = (mode === "cover")
+    ? Math.max(cw / img.width, ch / img.height)
+    : Math.min(cw / img.width, ch / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  img.set({
+    left: (cw - w) / 2,
+    top:  (ch - h) / 2,
+    selectable: false,
+    evented: false,
+  });
+  img.scale(scale);
+  img.set("id", "__BG__");
+}
+
+function loadBackground() {
+  // retire l’ancien fond s’il existe
+  canvas.getObjects().filter(o => o.id === "__BG__").forEach(o => canvas.remove(o));
+  fabric.Image.fromURL(BG_URL, (img) => {
+    fitBackgroundImage(img, FIT_MODE);
+    canvas.add(img);
+    img.sendToBack();
+    canvas.requestRenderAll();
+    if (typeof loadAutosave === "function") loadAutosave();
+  }, { crossOrigin: "anonymous" });
+}
+
+// au démarrage
+loadBackground();
+
+// se réadapte au redimensionnement
+window.addEventListener("resize", () => {
+  const bg = canvas.getObjects().find(o => o.id === "__BG__");
+  if (!bg) return;
+  fitBackgroundImage(bg, FIT_MODE);
+  canvas.requestRenderAll();
+});
+
+// bouton "Ajuster à l’écran" réapplique juste le mode courant
+document.getElementById("btn-fit")?.addEventListener("click", () => {
+  const bg = canvas.getObjects().find(o => o.id === "__BG__");
+  if (!bg) return;
+  fitBackgroundImage(bg, FIT_MODE);
+  canvas.requestRenderAll();
+});
 
     // ---------- Inventaire ----------
     let INVENTORY = [];
@@ -233,6 +264,8 @@
     };
 
     // Toolbar
+    <button id="toggle-fit" class="btn">Mode: Tout voir</button>
+
     el("btn-delete").onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==="rect"){ canvas.remove(o); autosave(); } };
     el("btn-clear").onclick=()=>{ canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o)); autosave(); };
     el("zoom").oninput=(e)=>{ setZoom(Number(e.target.value)/100); };
@@ -329,6 +362,7 @@
   </script>
 </body>
 </html>
+
 
 
 
