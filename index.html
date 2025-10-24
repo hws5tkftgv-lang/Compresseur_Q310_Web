@@ -49,7 +49,7 @@
         <button id="mode-select" class="btn">🖐️ Déplacer/Redim.</button>
         <button id="btn-delete" class="btn">🗑️ Supprimer sel.</button>
         <button id="btn-clear" class="btn">🧹 Effacer tout</button>
-
+        <button id="toggle-fit" class="btn">Mode: Tout voir</button>
         <span class="spacer"></span>
 
         <label class="hint">Zoom :
@@ -137,6 +137,21 @@
   // ======= BACKGROUND – version sûre =======
 const BG_URL = "actif/compresseur_bg.png";
 let FIT_MODE = "contain"; // "contain" = tout voir, "cover" = remplir
+    let FIT_MODE = "contain"; // ou "cover"
+
+const toggleBtn = document.getElementById("toggle-fit");
+function refreshToggleLabel(){
+  if (!toggleBtn) return;
+  toggleBtn.textContent = FIT_MODE === "contain" ? "Mode: Tout voir" : "Mode: Remplir";
+}
+toggleBtn?.addEventListener("click", () => {
+  FIT_MODE = FIT_MODE === "contain" ? "cover" : "contain";
+  refreshToggleLabel();
+  const bg = canvas.getObjects().find(o => o.id === "__BG__");
+  if (bg) { fitBackgroundImage(bg, FIT_MODE); canvas.requestRenderAll(); }
+});
+refreshToggleLabel();
+
 
 function fitBackgroundImage(img, mode = FIT_MODE) {
   const cw = canvas.getWidth();
@@ -264,7 +279,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
     };
 
     // Toolbar
-    <button id="toggle-fit" class="btn">Mode: Tout voir</button>
+  
 
     el("btn-delete").onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==="rect"){ canvas.remove(o); autosave(); } };
     el("btn-clear").onclick=()=>{ canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o)); autosave(); };
@@ -362,6 +377,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
   </script>
 </body>
 </html>
+
 
 
 
