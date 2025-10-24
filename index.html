@@ -140,10 +140,10 @@ let FIT_MODE = "contain"; // "contain" = tout voir, "cover" = remplir
 const toggleBtn = document.getElementById("toggle-fit");
 function refreshToggleLabel(){
   if (!toggleBtn) return;
-  toggleBtn.textContent = FIT_MODE === "contain" ? "Mode: Tout voir" : "Mode: Remplir";
+
 }
 toggleBtn?.addEventListener("click", () => {
-  FIT_MODE = FIT_MODE === "contain" ? "cover" : "contain";
+
   refreshToggleLabel();
   const bg = canvas.getObjects().find(o => o.id === "__BG__");
   if (bg) { fitBackgroundImage(bg, FIT_MODE); canvas.requestRenderAll(); }
@@ -151,7 +151,7 @@ toggleBtn?.addEventListener("click", () => {
 refreshToggleLabel();
 
 
-function fitBackgroundImage(img, mode = FIT_MODE) {
+{
   const cw = canvas.getWidth();
   const ch = canvas.getHeight();
   const scale = (mode === "cover")
@@ -173,7 +173,7 @@ function loadBackground() {
   // retire l’ancien fond s’il existe
   canvas.getObjects().filter(o => o.id === "__BG__").forEach(o => canvas.remove(o));
   fabric.Image.fromURL(BG_URL, (img) => {
-    fitBackgroundImage(img, FIT_MODE);
+   
     canvas.add(img);
     img.sendToBack();
     canvas.requestRenderAll();
@@ -188,7 +188,7 @@ loadBackground();
 window.addEventListener("resize", () => {
   const bg = canvas.getObjects().find(o => o.id === "__BG__");
   if (!bg) return;
-  fitBackgroundImage(bg, FIT_MODE);
+ 
   canvas.requestRenderAll();
 });
 
@@ -196,7 +196,7 @@ window.addEventListener("resize", () => {
 document.getElementById("btn-fit")?.addEventListener("click", () => {
   const bg = canvas.getObjects().find(o => o.id === "__BG__");
   if (!bg) return;
-  fitBackgroundImage(bg, FIT_MODE);
+
   canvas.requestRenderAll();
 });
 
@@ -375,6 +375,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
   </script>
 </body>
 </html>
+
 
 
 
