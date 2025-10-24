@@ -295,7 +295,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
     },{passive:false});
 
     // Ajuster à l’écran = recalcul COVER
-    el("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"contain"); canvas.requestRenderAll(); };
+    el("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"FIT_MODE"); canvas.requestRenderAll(); };
   
 
     el("btn-screenshot").onclick=()=>{ canvas.discardActiveObject(); canvas.requestRenderAll(); const data=canvas.toDataURL({format:"png"}); const a=document.createElement("a"); a.href=data; a.download="hotspots_capture.png"; a.click(); };
@@ -339,7 +339,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
 
     // Premier chargement + refit au resize
     loadBackground();
-    window.addEventListener("resize", ()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"contain"); canvas.requestRenderAll(); });
+    window.addEventListener("resize", ()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"FIT_MODE"); canvas.requestRenderAll(); });
   })();
   </script>
 
@@ -381,6 +381,7 @@ document.getElementById("btn-fit")?.addEventListener("click", () => {
   </script>
 </body>
 </html>
+
 
 
 
