@@ -297,8 +297,12 @@
         bgImgRef = img;
         canvas.add(img);
         canvas.sendToBack(img);
-        fitBackgroundImage(img);
-        loadSaved(); // charger zones après l’image
+       fitBackgroundImage(img);
+setTimeout(() => {
+  loadSaved();
+  canvas.requestRenderAll();
+}, 200);
+
       }, { crossOrigin: 'anonymous' });
     }
 
@@ -585,6 +589,7 @@
   </script>
 </body>
 </html>
+
 
 
 
