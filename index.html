@@ -114,273 +114,203 @@
   </main>
 
   <!-- =================== LOGIQUE =================== -->
-  <script>
-   
-  (function () {
-    const el = (id) => document.getElementById(id);
+<script>
+(function () {
+  const el = (id) => document.getElementById(id);
 
-  
-    const SNAP = 8;
+  // ===== Config & Canvas =====
+  const BG_URL  = "actif/compresseur_bg.png"; // une seule déclaration !
+  let   FIT_MODE = "contain";                 // "contain" = tout voir, "cover" = remplir
+  const SNAP = 8;
 
-    // Canvas
-    const canvas = new fabric.Canvas("c", {
-      backgroundColor: "#0a1330",
-      selection: true,
-      preserveObjectStacking: true,
-    });
-
-    let zoom = 1;
-    function setZoom(z){ zoom=z; canvas.setZoom(z); canvas.requestRenderAll(); }
-    function gSnap(v){ return el("snap").checked ? Math.round(v/SNAP)*SNAP : v; }
-    function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
-
-  // ======= BACKGROUND – version sûre =======
-const BG_URL = "actif/compresseur_bg.png";
-let FIT_MODE = "contain"; // "contain" = tout voir, "cover" = remplir
-const toggleBtn = document.getElementById("toggle-fit");
-function refreshToggleLabel(){
-  if (!toggleBtn) return;
-
-}
-toggleBtn?.addEventListener("click", () => {
-
-  refreshToggleLabel();
-  const bg = canvas.getObjects().find(o => o.id === "__BG__");
-  if (bg) { fitBackgroundImage(bg, FIT_MODE); canvas.requestRenderAll(); }
-});
-refreshToggleLabel();
-
-
-{
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-  const scale = (mode === "FIT_MODE")
-    ? Math.max(cw / img.width, ch / img.height)
-    : Math.min(cw / img.width, ch / img.height);
-  const w = img.width * scale;
-  const h = img.height * scale;
-  img.set({
-    left: (cw - w) / 2,
-    top:  (ch - h) / 2,
-    selectable: false,
-    evented: false,
-  });
-  img.scale(scale);
-  img.set("id", "__BG__");
-}
-
-function loadBackground() {
-  // 1) Supprimer TOUTE image de fond précédente (même si l'id n'avait pas été mis)
-  canvas.getObjects('image').forEach(o => {
-    if (o.id === '__BG__' || o._isBG === true) canvas.remove(o);
+  const canvas = new fabric.Canvas("c", {
+    backgroundColor: "#0a1330",
+    selection: true,
+    preserveObjectStacking: true,
   });
 
-  // 2) Charger l'unique image
-  fabric.Image.fromURL(BG_URL, (img) => {
-    img._isBG = true;                      // marqueur au cas où
-    img.set({ id: '__BG__', selectable: false, evented: false });
-    fitBackgroundImage(img, FIT_MODE);
-    canvas.add(img);
-    img.sendToBack();
-    canvas.requestRenderAll();
-    if (typeof loadAutosave === 'function') loadAutosave();
-  }, { crossOrigin: 'anonymous' });
-}
+  let zoom = 1;
+  function setZoom(z){ zoom=z; canvas.setZoom(z); canvas.requestRenderAll(); }
+  function gSnap(v){ return el("snap").checked ? Math.round(v/SNAP)*SNAP : v; }
+  function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
 
-// au démarrage
-loadBackground();
+  // === Ajuste une image de fond déjà créée (centrage + scale) ===
+  function fitBackgroundImage(img, mode = FIT_MODE){
+    const cw = canvas.getWidth(), ch = canvas.getHeight();
+    const scale = (mode === "cover")
+      ? Math.max(cw / img.width, ch / img.height)
+      : Math.min(cw / img.width, ch / img.height);
 
-// se réadapte au redimensionnement
-window.addEventListener("resize", () => {
-  const bg = canvas.getObjects().find(o => o.id === "__BG__");
-  if (!bg) return;
- 
-  canvas.requestRenderAll();
-});
+    const w = img.width  * scale;
+    const h = img.height * scale;
 
-// bouton "Ajuster à l’écran" réapplique juste le mode courant
-document.getElementById("btn-fit")?.addEventListener("click", () => {
-  const bg = canvas.getObjects().find(o => o.id === "__BG__");
-  if (!bg) return;
-
-  canvas.requestRenderAll();
-});
-
-    // ---------- Inventaire ----------
-    let INVENTORY = [];
-    fetch("quincy_310L_parts.json").then(r=>r.json()).then(data=>{
-      INVENTORY = data;
-      const s = el("part-select");
-      s.innerHTML =
-        '<option value="">— Sélectionne une pièce —</option>' +
-        INVENTORY.map(p => `<option value="${p.id}">${p.code ? (p.code+' — ') : ''}${p.nom}</option>`).join("");
-    }).catch(()=>{});
-
-    // ---------- Modes ----------
-    let drawMode = true;
-    function setDraw(){ drawMode=true; el("mode-draw").classList.add("primary"); el("mode-select").classList.remove("primary"); }
-    function setSelect(){ drawMode=false; el("mode-draw").classList.remove("primary"); el("mode-select").classList.add("primary"); }
-    el("mode-draw").onclick=setDraw; el("mode-select").onclick=setSelect; setDraw();
-
-    // ---------- Dessin rectangles ----------
-    let start = null, temp = null;
-    canvas.on("mouse:down",(opt)=>{
-      if(!drawMode) return;
-      const p = canvas.getPointer(opt.e);
-      start = p;
-      temp = new fabric.Rect({
-        left:p.x, top:p.y, width:1, height:1,
-        fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2,
-        selectable:true, hasControls:true, hasBorders:true
-      });
-      canvas.add(temp);
+    img.scale(scale);
+    img.set({
+      left: (cw - w) / 2,
+      top : (ch - h) / 2,
+      selectable: false,
+      evented: false,
     });
-    canvas.on("mouse:move",(opt)=>{
-      if(!drawMode || !temp || !start) return;
-      const p = canvas.getPointer(opt.e);
-      const x = Math.min(p.x,start.x), y = Math.min(p.y,start.y);
-      const w = Math.abs(p.x-start.x), h = Math.abs(p.y-start.y);
-      temp.set({left:x, top:y, width:w, height:h}); canvas.requestRenderAll();
-    });
-    canvas.on("mouse:up",()=>{
-      if(!drawMode || !temp) return;
-      temp.set({left:gSnap(temp.left), top:gSnap(temp.top), width:gSnap(temp.width), height:gSnap(temp.height)});
-      temp.setCoords(); temp=null; start=null; autosave();
+    img.setCoords();
+  }
+
+  // === Charge l’unique image de fond (supprime la précédente) ===
+  function loadBackground(){
+    canvas.getObjects('image').forEach(o => {
+      if (o.id === '__BG__' || o._isBG === true) canvas.remove(o);
     });
 
-    // Snap move/scale
-    canvas.on("object:moving", e=>{ const o=e.target; if(o && o.id!=="__BG__"){ o.left=gSnap(o.left); o.top=gSnap(o.top);} });
-    canvas.on("object:scaling", e=>{
-      const o=e.target; if(o && o.id!=="__BG__"){
-        o.width=gSnap(o.width*o.scaleX); o.height=gSnap(o.height*o.scaleY);
-        o.scaleX=1; o.scaleY=1; o.setCoords();
-      }
-    });
-    canvas.on("object:modified", autosave);
-
-    // Double-clic: charger fiche
-    canvas.on("mouse:dblclick",(e)=>{
-      const obj=canvas.findTarget(e.e,true);
-      if(obj && obj.type==="rect"){
-        canvas.setActiveObject(obj);
-        const m=rectMeta(obj);
-        el("title-input").value=m.title||"";
-        el("desc-input").value=m.description||"";
-        el("part-select").value=m.partId||"";
-      }
-    });
-
-    // Panneau
-    el("apply-meta").onclick=()=>{
-      const o=canvas.getActiveObject(); if(!o || o.type!=="rect"){ alert("Sélectionne une zone."); return; }
-      const m=rectMeta(o);
-      m.partId=el("part-select").value; m.title=el("title-input").value; m.description=el("desc-input").value; autosave();
-    };
-    el("center-view").onclick=()=>{
-      const o=canvas.getActiveObject(); if(!o) return;
-      const cx=o.left+o.width/2, cy=o.top+o.height/2;
-      canvas.absolutePan({x:cx-canvas.getWidth()/2, y:cy-canvas.getHeight()/2});
-    };
-
-    // Toolbar
-  
-
-    el("btn-delete").onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==="rect"){ canvas.remove(o); autosave(); } };
-    el("btn-clear").onclick=()=>{ canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o)); autosave(); };
-    el("zoom").oninput=(e)=>{ setZoom(Number(e.target.value)/100); };
-    window.addEventListener("wheel",(e)=>{
-      if(!e.ctrlKey) return; e.preventDefault();
-      const d=e.deltaY>0?-0.05:0.05; const z=Math.min(2, Math.max(0.5, zoom+d));
-      el("zoom").value=Math.round(z*100); setZoom(z);
-    },{passive:false});
-
-    // Ajuster à l’écran = recalcul COVER
-    el("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"FIT_MODE"); canvas.requestRenderAll(); };
-  
-
-    el("btn-screenshot").onclick=()=>{ canvas.discardActiveObject(); canvas.requestRenderAll(); const data=canvas.toDataURL({format:"png"}); const a=document.createElement("a"); a.href=data; a.download="hotspots_capture.png"; a.click(); };
-
-    // Export/Import
-    function exportJSON(){
-      const bg=canvas.getObjects().find(o=>o.id==="__BG__");
-      const rects=canvas.getObjects().filter(o=>o.type==="rect");
-      const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
-      const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
-      return { image:BG_URL, canvas_size:{w:canvas.getWidth(),h:canvas.getHeight()}, base_size:{w:ow,h:oh},
-        items: rects.map((r,i)=>({ id:`zone_${i+1}`, x:r.left/ow, y:r.top/oh, w:r.width/ow, h:r.height/oh, meta:rectMeta(r) })) };
-    }
-    function importJSON(data){
-      canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o));
-      const bg=canvas.getObjects().find(o=>o.id==="__BG__");
-      const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
-      const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
-      (data.items||[]).forEach(it=>{
-        const r=new fabric.Rect({ left:it.x*ow, top:it.y*oh, width:it.w*ow, height:it.h*oh,
-          fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2, selectable:true, hasControls:true, hasBorders:true });
-        r.data=it.meta||{partId:"",title:"",description:""}; canvas.add(r);
-      });
+    fabric.Image.fromURL(BG_URL, (img) => {
+      img._isBG = true;
+      img.set({ id:'__BG__', selectable:false, evented:false });
+      fitBackgroundImage(img, FIT_MODE);
+      canvas.add(img);
+      img.sendToBack();
       canvas.requestRenderAll();
+      if (typeof loadAutosave === 'function') loadAutosave();
+    }, { crossOrigin:'anonymous' });
+  }
+
+  // === Bouton bascule "Tout voir / Remplir" ===
+  const toggleBtn = document.getElementById("toggle-fit");
+  function refreshToggleLabel(){
+    if (!toggleBtn) return;
+    toggleBtn.textContent = (FIT_MODE === "contain") ? "Mode: Tout voir" : "Mode: Remplir";
+  }
+  toggleBtn?.addEventListener("click", () => {
+    FIT_MODE = (FIT_MODE === "contain") ? "cover" : "contain";
+    refreshToggleLabel();
+    const bg = canvas.getObjects().find(o => o.id === "__BG__");
+    if (bg) { fitBackgroundImage(bg, FIT_MODE); canvas.requestRenderAll(); }
+  });
+  refreshToggleLabel();
+
+  // ---------- Inventaire ----------
+  let INVENTORY = [];
+  fetch("quincy_310L_parts.json").then(r=>r.json()).then(data=>{
+    INVENTORY = data;
+    const s = el("part-select");
+    s.innerHTML =
+      '<option value="">— Sélectionne une pièce —</option>' +
+      INVENTORY.map(p => `<option value="${p.id}">${p.code ? (p.code+' — ') : ''}${p.nom}</option>`).join("");
+  }).catch(()=>{});
+
+  // ---------- Modes dessin/sélection ----------
+  let drawMode = true;
+  function setDraw(){ drawMode=true; el("mode-draw").classList.add("primary"); el("mode-select").classList.remove("primary"); }
+  function setSelect(){ drawMode=false; el("mode-draw").classList.remove("primary"); el("mode-select").classList.add("primary"); }
+  el("mode-draw").onclick=setDraw; el("mode-select").onclick=setSelect; setDraw();
+
+  // ---------- Dessin rectangles ----------
+  let start = null, temp = null;
+  canvas.on("mouse:down",(opt)=>{
+    if(!drawMode) return;
+    const p = canvas.getPointer(opt.e);
+    start = p;
+    temp = new fabric.Rect({
+      left:p.x, top:p.y, width:1, height:1,
+      fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2,
+      selectable:true, hasControls:true, hasBorders:true
+    });
+    canvas.add(temp);
+  });
+  canvas.on("mouse:move",(opt)=>{
+    if(!drawMode || !temp || !start) return;
+    const p = canvas.getPointer(opt.e);
+    const x = Math.min(p.x,start.x), y = Math.min(p.y,start.y);
+    const w = Math.abs(p.x-start.x), h = Math.abs(p.y-start.y);
+    temp.set({left:x, top:y, width:w, height:h}); canvas.requestRenderAll();
+  });
+  canvas.on("mouse:up",()=>{
+    if(!drawMode || !temp) return;
+    temp.set({left:gSnap(temp.left), top:gSnap(temp.top), width:gSnap(temp.width), height:gSnap(temp.height)});
+    temp.setCoords(); temp=null; start=null; autosave();
+  });
+
+  canvas.on("object:moving", e=>{ const o=e.target; if(o && o.id!=="__BG__"){ o.left=gSnap(o.left); o.top=gSnap(o.top);} });
+  canvas.on("object:scaling", e=>{
+    const o=e.target; if(o && o.id!=="__BG__"){
+      o.width=gSnap(o.width*o.scaleX); o.height=gSnap(o.height*o.scaleY);
+      o.scaleX=1; o.scaleY=1; o.setCoords();
     }
-    el("btn-save").onclick=()=>{ const data=exportJSON(); const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="hotspots_export.json"; a.click(); URL.revokeObjectURL(a.href); };
-    el("file-load").onchange=(ev)=>{ const f=ev.target.files[0]; if(!f) return; f.text().then(txt=>{ try{ importJSON(JSON.parse(txt)); autosave(); }catch{ alert("JSON invalide"); } }); };
+  });
+  canvas.on("object:modified", autosave);
 
-    // Autosave
-    const LS_KEY="hotspots_pro_autosave_v1";
-    function autosave(){ const data=exportJSON(); localStorage.setItem(LS_KEY, JSON.stringify(data)); }
-    function loadAutosave(){ const raw=localStorage.getItem(LS_KEY); if(!raw) return; try{ importJSON(JSON.parse(raw)); }catch{} }
-
-    // Sync panneau
-    function syncPanel(){
-      const o=canvas.getActiveObject(); if(!o || o.type!=="rect") return;
-      const m=rectMeta(o); el("title-input").value=m.title||""; el("desc-input").value=m.description||""; el("part-select").value=m.partId||"";
+  // Double-clic: charger fiche
+  canvas.on("mouse:dblclick",(e)=>{
+    const obj=canvas.findTarget(e.e,true);
+    if(obj && obj.type==="rect"){
+      canvas.setActiveObject(obj);
+      const m=rectMeta(obj);
+      el("title-input").value=m.title||"";
+      el("desc-input").value=m.description||"";
+      el("part-select").value=m.partId||"";
     }
-    canvas.on("selection:created", syncPanel);
-    canvas.on("selection:updated", syncPanel);
+  });
 
-    // Premier chargement + refit au resize
-    loadBackground();
-    window.addEventListener("resize", ()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg,"FIT_MODE"); canvas.requestRenderAll(); });
-  }();
-  </script>
+  // Panneau
+  el("apply-meta").onclick=()=>{
+    const o=canvas.getActiveObject(); if(!o || o.type!=="rect"){ alert("Sélectionne une zone."); return; }
+    const m=rectMeta(o);
+    m.partId=el("part-select").value; m.title=el("title-input").value; m.description=el("desc-input").value; autosave();
+  };
+  el("center-view").onclick=()=>{
+    const o=canvas.getActiveObject(); if(!o) return;
+    const cx=o.left+o.width/2, cy=o.top+o.height/2;
+    canvas.absolutePan({x:cx-canvas.getWidth()/2, y:cy-canvas.getHeight()/2});
+  };
 
-  <!-- Script 2 : masquer le bouton "Arrêter le serveur" en production -->
-  <script>
-    const ON_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-    const stopBtn = document.getElementById("stopServerBtn");
-    if (stopBtn && !ON_LOCAL) stopBtn.style.display = "none";
-  </script>
+  // Toolbar
+  el("btn-delete").onclick=()=>{ const o=canvas.getActiveObject(); if(o && o.type==="rect"){ canvas.remove(o); autosave(); } };
+  el("btn-clear").onclick =()=>{ canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o)); autosave(); };
+  el("zoom").oninput     =(e)=> setZoom(Number(e.target.value)/100);
+  window.addEventListener("wheel",(e)=>{
+    if(!e.ctrlKey) return; e.preventDefault();
+    const d=e.deltaY>0?-0.05:0.05; const z=Math.min(2, Math.max(0.5, zoom+d));
+    el("zoom").value=Math.round(z*100); setZoom(z);
+  },{passive:false});
 
-  <!-- Script 3 : filet de sécurité fiche zone -->
-  <script>
-  (()=>{
-    const partSelect = document.getElementById('part-select');
-    const titleInput = document.getElementById('title-input');
-    const descInput  = document.getElementById('desc-input');
-    if (!partSelect || !titleInput || !descInput) return;
-    let INVENTAIRE=[];
-    fetch('quincy_310L_parts.json').then(r=>r.json()).then(data=>{
-      const dejaPeuple = partSelect.options.length>1; INVENTAIRE=data;
-      if(!dejaPeuple){
-        partSelect.innerHTML = '<option value="">— Sélectionne une pièce —</option>' +
-          data.map(p=>`<option value="${p.id ?? p.code}">${p.nom}</option>`).join('');
-      }
-    }).catch(()=>{});
-    function fillFieldsFromSelection(){
-      const value = String(partSelect.value);
-      const text  = partSelect.options[partSelect.selectedIndex]?.text || '';
-      const piece = INVENTAIRE.find(p=>String(p.id)===value || String(p.code)===value) || INVENTAIRE.find(p=>p.nom===text);
-      if(!piece) return;
-      titleInput.value = piece.nom || '';
-      const role = piece.role || piece.rôle || '';
-      const desc = piece.description || piece.desc || '';
-      descInput.value = [role, desc].filter(Boolean).join(' — ');
-    }
-    partSelect.addEventListener('change', fillFieldsFromSelection);
-    if (partSelect.value) fillFieldsFromSelection();
-  })();
-  </script>
+  // "Ajuster à l’écran" = réapplique l’ajustement courant
+  el("btn-fit").onclick=()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg, FIT_MODE); canvas.requestRenderAll(); };
+  el("btn-screenshot").onclick=()=>{ canvas.discardActiveObject(); canvas.requestRenderAll(); const data=canvas.toDataURL({format:"png"}); const a=document.createElement("a"); a.href=data; a.download="hotspots_capture.png"; a.click(); };
+
+  // Export/Import/Autosave
+  function exportJSON(){
+    const bg=canvas.getObjects().find(o=>o.id==="__BG__");
+    const rects=canvas.getObjects().filter(o=>o.type==="rect");
+    const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
+    const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
+    return { image:BG_URL, canvas_size:{w:canvas.getWidth(),h:canvas.getHeight()}, base_size:{w:ow,h:oh},
+      items: rects.map((r,i)=>({ id:`zone_${i+1}`, x:r.left/ow, y:r.top/oh, w:r.width/ow, h:r.height/oh, meta:rectMeta(r) })) };
+  }
+  function importJSON(data){
+    canvas.getObjects().filter(o=>o.type==="rect").forEach(o=>canvas.remove(o));
+    const bg=canvas.getObjects().find(o=>o.id==="__BG__");
+    const ow=bg?bg.width*bg.scaleX:canvas.getWidth();
+    const oh=bg?bg.height*bg.scaleY:canvas.getHeight();
+    (data.items||[]).forEach(it=>{
+      const r=new fabric.Rect({ left:it.x*ow, top:it.y*oh, width:it.w*ow, height:it.h*oh,
+        fill:"rgba(255,0,0,0.22)", stroke:"#ff4d4d", strokeWidth:2, selectable:true, hasControls:true, hasBorders:true });
+      r.data=it.meta||{partId:"",title:"",description:""}; canvas.add(r);
+    });
+    canvas.requestRenderAll();
+  }
+  el("btn-save").onclick=()=>{ const data=exportJSON(); const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="hotspots_export.json"; a.click(); URL.revokeObjectURL(a.href); };
+  el("file-load").onchange=(ev)=>{ const f=ev.target.files[0]; if(!f) return; f.text().then(txt=>{ try{ importJSON(JSON.parse(txt)); autosave(); }catch{ alert("JSON invalide"); } }); };
+
+  const LS_KEY="hotspots_pro_autosave_v1";
+  function autosave(){ const data=exportJSON(); localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+  function loadAutosave(){ const raw=localStorage.getItem(LS_KEY); if(!raw) return; try{ importJSON(JSON.parse(raw)); }catch{} }
+
+  // Premier chargement + refit au resize
+  loadBackground();
+  window.addEventListener("resize", ()=>{ const bg=canvas.getObjects().find(o=>o.id==="__BG__"); if(!bg) return; fitBackgroundImage(bg, FIT_MODE); canvas.requestRenderAll(); });
+})();
+</script>
+
 </body>
 </html>
+
 
 
 
