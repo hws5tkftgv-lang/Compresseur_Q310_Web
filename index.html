@@ -134,7 +134,7 @@
     function rectMeta(o){ return o?.data || (o.data={partId:"", title:"", description:""}); }
 
     // ---------- Image de fond (COVER) ----------
-    function fitBackgroundImage(img, mode = "cover") {
+    function fitBackgroundImage(img, mode = "contain") {
       const cw = canvas.getWidth(), ch = canvas.getHeight();
       const scale = (mode === "cover")
         ? Math.max(cw / img.width, ch / img.height)   // remplit le cadre
@@ -327,4 +327,5 @@
   </script>
 </body>
 </html>
+
 
