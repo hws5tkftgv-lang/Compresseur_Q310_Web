@@ -3,184 +3,461 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Compresseur Quincy 310L - Schéma interactif</title>
+  <title>Quincy 310L – Schéma interactif (Nom + Rôle + Description)</title>
+
+  <!-- FabricJS -->
+  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
   <style>
-    body{margin:0;background:#0c132e;color:#dfe7ff;font-family:Arial,Helvetica,sans-serif;}
-    .toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:#101b42;border-bottom:1px solid #000;}
-    button{padding:6px 10px;border:1px solid #4b5f9f;border-radius:8px;background:#1b2a55;color:#eaf1ff;cursor:pointer;}
-    button.active{background:#0067ff;font-weight:bold;box-shadow:0 0 6px #0090ff;}
-    button:hover{filter:brightness(1.2);}
-    #zoom{vertical-align:middle;}
-    .panel{padding:12px;background:#14204f;border-left:2px solid #243463;}
-    .row{margin-bottom:10px;}
-    label{font-size:.85rem;}
-    select,input,textarea{width:100%;background:#0c173c;border:1px solid #415a9f;color:#fff;border-radius:6px;padding:6px;}
-    textarea{min-height:120px;}
-    .wrap{display:grid;grid-template-columns:1fr 340px;height:calc(100vh - 55px);}
-    canvas{touch-action:none;user-select:none;}
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background:#0c132e; color:#eaf1ff; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:10px 12px; background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08); }
+    .btn { padding:7px 11px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:#1a2553; color:#eaf1ff; cursor:pointer; }
+    .btn:hover { filter:brightness(1.12); }
+    .btn.active { background:#0078ff; color:#fff; font-weight:700; border-color:#0053ad; box-shadow:0 0 8px rgba(0,120,255,.65); }
+    .chip { padding:6px 10px; border-radius:10px; background:#192247; border:1px solid rgba(255,255,255,.12); }
+    .wrap { display:grid; grid-template-columns: 1fr 370px; gap:12px; padding:12px; }
+    @media (max-width: 1100px) { .wrap { grid-template-columns: 1fr; } }
+    .stage { background:#0b1536; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; min-height:60vh; }
+    canvas { touch-action:none; user-select:none; }
+    .panel { background:#0f1a44; border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:12px; }
+    .panel h3 { margin:6px 0 10px; }
+    .row { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+    label { font-size:.92rem; opacity:.92; }
+    select, input[type="text"], textarea { width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:#0b1638; color:#eaf1ff; }
+    textarea { min-height:120px; resize:vertical; }
+    .small { font-size:.85rem; opacity:.75; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 </head>
 <body>
 
-<div class="toolbar">
-  <button id="btn-move">🧿 Déplacer</button>
-  <button id="btn-draw">✏️ Dessiner</button>
-  <button id="btn-pan">✋ Pan</button>
-  <button id="btn-select">🖱️ Sélection</button>
-  <button id="btn-delete">❌ Supprimer</button>
-  <button id="btn-clear">🗑️ Effacer tout</button>
+  <!-- Barre d’outils -->
+  <div class="toolbar">
+    <button id="btn-move" class="btn">🧿 Déplacer/Redim.</button>
+    <button id="btn-draw" class="btn">✏️ Dessiner</button>
+    <button id="btn-pan" class="btn">✋ Pan</button>
+    <button id="btn-select" class="btn">🖱️ Sélection</button>
+    <button id="btn-delete" class="btn">❌ Supprimer</button>
+    <button id="btn-clear" class="btn">🗑️ Effacer tout</button>
 
-  <span style="margin-left:auto;"></span>
+    <span style="flex:1 1 auto;"></span>
 
-  <label>Zoom <input type="range" id="zoom" min="25" max="300" value="100"></label>
-  <button id="btn-export">💾 Export</button>
-  <label>📥 Import<input id="fileImport" type="file" style="display:none"></label>
-</div>
-
-<div class="wrap">
-  <canvas id="c"></canvas>
-
-  <div class="panel">
-    <div class="row">
-      <label>Pièce :</label>
-      <select id="inventorySelect"></select>
-    </div>
-    <div class="row">
-      <label>Titre :</label>
-      <input id="partTitle" />
-    </div>
-    <div class="row">
-      <label>Description :</label>
-      <textarea id="partDescription"></textarea>
-    </div>
-    <button id="btn-apply">✅ Appliquer</button>
-    <button id="btn-show-all">👁️ Afficher tout</button>
+    <span class="chip">Zoom <input id="zoom" type="range" min="25" max="300" step="1" value="100"></span>
+    <span id="toggle-fit" class="btn chip">Mode: <strong>Tout voir</strong></span>
+    <button id="btn-fit" class="btn">🖼️ Ajuster</button>
+    <button id="btn-export" class="btn">💾 Export JSON</button>
+    <label class="btn">📥 Import JSON <input id="fileImport" type="file" accept=".json,application/json" style="display:none"></label>
   </div>
-</div>
 
-<script>
-/******** INVENTAIRE INTÉGRÉ ********/
-const INVENTAIRE = [
-  {"id":1,"code":"FIL-ENT","nom":"Filtre d’admission","desc":"Retient poussières/particules pour protéger les soupapes et le cylindre."},
-  {"id":2,"code":"SOUP-ADM","nom":"Soupape d’admission","desc":"Laisse entrer l’air dans le cylindre pendant l’admission."},
-  {"id":3,"code":"SOUP-ECH","nom":"Soupape d’échappement","desc":"Permet à l’air comprimé de sortir vers l’intercooler ou le réservoir."},
-  {"id":4,"code":"CYL-LP","nom":"Cylindre basse pression","desc":"Première compression, grand diamètre."},
-  {"id":5,"code":"CYL-HP","nom":"Cylindre haute pression","desc":"Deuxième compression, petit diamètre pour monter plus haut en pression."}
-];
+  <!-- Scène + Panneau -->
+  <div class="wrap">
+    <div class="stage"><canvas id="c"></canvas></div>
 
-/******** CANVAS ********/
-const canvas = new fabric.Canvas("c",{selection:false});
-let bgImg=null,isDraw=false,isMove=true,isPan=false,isSelect=false;
-let drawing=null,start=null;let FIT="contain";
+    <aside class="panel">
+      <h3>📘 Fiche zone (Nom + Rôle + Description)</h3>
+      <p class="small">Mode <b>Sélection</b> : clique une zone pour afficher sa fiche.<br>
+      Pour associer une pièce à une zone, choisis dans la liste puis “Appliquer”.</p>
 
-function resize(){canvas.setWidth(window.innerWidth-360);canvas.setHeight(window.innerHeight-55);}
-resize();window.addEventListener("resize",()=>{resize();fitBG(bgImg);});
+      <div class="row">
+        <label for="inventorySelect">Pièce (identifiant technique – conseillé)</label>
+        <select id="inventorySelect"></select>
+      </div>
 
-/******** LOAD IMAGE ********/
-function fitBG(img){if(!img)return;
- let cw=canvas.getWidth(),ch=canvas.getHeight(),iw=img.width,ih=img.height;
- let s=(FIT==="contain"?Math.min(cw/iw,ch/ih):Math.max(cw/iw,ch/ih));
- img.scale(s);img.left=(cw-iw*s)/2;img.top=(ch-ih*s)/2;canvas.sendToBack(img);}
-fabric.Image.fromURL("actif/compresseur_bg.png",i=>{bgImg=i;bgImg.selectable=false;canvas.add(i);fitBG(i);loadSaved();});
+      <div class="row">
+        <label for="partName">Nom</label>
+        <input id="partName" type="text" readonly />
+      </div>
 
-/******** ZONES ********/
-function toNorm(o){
- let r=o.getBoundingRect();let w=bgImg.getScaledWidth(),h=bgImg.getScaledHeight();
- let bx=bgImg.left,by=bgImg.top;
- return {id:o.pieceId||'',x:(r.left-bx)/w,y:(r.top-by)/h,w:r.width/w,h:r.height/h};
-}
-function fromNorm(z){
- let w=bgImg.getScaledWidth(),h=bgImg.getScaledHeight();let bx=bgImg.left,by=bgImg.top;
- let o=new fabric.Rect({left:bx+z.x*w,top:by+z.y*h,width:z.w*w,height:z.h*h,
- fill:"rgba(0,255,0,.15)",stroke:"#0f0",strokeWidth:2,rx:6,ry:6});
- o.pieceId=z.id;canvas.add(o);return o;}
-function fillPanel(o){
- let p=INVENTAIRE.find(x=>String(x.id)==String(o.pieceId));
- document.getElementById("inventorySelect").value=o.pieceId||"";
- document.getElementById("partTitle").value=p?.nom||"";
- document.getElementById("partDescription").value=p?.desc||"";}
+      <div class="row">
+        <label for="partRole">Rôle</label>
+        <input id="partRole" type="text" readonly />
+      </div>
 
-/******** SAVE ********/
-function save(){let z=canvas.getObjects().filter(x=>x!==bgImg).map(toNorm);
- localStorage.setItem("zones",JSON.stringify(z));}
-function loadSaved(){
- let d=localStorage.getItem("zones");if(!d)return;
- JSON.parse(d).forEach(z=>fromNorm(z));canvas.requestRenderAll();}
+      <div class="row">
+        <label for="partDesc">Description</label>
+        <textarea id="partDesc" readonly></textarea>
+      </div>
 
-/******** TOOLS ********/
-canvas.on("mouse:down",e=>{
- if(isPan){canvas.isDragging=true;canvas.lastX=e.e.clientX;canvas.lastY=e.e.clientY;return;}
- if(!isDraw)return;start=canvas.getPointer(e.e);
- drawing=new fabric.Rect({left:start.x,top:start.y,width:1,height:1,fill:"rgba(0,255,0,.15)",stroke:"#0f0"});
- canvas.add(drawing);
-});
-canvas.on("mouse:move",e=>{
- if(canvas.isDragging&&isPan){let dx=e.e.clientX-canvas.lastX,dy=e.e.clientY-canvas.lastY;
- canvas.relativePan(new fabric.Point(dx,dy));canvas.lastX=e.e.clientX;canvas.lastY=e.e.clientY;return;}
- if(!isDraw||!drawing)return;
- let p=canvas.getPointer(e.e);
- drawing.set({left:Math.min(p.x,start.x),top:Math.min(p.y,start.y),
- width:Math.abs(p.x-start.x),height:Math.abs(p.y-start.y)});canvas.renderAll();});
-canvas.on("mouse:up",e=>{
- if(canvas.isDragging){canvas.isDragging=false;return;}
- if(!isDraw||!drawing)return;
- drawing.selectable=true;drawing=null;save();});
+      <div class="row" style="display:flex; gap:8px;">
+        <button id="btn-apply" class="btn" style="flex:1;">✅ Appliquer à la zone</button>
+        <button id="btn-show-all" class="btn" style="flex:1;">👁️ Afficher toutes les zones</button>
+      </div>
 
-/******** CLICK SELECT MODE ********/
-canvas.on("mouse:up",e=>{
- if(!isSelect)return;let o=e.target;if(!o||o===bgImg)return;
- canvas.getObjects().forEach(x=>{if(x!==bgImg)x.opacity=(x===o?1:.15);});
- fillPanel(o);canvas.renderAll();});
+      <p class="small">💾 Sauvegarde automatique locale (navigateur). Export/Import pour partager.</p>
+    </aside>
+  </div>
 
-/******** UI ********/
-function mode(m){
- isDraw=m=="draw";isMove=m=="move";isPan=m=="pan";isSelect=m=="select";
- document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
- document.getElementById("btn-"+m).classList.add("active");
- canvas.getObjects().forEach(o=>{o.selectable=isMove&&(o!==bgImg);});
-}
-mode("move");
+  <script>
+    /***********************
+     * INVENTAIRE INTÉGRÉ  *
+     * (Nom + Rôle + Description)
+     ***********************/
+    const INVENTAIRE = [
+      {"id":"filtre_air","nom":"Filtre à air capoté","role":"Filtrer l’air d’admission","description":"Réduit les poussières à l’entrée, protège les soupapes et cylindres."},
+      {"id":"element_filtre_air","nom":"Élément de filtre d’air","role":"Remplacement périodique","description":"Cartouche interne du filtre à air; essentielle pour la VE."},
+      {"id":"silencieux_admission","nom":"Silencieux d’admission","role":"Atténuer le bruit d’entrée","description":"Version capotée/hooded; se monte côté aspiration."},
+      {"id":"cylindre_lp","nom":"Cylindre basse pression (LP)","role":"Chambre compression 1ère étape","description":"Reçoit l’air ambiant via soupapes d’admission LP."},
+      {"id":"cylindre_hp","nom":"Cylindre haute pression (HP)","role":"Chambre compression 2e étape","description":"Reçoit l’air refroidi de l’intercooler."},
+      {"id":"piston_lp","nom":"Piston LP","role":"Compression 1ère étape","description":"Alésage typique ~3,5\", segments adaptés au LP."},
+      {"id":"piston_hp","nom":"Piston HP","role":"Compression 2e étape","description":"Alésage typique ~2,5\", travaille à pression plus élevée."},
+      {"id":"segments_lp","nom":"Segments de piston LP","role":"Étanchéité piston/cylindre","description":"Jeux/positionnement à respecter pour bonne VE."},
+      {"id":"segments_hp","nom":"Segments de piston HP","role":"Étanchéité piston/cylindre","description":"Matériaux adaptés à T°/P plus élevées."},
+      {"id":"axe_piston","nom":"Axis de piston","role":"Articulation piston–bielle","description":"Montage serré contrôlé; lubrification par barbotage/pression."},
+      {"id":"bielle_lp","nom":"Bielle LP","role":"Transmission mouvement","description":"Pied sur axe piston; tête sur maneton vilebrequin."},
+      {"id":"bielle_hp","nom":"Bielle HP","role":"Transmission mouvement","description":"Analogues LP mais cotes différentes."},
+      {"id":"coussinets_bielle","nom":"Coussinets de bielle","role":"Palier lisse tête de bielle","description":"Film d’huile; contrôle jeu radial."},
+      {"id":"vilebrequin","nom":"Vilebrequin","role":"Convertir rotation en translation","description":"Manetons, perçages huile, équilibrage."},
+      {"id":"paliers_vilbrequin","nom":"Paliers principaux","role":"Support vilebrequin","description":"Roulements/bronzes selon version; lub. forcée."},
+      {"id":"carter","nom":"Carter (crankcase)","role":"Structure et réservoir d’huile","description":"Loge paliers, pompe à huile, circuits d’huile."},
+      {"id":"porte_palier","nom":"Porte-palier (bearing carrier)","role":"Support palier + pompe","description":"Intègre filtration d’huile selon révision."},
+      {"id":"pompe_huile","nom":"Pompe à huile","role":"Distribution d’huile sous pression","description":"Alimente vilebrequin, bielles, têtes."},
+      {"id":"filtre_huile","nom":"Filtre à huile","role":"Filtration lubrifiant","description":"Retient particules; entretien régulier."},
+      {"id":"crepine_huile","nom":"Crépine d’aspiration","role":"Protection pompe à huile","description":"Maille avant pompe; évite gros débris."},
+      {"id":"jauge_huile","nom":"Jauge/dipstick","role":"Contrôle niveau d’huile","description":"Lecture niveau mini/maxi."},
+      {"id":"bouchon_remplissage","nom":"Bouchon de remplissage d’huile","role":"Remplir le carter","description":"Avec évent/reniflard selon versions."},
+      {"id":"reniflard","nom":"Breather/reniflard","role":"Évacuation vapeurs carter","description":"Limite surpressions internes carter."},
+      {"id":"joint_carter","nom":"Joint de carter","role":"Étanchéité carter","description":"Joint papier/fibre; se remplace à chaque dépose."},
+      {"id":"joint_couvre_carter","nom":"Joint couvercle carter","role":"Étanchéité couvercle","description":"Empêche fuite huile/air."},
+      {"id":"soupape_admission_lp","nom":"Soupape d’admission LP","role":"Admettre l’air cylindre LP","description":"Actionnée par diff. de pression."},
+      {"id":"soupape_decharge_lp","nom":"Soupape de décharge LP","role":"Évacuer air comprimé LP","description":"Vers l’intercooler; clapet anti-retour local."},
+      {"id":"soupape_admission_hp","nom":"Soupape d’admission HP","role":"Admettre l’air cylindre HP","description":"Depuis l’intercooler (refroidi)."},
+      {"id":"soupape_decharge_hp","nom":"Soupape de décharge HP","role":"Évacuer air vers refoulement","description":"Vers ligne de refoulement/réservoir."},
+      {"id":"plaque_valves","nom":"Platine/siège de soupapes","role":"Support/distribution soupapes","description":"Plateaux/sièges et visserie associée."},
+      {"id":"ressorts_soupapes","nom":"Ressorts de soupapes","role":"Rappel fermeture","description":"Caractéristiques LP/HP selon étage."},
+      {"id":"intercooler","nom":"Intercooler","role":"Refroidir air entre LP et HP","description":"Réduit T°, travail HP et humidité."},
+      {"id":"tubulure_intercooler","nom":"Tubulure d’intercooler","role":"Liaison LP→intercooler→HP","description":"Tuyauteries + raccords/olive."},
+      {"id":"clapet_antiretour","nom":"Clapet anti-retour","role":"Empêcher retour d’air","description":"Sécurité refoulement; protège soupapes."},
+      {"id":"dechargeur_admission","nom":"Déchargeur d’admission","role":"Démarrage à vide/contrôle charge","description":"Pilote l’ouverture admission pour no-load."},
+      {"id":"pilot_valve","nom":"Valve pilote","role":"Commander déchargeurs par pression","description":"Réglage consigne/différentiel."},
+      {"id":"ligne_pilotage","nom":"Ligne de pilotage","role":"Transmettre pression de commande","description":"Capillaire/rigide selon montage."},
+      {"id":"soupape_securite","nom":"Soupape de sûreté","role":"Protection surpression","description":"Tarée; monte sur refoulement/réservoir."},
+      {"id":"pressostat","nom":"Pressostat","role":"Commande marche/arrêt","description":"Coupe moteur selon consigne (mode simple)."},
+      {"id":"manometre_refoulement","nom":"Manomètre de refoulement","role":"Afficher pression sortie","description":"Lecture maintenance/diagnostic."},
+      {"id":"thermometre_inter","nom":"Thermomètre intercooler","role":"Surveiller T° inter-étage","description":"Aide au diagnostic VE/refroidissement."},
+      {"id":"volant","nom":"Volant/Flywheel","role":"Inertie + ventilation","description":"Pales de refroidissement intégrées."},
+      {"id":"courroies","nom":"Courroies de transmission","role":"Transmettre puissance moteur→pompe","description":"Sélection selon poulies/puissance."},
+      {"id":"poulie_moteur","nom":"Poulie moteur","role":"Adapter la vitesse","description":"Diamètre/stries selon courroies."},
+      {"id":"poulie_pompe","nom":"Poulie pompe","role":"Adapter la vitesse pompe","description":"Doit correspondre au volant/rapport."},
+      {"id":"garde_courroies","nom":"Garde-courroies","role":"Sécurité","description":"Empêche contact pièces tournantes."},
+      {"id":"joint_culasse","nom":"Joint de culasse","role":"Étanchéité tête/cylindre","description":"À remplacer à chaque démontage."},
+      {"id":"kit_joints","nom":"Kit joints complet","role":"Maintenance périodique","description":"Ensemble joints/consommables révision."},
+      {"id":"visserie_tete","nom":"Visserie de tête/cylindre","role":"Fixation tête/cylindre","description":"Couples de serrage à respecter."},
+      {"id":"vidange_reservoir","nom":"Robinet de purge réservoir","role":"Évacuer condensats","description":"Entretien réservoir d’air."},
+      {"id":"drain_intercooler","nom":"Purge intercooler","role":"Évacuer condensats inter-étage","description":"Évite eau dans cylindre HP."},
+      {"id":"support_base","nom":"Châssis / base support","role":"Supporter l’ensemble","description":"Pad anti-vib., points d’ancrage."},
+      {"id":"silentblocs","nom":"Silentblocs","role":"Limiter vibrations","description":"Entre groupe et base."}
+    ];
 
-document.getElementById("btn-move").onclick=()=>mode("move");
-document.getElementById("btn-draw").onclick=()=>mode("draw");
-document.getElementById("btn-pan").onclick=()=>mode("pan");
-document.getElementById("btn-select").onclick=()=>mode("select");
-document.getElementById("btn-delete").onclick=()=>{let o=canvas.getActiveObject();if(o&&o!==bgImg){canvas.remove(o);save();}};
+    /***********************
+     * CANVAS & BACKGROUND *
+     ***********************/
+    const canvas = new fabric.Canvas('c', { selection:false, preserveObjectStacking:true, backgroundColor:'#0b1536' });
+    let bgImg = null;
+    let FIT_MODE = 'contain'; // contain | cover
 
-document.getElementById("btn-clear").onclick=()=>{if(confirm("Effacer toutes les zones ?")){
- canvas.getObjects().forEach(o=>{if(o!==bgImg)canvas.remove(o)});save();canvas.renderAll();}};
+    function resizeCanvas() {
+      const stage = document.querySelector('.stage');
+      canvas.setWidth(stage.clientWidth);
+      canvas.setHeight(Math.max(540, window.innerHeight * 0.68));
+      canvas.requestRenderAll();
+    }
+    window.addEventListener('resize', () => { resizeCanvas(); fitBackgroundImage(bgImg, true); });
 
-document.getElementById("btn-show-all").onclick=()=>{canvas.getObjects().forEach(o=>o.opacity=1);canvas.renderAll();};
+    function fitBackgroundImage(img, keepZoom=false){
+      if(!img) return;
+      const cw = canvas.getWidth(), ch = canvas.getHeight(), iw = img.width, ih = img.height;
+      const s = (FIT_MODE==='contain') ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
+      img.scale(s);
+      img.set({ left:(cw - iw*s)/2, top:(ch - ih*s)/2, selectable:false, evented:false, id:'__BG__' });
+      if(!keepZoom){ canvas.setZoom(1); document.getElementById('zoom').value = 100; }
+      canvas.sendToBack(img);
+      canvas.requestRenderAll();
+    }
 
-document.getElementById("zoom").oninput=e=>{
- let z=e.target.value/100;canvas.setZoom(z);};
+    function loadBackground(){
+      fabric.Image.fromURL('actif/compresseur_bg.png', (img)=>{
+        bgImg = img;
+        canvas.add(img);
+        fitBackgroundImage(img);
+        // charger zones après que le fond soit positionné
+        requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
+      }, { crossOrigin:'anonymous' });
+    }
 
-document.getElementById("btn-export").onclick=()=>{
- let blob=new Blob([localStorage.getItem("zones")],{type:"application/json"});
- let a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="zones.json";a.click();};
+    /***********************
+     * ZONES & SAUVEGARDE  *
+     ***********************/
+    const LS_KEY = 'quincy310L_layout_v3';
 
-document.getElementById("inventorySelect").onchange=e=>{
- let p=INVENTAIRE.find(x=>String(x.id)==e.target.value);
- document.getElementById("partTitle").value=p?.nom||"";
- document.getElementById("partDescription").value=p?.desc||"";};
+    function toNormalized(obj){
+      const w = bgImg.getScaledWidth(), h = bgImg.getScaledHeight();
+      const bx = bgImg.left, by = bgImg.top;
+      const r = obj.getBoundingRect(true, true);
+      return {
+        type:'rect',
+        id: obj.pieceId ?? '',
+        x:(r.left - bx)/w,
+        y:(r.top  - by)/h,
+        w:r.width / w,
+        h:r.height / h
+      };
+    }
 
-document.getElementById("btn-apply").onclick=()=>{
- let o=canvas.getActiveObject();if(!o||o===bgImg)return;
- o.pieceId=document.getElementById("inventorySelect").value;save();};
+    function fromNormalized(z){
+      const w = bgImg.getScaledWidth(), h = bgImg.getScaledHeight();
+      const bx = bgImg.left, by = bgImg.top;
+      const rect = new fabric.Rect({
+        left: bx + z.x*w, top: by + z.y*h, width: z.w*w, height: z.h*h,
+        fill:'rgba(0,255,0,.16)', stroke:'rgba(0,255,0,.95)', strokeWidth:2, rx:6, ry:6,
+        selectable: isMoveMode, hasControls:true
+      });
+      rect.pieceId = z.id || '';
+      canvas.add(rect);
+      canvas.bringToFront(rect);
+      return rect;
+    }
 
-/******** INVENTORY LOAD ********/
-document.getElementById("inventorySelect").innerHTML=
- "<option value=''>-- Pièce --</option>"+
- INVENTAIRE.map(p=>`<option value="${p.id}">${p.code+" - "+p.nom}</option>`).join("");
+    function save(){
+      const zones = canvas.getObjects().filter(o=>o !== bgImg).map(toNormalized);
+      localStorage.setItem(LS_KEY, JSON.stringify({ fit: FIT_MODE, zones }));
+    }
 
-</script>
+    function loadSaved(){
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      try{
+        const data = JSON.parse(raw);
+        if(data.fit) FIT_MODE = data.fit;
+        (data.zones||[]).forEach(fromNormalized);
+        refreshFitLabel();
+      }catch(e){ console.warn('Aucune sauvegarde valide', e); }
+    }
 
+    function exportJSON(){
+      const zones = canvas.getObjects().filter(o=>o !== bgImg).map(toNormalized);
+      const blob = new Blob([JSON.stringify({ fit: FIT_MODE, zones }, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'quincy310L_zones.json';
+      a.click();
+    }
+
+    function importJSON(file){
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const data = JSON.parse(reader.result);
+          // reset zones
+          canvas.getObjects().slice().forEach(o=>{ if(o !== bgImg) canvas.remove(o); });
+          if(Array.isArray(data)){ // compat ancien: tableau simple en pixels
+            const w = bgImg.getScaledWidth(), h = bgImg.getScaledHeight();
+            const bx = bgImg.left, by = bgImg.top;
+            data.forEach(z=>{
+              const norm = { type:'rect', id:String(z.id||''), x:(z.x - bx)/w, y:(z.y - by)/h, w:z.w/w, h:z.h/h };
+              fromNormalized(norm);
+            });
+          } else {
+            FIT_MODE = data.fit || 'contain';
+            (data.zones||[]).forEach(fromNormalized);
+          }
+          refreshFitLabel();
+          canvas.requestRenderAll();
+          save();
+        }catch(e){ alert('JSON invalide.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    /***********************
+     * MODES & INTERACTIONS
+     ***********************/
+    let isDrawMode=false, isMoveMode=true, isPanMode=false, isSelectMode=false;
+    let drawingRect=null, startPoint=null;
+
+    function setActiveButton(id){
+      document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+      const el = document.getElementById(id); if(el) el.classList.add('active');
+    }
+    function setMode({draw=false, move=false, pan=false, select=false}){
+      isDrawMode=draw; isMoveMode=move; isPanMode=pan; isSelectMode=select;
+      canvas.getObjects().forEach(o=>{ if(o !== bgImg) o.selectable = isMoveMode; });
+    }
+
+    // Dessin
+    canvas.on('mouse:down', (opt)=>{
+      if(isPanMode){
+        canvas.isDragging = true;
+        canvas.lastPosX = opt.e.clientX;
+        canvas.lastPosY = opt.e.clientY;
+        return;
+      }
+      if(!isDrawMode) return;
+      const p = canvas.getPointer(opt.e);
+      startPoint = p;
+      drawingRect = new fabric.Rect({
+        left:p.x, top:p.y, width:1, height:1,
+        fill:'rgba(0,255,0,.16)', stroke:'rgba(0,255,0,.95)', strokeWidth:2, rx:6, ry:6, selectable:false
+      });
+      canvas.add(drawingRect);
+    });
+
+    canvas.on('mouse:move', (opt)=>{
+      if(canvas.isDragging && isPanMode){
+        const e = opt.e;
+        const v = new fabric.Point(e.clientX - canvas.lastPosX, e.clientY - canvas.lastPosY);
+        canvas.relativePan(v);
+        canvas.lastPosX = e.clientX; canvas.lastPosY = e.clientY;
+        return;
+      }
+      if(!isDrawMode || !drawingRect || !startPoint) return;
+      const p = canvas.getPointer(opt.e);
+      drawingRect.set({
+        left: Math.min(p.x, startPoint.x),
+        top : Math.min(p.y, startPoint.y),
+        width: Math.abs(p.x - startPoint.x),
+        height: Math.abs(p.y - startPoint.y)
+      });
+      canvas.requestRenderAll();
+    });
+
+    canvas.on('mouse:up', (e)=>{
+      if(canvas.isDragging){ canvas.isDragging=false; return; }
+
+      if(isSelectMode){
+        const target = e.target;
+        if(target && target !== bgImg){
+          // mettre en valeur la zone cliquée
+          canvas.getObjects().forEach(o=>{ if(o !== bgImg) o.opacity = (o===target)?1:0.15; });
+          canvas.requestRenderAll();
+          fillPanelFromZone(target);
+        }
+      }
+
+      if(!isDrawMode || !drawingRect) return;
+      drawingRect.selectable = true;
+      drawingRect = null; startPoint = null;
+      save();
+    });
+
+    // Zoom (molette)
+    canvas.on('mouse:wheel', (opt)=>{
+      const delta = -opt.e.deltaY;
+      const zoom = Math.max(0.25, Math.min(3, canvas.getZoom() * (1 + delta/1000)));
+      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+      document.getElementById('zoom').value = Math.round(zoom*100);
+      opt.e.preventDefault(); opt.e.stopPropagation();
+    });
+
+    // Pinch-zoom mobile
+    let lastDist=0;
+    canvas.upperCanvasEl.addEventListener('touchstart',(e)=>{ if(e.touches.length===2) lastDist=getTouchDist(e); }, {passive:false});
+    canvas.upperCanvasEl.addEventListener('touchmove',(e)=>{
+      if(e.touches.length===2){
+        e.preventDefault();
+        const d=getTouchDist(e);
+        if(lastDist){
+          const factor = 1 + (d - lastDist)/300;
+          const zoom = Math.max(0.25, Math.min(3, canvas.getZoom()*factor));
+          canvas.zoomToPoint({ x:e.touches[0].clientX, y:e.touches[0].clientY }, zoom);
+          document.getElementById('zoom').value = Math.round(zoom*100);
+        }
+        lastDist=d;
+      }
+    }, {passive:false});
+    function getTouchDist(e){ const [a,b]=e.touches; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+
+    /***********************
+     * PANNEAU & INVENTAIRE
+     ***********************/
+    function refreshInventorySelect(){
+      const sel = document.getElementById('inventorySelect');
+      sel.innerHTML = '<option value="">— Sélectionne une pièce —</option>' +
+        INVENTAIRE.map(p=>`<option value="${p.id}">${p.id} — ${p.nom}</option>`).join('');
+    }
+    function showPart(id){
+      const p = INVENTAIRE.find(x=>String(x.id)===String(id));
+      document.getElementById('partName').value = p ? p.nom  : '';
+      document.getElementById('partRole').value = p ? p.role : '';
+      document.getElementById('partDesc').value = p ? p.description : '';
+    }
+    function fillPanelFromZone(zone){
+      const id = zone.pieceId || '';
+      document.getElementById('inventorySelect').value = id;
+      showPart(id);
+    }
+
+    document.getElementById('inventorySelect').addEventListener('change', (e)=>{
+      showPart(e.target.value);
+    });
+
+    document.getElementById('btn-apply').addEventListener('click', ()=>{
+      const o = canvas.getActiveObject();
+      if(!o || o===bgImg){ alert('Sélectionne une zone.'); return; }
+      const id = document.getElementById('inventorySelect').value;
+      if(!id){ alert('Choisis une pièce dans la liste.'); return; }
+      o.pieceId = id;
+      // afficher la fiche immédiatement
+      showPart(id);
+      save();
+    });
+
+    document.getElementById('btn-show-all').addEventListener('click', ()=>{
+      canvas.getObjects().forEach(o=>{ if(o!==bgImg) o.opacity = 1; });
+      canvas.requestRenderAll();
+    });
+
+    /***********************
+     * UI BOUTONS
+     ***********************/
+    function refreshFitLabel(){
+      document.getElementById('toggle-fit').innerHTML = `Mode: <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
+    }
+
+    document.getElementById('btn-move').addEventListener('click', ()=>{ setMode({move:true}); setActiveButton('btn-move'); });
+    document.getElementById('btn-draw').addEventListener('click', ()=>{ setMode({draw:true}); setActiveButton('btn-draw'); });
+    document.getElementById('btn-pan').addEventListener('click',  ()=>{ setMode({pan:true});  setActiveButton('btn-pan');  });
+    document.getElementById('btn-select').addEventListener('click',()=>{ setMode({select:true}); setActiveButton('btn-select'); });
+
+    document.getElementById('btn-delete').addEventListener('click', ()=>{
+      const o = canvas.getActiveObject();
+      if(o && o!==bgImg){ canvas.remove(o); save(); }
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', ()=>{
+      if(!confirm('Effacer toutes les zones ?')) return;
+      canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
+      save();
+    });
+
+    document.getElementById('zoom').addEventListener('input', (e)=>{
+      const z = Math.max(0.25, Math.min(3, Number(e.target.value)/100));
+      canvas.setZoom(z);
+      canvas.requestRenderAll();
+    });
+
+    document.getElementById('toggle-fit').addEventListener('click', ()=>{
+      FIT_MODE = (FIT_MODE==='contain') ? 'cover' : 'contain';
+      refreshFitLabel();
+      fitBackgroundImage(bgImg);
+      save();
+    });
+
+    document.getElementById('btn-fit').addEventListener('click', ()=>{
+      fitBackgroundImage(bgImg);
+    });
+
+    document.getElementById('btn-export').addEventListener('click', exportJSON);
+    document.getElementById('fileImport').addEventListener('change', (e)=>{ importJSON(e.target.files[0]); e.target.value=''; });
+
+    /***********************
+     * BOOT
+     ***********************/
+    resizeCanvas();
+    loadBackground();
+    refreshInventorySelect();
+    setMode({move:true}); setActiveButton('btn-move');
+  </script>
 </body>
 </html>
-
-
-
-
-
