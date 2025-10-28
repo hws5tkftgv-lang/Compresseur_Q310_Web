@@ -3,80 +3,56 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quincy 310L – Schéma interactif (Éditeur / Lecture)</title>
-
-  <!-- FabricJS -->
+  <title>Quincy 310L – Éditeur / Lecture</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
-
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
 
-    /* Barre du haut */
-    .topbar {
-      display:flex; gap:8px; align-items:center; padding:10px 12px;
-      background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08);
-    }
-    .mode-pill {
-      display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
-      background:#1b2553; border:1px solid rgba(255,255,255,.14); border-radius:999px;
-    }
-    .mode-pill b { color:#91c9ff; }
-    .btn { padding:7px 11px; border-radius:8px; border:1px solid rgba(255,255,255,.14);
-           background:#1b2553; color:#eaf1ff; cursor:pointer; }
-    .btn:hover { filter:brightness(1.08); }
-    .btn.active { background:#0078ff; font-weight:bold; border-color:#0053ad; box-shadow:0 0 8px rgba(0,120,255,.45); }
-    .chip { padding:6px 8px; background:#192247; border:1px solid rgba(255,255,255,.12); border-radius:8px; }
+    .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);}
+    .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px;}
+    .mode-pill b{color:#91c9ff}
+    .btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#1b2553;color:#eaf1ff;cursor:pointer}
+    .btn:hover{filter:brightness(1.08)}
+    .btn.active{background:#0078ff;font-weight:700;border-color:#0053ad;box-shadow:0 0 8px rgba(0,120,255,.45)}
+    .chip{padding:6px 8px;background:#192247;border:1px solid rgba(255,255,255,.12);border-radius:8px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;background:#0f1a3f}
+    .toolbar.hidden{display:none}
+    .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
+    @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
+    canvas{touch-action:none;user-select:none}
+    .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
+    .panel h3{margin:6px 0 10px;font-size:1.05rem}
+    .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+    label{font-size:.9rem;opacity:.95}
+    select,input,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#0b1638;color:#eaf1ff}
+    textarea{min-height:120px;resize:vertical}
+    .hint{font-size:.85rem;opacity:.8}
+    .hidden{display:none!important}
 
-    /* Barre d'outils d'édition (masquée en Lecture) */
-    .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:10px 12px; background:#0f1a3f; }
-    .toolbar.hidden { display:none; }
+    /* Modal assignation */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
+    .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .modal h4{margin:0 0 10px}
+    .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 
-    /* Layout */
-    .wrap { display:grid; grid-template-columns:1fr 360px; gap:12px; padding:12px; }
-    @media (max-width:1000px) { .wrap { grid-template-columns:1fr; } }
-
-    .stage { background:#0b1536; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; min-height:55vh; }
-    canvas { touch-action:none; user-select:none; }
-
-    .panel {
-      padding:12px; background:#0f1a44; border:1px solid rgba(255,255,255,.10); border-radius:12px;
-    }
-    .panel h3 { margin:6px 0 10px; font-size:1.05rem; }
-    .row { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
-    label { font-size:.9rem; opacity:.95; }
-    select, input, textarea {
-      width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.18);
-      background:#0b1638; color:#eaf1ff;
-    }
-    textarea { min-height:120px; resize:vertical; }
-    .hint { font-size:.85rem; opacity:.8; }
-
-    /* Lecture : look désactivé */
-    .readonly { opacity:.9; background:#0b1638; }
-    .hidden { display:none !important; }
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
   </style>
 </head>
 <body>
-
-  <!-- Barre supérieure : bascule Éditeur <-> Lecture -->
   <div class="topbar">
     <span class="mode-pill">Mode : <b id="modeLabel">Éditeur</b></span>
     <button id="toggleMode" class="btn">Passer en Lecture</button>
-
     <span style="flex:1;"></span>
-
-    <!-- Contrôles communs (toujours visibles) -->
     <span class="chip">Zoom
-      <input type="range" id="zoom" min="25" max="300" step="1" value="100"
-             style="vertical-align:middle; margin-left:6px;">
+      <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
     </span>
     <span id="toggle-fit" class="btn chip">Affichage : <strong>Tout voir</strong></span>
     <button id="btn-fit" class="btn">🖼️ Ajuster</button>
   </div>
 
-  <!-- Barre d’outils d’édition (masquée en Lecture) -->
   <div id="editorToolbar" class="toolbar">
     <button id="btn-move" class="btn">🧿 Déplacer / Redim.</button>
     <button id="btn-draw" class="btn">✏️ Dessiner</button>
@@ -84,83 +60,95 @@
     <button id="btn-select" class="btn">🖱️ Sélection</button>
     <button id="btn-delete" class="btn">❌ Supprimer</button>
     <button id="btn-clear" class="btn">🗑️ Effacer tout</button>
-
     <span style="flex:1;"></span>
-
     <button id="btn-export" class="btn">💾 Export JSON</button>
     <label class="btn">📥 Import JSON
-      <input id="fileImport" type="file" accept=".json,application/json" style="display:none;">
+      <input id="fileImport" type="file" accept=".json,application/json" style="display:none">
     </label>
   </div>
 
-  <!-- Scène + Panneau -->
   <div class="wrap">
     <div class="stage"><canvas id="c"></canvas></div>
-
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
-      <p class="hint" id="panelHint">
-        En <b>Sélection</b>, cliquez une zone pour afficher <b>Pièce / Nom / Rôle / Description</b>.
-      </p>
-
+      <p class="hint">Éditeur : après dessin, une fenêtre demande la pièce. Lecture : cliquez une zone pour afficher la fiche.</p>
       <div class="row">
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect"></select>
       </div>
       <div class="row">
         <label for="partName">Nom</label>
-        <input id="partName" class="readonly" readonly />
+        <input id="partName" readonly>
       </div>
       <div class="row">
         <label for="partRole">Rôle</label>
-        <input id="partRole" class="readonly" readonly />
+        <input id="partRole" readonly>
       </div>
       <div class="row">
         <label for="partDesc">Description</label>
-        <textarea id="partDesc" class="readonly" readonly></textarea>
+        <textarea id="partDesc" readonly></textarea>
       </div>
-
-      <div class="row" id="editorActions" style="display:flex; gap:8px;">
-        <button id="btn-apply" class="btn" style="flex:1;">✅ Appliquer à la zone</button>
-        <button id="btn-show-all" class="btn" style="flex:1;">👁️ Afficher tout</button>
+      <div class="row" id="editorActions" style="display:flex;gap:8px">
+        <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
+        <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-
       <p class="hint">💾 Sauvegarde locale automatique (navigateur). Utilisez Export/Import pour partager.</p>
     </aside>
   </div>
 
+  <!-- Modal auto-assignation -->
+  <div id="assignModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h4>Associer cette zone à une pièce</h4>
+      <div class="row">
+        <label for="assignSelect">Pièce</label>
+        <select id="assignSelect"></select>
+      </div>
+      <div class="row">
+        <label>Nom</label>
+        <input id="assignName" readonly>
+      </div>
+      <div class="row">
+        <label>Rôle</label>
+        <input id="assignRole" readonly>
+      </div>
+      <div class="row">
+        <label>Description</label>
+        <textarea id="assignDesc" readonly></textarea>
+      </div>
+      <div class="actions">
+        <button id="assignCancel" class="btn">Annuler</button>
+        <button id="assignOk" class="btn">Associer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">✅ Pièce associée à la zone</div>
+
   <script>
-    /***********************
-     * INVENTAIRE (Nom / Rôle / Desc) + Circuit pour couleurs
-     ***********************/
-    const INVENTAIRE = {
-      // Admission / LP (🟦)
+    /******** Inventaire ********/
+    let INVENTAIRE = {
+      // Fallback minimal si le JSON externe est absent
       "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
       "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
-      "soupape_admission_lp": {nom:"Soupape d’admission LP", role:"Entrée d’air", desc:"S’ouvre sous dépression.", circuit:"LP"},
-
-      // HP / Refoulement (🔴)
       "cylindre_hp":  {nom:"Cylindre haute pression", role:"Compression finale", desc:"Monte l’air à haute pression.", circuit:"HP"},
       "intercooler":  {nom:"Intercooler", role:"Refroidir l’air", desc:"Réduit la température entre les étages.", circuit:"HP"},
-      "soupape_decharge_hp": {nom:"Soupape de décharge HP", role:"Sortie HP", desc:"Libère l’air vers le réservoir.", circuit:"HP"},
-
-      // Lubrification (🟧)
       "carter":       {nom:"Carter", role:"Réservoir d’huile", desc:"Contient et distribue l’huile.", circuit:"LUB"},
-      "pompe_huile":  {nom:"Pompe à huile", role:"Distribution huile", desc:"Alimente les paliers.", circuit:"LUB"},
-      "filtre_huile": {nom:"Filtre à huile", role:"Filtrer l’huile", desc:"Retient les particules.", circuit:"LUB"},
-
-      // Contrôle / Régulation (🟪)
       "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrête/démarre selon pression.", circuit:"CTRL"},
-      "valve_pilote": {nom:"Valve pilote", role:"Contrôle charge", desc:"Régule les déchargeurs.", circuit:"CTRL"},
-      "soupape_securite": {nom:"Soupape de sûreté", role:"Protection", desc:"Tarée contre surpression.", circuit:"CTRL"},
-
-      // Transmission (🟩)
-      "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation.", circuit:"TR"},
-      "courroies":    {nom:"Courroies", role:"Transmission", desc:"Relient moteur et compresseur.", circuit:"TR"},
-      "poulie_moteur":{nom:"Poulie moteur", role:"Adaptation vitesse", desc:"Détermine le ratio.", circuit:"TR"}
+      "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation.", circuit:"TR"}
     };
 
-    /******** COULEURS PAR CIRCUIT ********/
+    // Heuristique de circuit si non fourni
+    function guessCircuitFromIdName(id, item){
+      const s = (id + " " + (item?.nom||"") + " " + (item?.role||"")).toLowerCase();
+      if (/(lp|admission|aspiration|filtre air|entrée)/.test(s)) return "LP";
+      if (/(hp|haute|refoulement|intercooler|anti[- ]?retour)/.test(s)) return "HP";
+      if (/(huile|lubrifi|graiss|carter|pompe)/.test(s)) return "LUB";
+      if (/(pressostat|pilote|décharge|unloader|sûret|sécurit|valve|commande|régula)/.test(s)) return "CTRL";
+      if (/(courroie|poulie|volant|moteur)/.test(s)) return "TR";
+      return "DEF";
+    }
+
     const COULEURS = {
       "LP":  { fill:"rgba(0,160,255,0.18)", stroke:"#00a0ff" },
       "HP":  { fill:"rgba(255,60,60,0.18)", stroke:"#ff3c3c" },
@@ -170,20 +158,18 @@
       "DEF": { fill:"rgba(200,200,200,0.12)", stroke:"#aaaaaa" }
     };
 
-    /***********************
-     * CANVAS + BACKGROUND
-     ***********************/
+    /******** Canvas ********/
     const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true, backgroundColor:"#0b1536" });
     let bgImg = null;
     let FIT_MODE = "contain"; // contain | cover
 
-    function resizeCanvas() {
-      const stage = document.querySelector(".stage");
+    function resizeCanvas(){
+      const stage=document.querySelector(".stage");
       canvas.setWidth(stage.clientWidth);
       canvas.setHeight(Math.max(520, window.innerHeight*0.65));
       canvas.requestRenderAll();
     }
-    window.addEventListener("resize", () => { resizeCanvas(); fitBackgroundImage(bgImg); });
+    window.addEventListener("resize", ()=>{ resizeCanvas(); fitBackgroundImage(bgImg); });
 
     function fitBackgroundImage(img){
       if(!img) return;
@@ -197,308 +183,339 @@
 
     function loadBackground(){
       fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
-        bgImg = img;
-        canvas.add(img);
-        fitBackgroundImage(img);
+        bgImg=img; canvas.add(img); fitBackgroundImage(img);
         requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
       }, { crossOrigin:"anonymous" });
     }
 
-    /***********************
-     * SAUVEGARDE
-     ***********************/
-    const LS_KEY = "q310_editor_reader_v1";
+    /******** Sauvegarde ********/
+    const LS_KEY="q310_editor_reader_autoassign_touch_v1";
     function toNormalized(o){
-      const r=o.getBoundingRect(true, true);
-      return { id:o.pieceId||"", x:r.left, y:r.top, w:r.width, h:r.height };
+      const r=o.getBoundingRect(true,true);
+      return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height};
     }
     function fromNormalized(z){
-      const info = INVENTAIRE[z.id];
-      const col  = info ? COULEURS[info.circuit] : COULEURS.DEF;
-      const rect = new fabric.Rect({
+      const item = INVENTAIRE[z.id] || {};
+      const circ = item.circuit || guessCircuitFromIdName(z.id, item);
+      const col  = COULEURS[circ] || COULEURS.DEF;
+      const rect=new fabric.Rect({
         left:z.x, top:z.y, width:z.w, height:z.h,
         fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
         selectable:true, hasControls:true, lockScalingFlip:true
       });
-      rect.pieceId = z.id || "";
+      rect.pieceId=z.id||"";
       canvas.add(rect); canvas.bringToFront(rect);
       return rect;
     }
     function save(){
-      const zones = canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
+      const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
       localStorage.setItem(LS_KEY, JSON.stringify({fit:FIT_MODE, zones}));
     }
     function loadSaved(){
-      const raw = localStorage.getItem(LS_KEY);
-      if(!raw) return;
+      const raw=localStorage.getItem(LS_KEY); if(!raw) return;
       try{
-        const data = JSON.parse(raw);
-        FIT_MODE = data.fit || "contain";
-        (data.zones||[]).forEach(fromNormalized);
+        const d=JSON.parse(raw); FIT_MODE=d.fit||"contain";
+        (d.zones||[]).forEach(fromNormalized);
         refreshFitLabel();
       }catch(e){ console.warn("Aucune sauvegarde valide", e); }
     }
-
     function exportJSON(){
-      const zones = canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-      const blob = new Blob([JSON.stringify({fit:FIT_MODE, zones}, null, 2)], {type:"application/json"});
-      const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
+      const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
+      const blob=new Blob([JSON.stringify({fit:FIT_MODE, zones},null,2)],{type:"application/json"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
     }
     function importJSON(file){
       if(!file) return;
-      const reader=new FileReader();
-      reader.onload=()=>{
+      const r=new FileReader();
+      r.onload=()=>{
         try{
-          const data=JSON.parse(reader.result);
-          canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
-          FIT_MODE = data.fit || "contain";
-          (data.zones||[]).forEach(fromNormalized);
+          const d=JSON.parse(r.result);
+          canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
+          FIT_MODE=d.fit||"contain"; (d.zones||[]).forEach(fromNormalized);
           refreshFitLabel(); canvas.requestRenderAll(); save();
         }catch(e){ alert("JSON invalide."); }
       };
-      reader.readAsText(file);
+      r.readAsText(file);
     }
 
-    /***********************
-     * MODES (dessin/déplacement/pan/sélection) + LECTURE/ÉDITEUR
-     ***********************/
-    let mode = "move";           // "move" | "draw" | "pan" | "select"
-    let isReading = false;       // Lecture = true, Éditeur = false
-    let drawingRect = null, startPoint = null;
+    /******** Modes & interactions ********/
+    let mode="move"; // move|draw|pan|select
+    let isReading=false;
+    let drawingRect=null, startPoint=null, pendingNewRect=null;
 
     function setMode(m){
-      mode = m;
+      mode=m;
       document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
-      const map = { move:"btn-move", draw:"btn-draw", pan:"btn-pan", select:"btn-select" };
+      const map={move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"};
       if(map[m]) document.getElementById(map[m]).classList.add("active");
 
-      // En Éditeur : zones déplaçables uniquement en mode "move"
-      // En Lecture  : zones sélectionnables mais ni déplaçables ni redimensionnables
       canvas.getObjects().forEach(o=>{
         if(o===bgImg) return;
         if(isReading){
-          o.selectable = true;
-          o.hasControls = false;
-          o.lockMovementX = true;
-          o.lockMovementY = true;
-          o.lockScalingX = true;
-          o.lockScalingY = true;
-          o.hoverCursor = "pointer";
+          o.selectable=true; o.hasControls=false;
+          o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=true;
+          o.hoverCursor="pointer";
         }else{
-          o.selectable = (m==="move");
-          o.hasControls = (m==="move");
-          o.lockMovementX = false;
-          o.lockMovementY = false;
-          o.lockScalingX = false;
-          o.lockScalingY = false;
-          o.hoverCursor = (m==="select") ? "pointer" : "move";
+          o.selectable=(m==="move"); o.hasControls=(m==="move");
+          o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=false;
+          o.hoverCursor=(m==="select")?"pointer":"move";
         }
       });
     }
-
     function applyLectureUI(on){
-      isReading = !!on;
-
-      // Libellé et bouton
-      document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
-      document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
-
-      // Barre d’outils Éditeur visible seulement en Éditeur
+      isReading=!!on;
+      document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
+      document.getElementById("toggleMode").textContent=on?"Passer en Éditeur":"Passer en Lecture";
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
-
-      // Panneau : sélecteur de pièce désactivé + bouton Appliquer masqué en Lecture
-      document.getElementById("inventorySelect").disabled = on;
-      document.getElementById("btn-apply").classList.toggle("hidden", on);
-
-      // En Lecture : forcer le mode Sélection, et interdire toute action autre que sélectionner
-      if(on){
-        setMode("select");
-      }else{
-        setMode("move");
-      }
+      if(on){ setMode("select"); } else { setMode("move"); }
     }
 
-    // Dessin / Pan / Sélection
-    canvas.on("mouse:down", (opt)=>{
-      if(mode==="pan"){
-        canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
-      }
-      if(mode!=="draw" || isReading) return;
-      const p=canvas.getPointer(opt.e);
-      startPoint=p;
-      drawingRect = new fabric.Rect({
-        left:p.x, top:p.y, width:1, height:1,
-        fill:"rgba(255,255,255,0.10)", stroke:"#0ff", strokeWidth:2, rx:6, ry:6, selectable:false
-      });
-      canvas.add(drawingRect);
+    // Zoom centré (molette + slider)
+    canvas.on("mouse:wheel",(opt)=>{
+      const delta=-opt.e.deltaY;
+      const cur=canvas.getZoom();
+      const next=Math.max(0.25, Math.min(3, cur*(1+delta/1000)));
+      const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+      const viewport=canvas.viewportTransform;
+      const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
+      canvas.zoomToPoint(center,next);
+      const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
+      const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
+      canvas.relativePan(dpt.multiplyScalar(-1));
+      document.getElementById("zoom").value=Math.round(next*100);
+      opt.e.preventDefault(); opt.e.stopPropagation();
     });
-    canvas.on("mouse:move", (opt)=>{
-      if(canvas.isDragging && mode==="pan"){ const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return; }
-      if(mode!=="draw" || !drawingRect || !startPoint || isReading) return;
-      const p=canvas.getPointer(opt.e);
-      drawingRect.set({ left:Math.min(p.x,startPoint.x), top:Math.min(p.y,startPoint.y),
-                        width:Math.abs(p.x-startPoint.x), height:Math.abs(p.y-startPoint.y) });
+    document.getElementById("zoom").addEventListener("input",(e)=>{
+      const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
+      const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+      const viewport=canvas.viewportTransform;
+      const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
+      canvas.zoomToPoint(center,z);
+      const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
+      const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
+      canvas.relativePan(dpt.multiplyScalar(-1));
       canvas.requestRenderAll();
     });
-    canvas.on("mouse:up", (e)=>{
-      if(canvas.isDragging){ canvas.isDragging=false; return; }
 
-      // Lecture ou Sélection : afficher la fiche sans modifier
-      if(mode==="select"){
-        const target=e.target;
-        if(target && target!==bgImg){
-          highlight(target);
-          fillPanelFromZone(target);
+    // Pan : Lecture (fond/vide à 1 doigt) et Éditeur (mode pan)
+    canvas.on("mouse:down",(opt)=>{
+      if(isReading){
+        const t=opt.target;
+        if(!t || t===bgImg){
+          canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
         }
-        return;
       }
-
-      // Fin du dessin
-      if(mode!=="draw" || !drawingRect || isReading) return;
-      drawingRect.selectable=true;
-      drawingRect = null; startPoint = null;
-      save();
+      if(mode==="pan"){
+        canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
+      }
+      if(mode!=="draw"||isReading) return;
+      const p=canvas.getPointer(opt.e);
+      startPoint=p;
+      drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false});
+      canvas.add(drawingRect);
+    });
+    canvas.on("mouse:move",(opt)=>{
+      if(canvas.isDragging){
+        const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
+        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
+      }
+      if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
+      const p=canvas.getPointer(opt.e);
+      drawingRect.set({left:Math.min(p.x,startPoint.x),top:Math.min(p.y,startPoint.y),width:Math.abs(p.x-startPoint.x),height:Math.abs(p.y-startPoint.y)});
+      canvas.requestRenderAll();
+    });
+    canvas.on("mouse:up",(e)=>{
+      if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
+      if(mode==="select"){
+        const t=e.target; if(t && t!==bgImg){ highlight(t); fillPanelFromZone(t); } return;
+      }
+      if(mode!=="draw"||!drawingRect||isReading) return;
+      drawingRect.selectable=true; pendingNewRect=drawingRect; drawingRect=null; startPoint=null;
+      openAssignModal();
     });
 
-canvas.on("mouse:wheel", (opt)=>{
-  const delta = -opt.e.deltaY;
-  const currentZoom = canvas.getZoom();
-  const nextZoom = Math.max(0.25, Math.min(3, currentZoom * (1 + delta / 1000)));
-
-  // 🔹 Centre du canvas (non de la souris)
-  const center = new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
-  
-  // 🔹 Recentrer la vue après le zoom
-  const viewport = canvas.viewportTransform;
-  const prevCenter = fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
-  canvas.zoomToPoint(center, nextZoom);
-  const newCenter = fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
-  const deltaPoint = new fabric.Point(newCenter.x - prevCenter.x, newCenter.y - prevCenter.y);
-  canvas.relativePan(deltaPoint.multiplyScalar(-1));
-
-  document.getElementById("zoom").value = Math.round(nextZoom * 100);
-  opt.e.preventDefault();
-  opt.e.stopPropagation();
-});
-
-
-
-    // Sélection : met la zone en valeur
     function highlight(o){
       canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; });
       canvas.requestRenderAll();
     }
 
-    /***********************
-     * PANNEAU & COULEURS
-     ***********************/
+    /******** Panneau ********/
     function refreshInventorySelect(){
       const sel=document.getElementById("inventorySelect");
-      sel.innerHTML = '<option value="">— Choisir —</option>' +
-        Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
+      sel.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
     }
     function showPart(id){
       const p=INVENTAIRE[id];
-      document.getElementById("partName").value = p ? p.nom  : "";
-      document.getElementById("partRole").value = p ? p.role : "";
-      document.getElementById("partDesc").value = p ? p.desc : "";
+      document.getElementById("partName").value=p?p.nom:"";
+      document.getElementById("partRole").value=p?p.role:"";
+      document.getElementById("partDesc").value=p?p.desc:"";
     }
     function fillPanelFromZone(zone){
-      const id = zone.pieceId || "";
-      document.getElementById("inventorySelect").value = id;
+      const id=zone.pieceId||"";
+      document.getElementById("inventorySelect").value=id;
       showPart(id);
     }
-
-    // Changement de pièce (n’affecte pas la zone tant que l’on n’appuie pas sur Appliquer)
-    document.getElementById("inventorySelect").addEventListener("change", (e)=>{
-      if(isReading) { e.target.value = e.target.value; } // pas d'effet sur la zone en Lecture
-      showPart(e.target.value);
-    });
-
-    // Appliquer pièce à la zone (Éditeur uniquement)
-    document.getElementById("btn-apply").addEventListener("click", ()=>{
-      if(isReading){ return; }
-      const o = canvas.getActiveObject();
-      if(!o || o===bgImg){ alert("Sélectionne une zone."); return; }
-      const id = document.getElementById("inventorySelect").value;
-      if(!id){ alert("Choisis une pièce."); return; }
-      o.pieceId = id;
-      const info = INVENTAIRE[id], col = COULEURS[info?.circuit] || COULEURS.DEF;
-      o.set({ fill:col.fill, stroke:col.stroke });
-      showPart(id);
-      save(); canvas.requestRenderAll();
-    });
-
-    // Afficher toutes les zones
-    document.getElementById("btn-show-all").addEventListener("click", ()=>{
-      canvas.getObjects().forEach(o=>{ if(o!==bgImg) o.opacity=1; });
-      canvas.requestRenderAll();
-    });
-
-    /***********************
-     * BOUTONS ÉDITEUR
-     ***********************/
-    document.getElementById("btn-move").onclick   = ()=>setMode("move");
-    document.getElementById("btn-draw").onclick   = ()=>setMode("draw");
-    document.getElementById("btn-pan").onclick    = ()=>setMode("pan");
-    document.getElementById("btn-select").onclick = ()=>setMode("select");
-
-    document.getElementById("btn-delete").onclick = ()=>{
+    document.getElementById("inventorySelect").addEventListener("change",(e)=>{ showPart(e.target.value); });
+    document.getElementById("btn-apply").addEventListener("click",()=>{
       if(isReading) return;
-      const o=canvas.getActiveObject();
-      if(o && o!==bgImg){ canvas.remove(o); save(); }
-    };
-    document.getElementById("btn-clear").onclick = ()=>{
-      if(isReading) return;
-      if(confirm("Effacer toutes les zones ?")){
-        canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
-        save(); canvas.requestRenderAll();
-      }
-    };
-
-document.getElementById("zoom").addEventListener("input", (e)=>{
-  const z = Math.max(0.25, Math.min(3, Number(e.target.value) / 100));
-  const center = new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
-  const viewport = canvas.viewportTransform;
-  const prevCenter = fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
-  canvas.zoomToPoint(center, z);
-  const newCenter = fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
-  const deltaPoint = new fabric.Point(newCenter.x - prevCenter.x, newCenter.y - prevCenter.y);
-  canvas.relativePan(deltaPoint.multiplyScalar(-1));
-  canvas.requestRenderAll();
-});
-
-    // Fit
-    function refreshFitLabel(){
-      document.getElementById("toggle-fit").innerHTML = `Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
-    }
-    document.getElementById("toggle-fit").addEventListener("click", ()=>{
-      FIT_MODE = (FIT_MODE==="contain") ? "cover" : "contain";
-      refreshFitLabel(); fitBackgroundImage(bgImg); save();
+      const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
+      const id=document.getElementById("inventorySelect").value; if(!id){ alert("Choisis une pièce."); return; }
+      applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
     });
-    document.getElementById("btn-fit").addEventListener("click", ()=>fitBackgroundImage(bgImg));
+    document.getElementById("btn-show-all").addEventListener("click",()=>{ canvas.getObjects().forEach(o=>{if(o!==bgImg)o.opacity=1}); canvas.requestRenderAll(); });
 
-    // Import / Export
+    /******** Import/Export + outils éditeur ********/
     document.getElementById("btn-export").addEventListener("click", exportJSON);
-    document.getElementById("fileImport").addEventListener("change", (e)=>{ importJSON(e.target.files[0]); e.target.value=""; });
+    document.getElementById("fileImport").addEventListener("change",(e)=>{ importJSON(e.target.files[0]); e.target.value=""; });
+    document.getElementById("toggleMode").addEventListener("click",()=>{ applyLectureUI(!isReading); });
+    document.getElementById("btn-move").onclick=()=>setMode("move");
+    document.getElementById("btn-draw").onclick=()=>setMode("draw");
+    document.getElementById("btn-pan").onclick =()=>setMode("pan");
+    document.getElementById("btn-select").onclick=()=>setMode("select");
+    document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
+    document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
 
-    // Bascule Éditeur / Lecture
-    document.getElementById("toggleMode").addEventListener("click", ()=>{
-      applyLectureUI(!isReading);
+    function refreshFitLabel(){
+      document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
+    }
+    document.getElementById("toggle-fit").addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; refreshFitLabel(); fitBackgroundImage(bgImg); save(); });
+    document.getElementById("btn-fit").addEventListener("click",()=>fitBackgroundImage(bgImg));
+
+    /******** Auto-assignation (modal) ********/
+    const assignModal=document.getElementById("assignModal");
+    const assignSelect=document.getElementById("assignSelect");
+    const assignName=document.getElementById("assignName");
+    const assignRole=document.getElementById("assignRole");
+    const assignDesc=document.getElementById("assignDesc");
+    function openAssignModal(){
+      assignSelect.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
+      assignName.value=""; assignRole.value=""; assignDesc.value="";
+      assignModal.style.display="flex"; assignSelect.focus();
+    }
+    function closeAssignModal(){ assignModal.style.display="none"; }
+    assignSelect.addEventListener("change",()=>{ const p=INVENTAIRE[assignSelect.value]; assignName.value=p?p.nom:""; assignRole.value=p?p.role:""; assignDesc.value=p?p.desc:""; });
+    document.getElementById("assignCancel").addEventListener("click",()=>{ closeAssignModal(); if(pendingNewRect){ save(); pendingNewRect=null; } });
+    document.getElementById("assignOk").addEventListener("click",()=>{
+      const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
+      if(!pendingNewRect){ closeAssignModal(); return; }
+      applyPieceToObject(pendingNewRect,id); closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
     });
 
-    /***********************
-     * DÉMARRAGE
-     ***********************/
-    resizeCanvas();
-    loadBackground();
-    refreshInventorySelect();
-    applyLectureUI(TRUE); // démarre en Éditeur
+    function applyPieceToObject(obj,id){
+      obj.pieceId=id;
+      const item=INVENTAIRE[id]||{};
+      const circ=item.circuit || guessCircuitFromIdName(id,item);
+      const col=COULEURS[circ]||COULEURS.DEF;
+      obj.set({fill:col.fill, stroke:col.stroke});
+      document.getElementById("inventorySelect").value=id; showPart(id);
+      canvas.setActiveObject(obj); highlight(obj);
+      save(); canvas.requestRenderAll();
+    }
+
+    /******** Toast ********/
+    const toastEl=document.getElementById("toast"); let toastTimer=null;
+    function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
+
+    /******** Pinch-zoom tactile (2 doigts) + pan 1 doigt ********/
+    let pinchLastDist=0;
+    const upper = canvas.upperCanvasEl;
+
+    upper.addEventListener("touchstart",(e)=>{
+      if(e.touches.length===1){
+        // pan 1 doigt sur fond/vide même en Lecture
+        canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+      }else if(e.touches.length===2){
+        pinchLastDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, {passive:false});
+
+    upper.addEventListener("touchmove",(e)=>{
+      if(e.touches.length===2){
+        const dist=Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if(pinchLastDist===0) { pinchLastDist=dist; return; }
+        const zoom=canvas.getZoom();
+        const next=Math.max(0.25, Math.min(3, zoom * (1 + (dist - pinchLastDist)/300)));
+        const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+        const viewport=canvas.viewportTransform;
+        const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
+        canvas.zoomToPoint(center,next);
+        const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
+        const dpt=new fabric.Point(newCenter.x - prevCenter.x, newCenter.y - prevCenter.y);
+        canvas.relativePan(dpt.multiplyScalar(-1));
+        document.getElementById("zoom").value=Math.round(next*100);
+        canvas.requestRenderAll();
+        pinchLastDist=dist;
+        e.preventDefault();
+      } else if(e.touches.length===1 && canvas.isDragging){
+        const dx=e.touches[0].clientX - canvas.lastX;
+        const dy=e.touches[0].clientY - canvas.lastY;
+        canvas.relativePan(new fabric.Point(dx,dy));
+        canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+        e.preventDefault();
+      }
+    }, {passive:false});
+
+    upper.addEventListener("touchend",()=>{ if(event.touches && event.touches.length===0){ canvas.isDragging=false; } if(!event.touches || event.touches.length<2){ pinchLastDist=0; } }, {passive:false});
+
+    /******** Chargement inventaire JSON externe (si présent) ********/
+    async function tryLoadInventory(){
+      try{
+        const res = await fetch("quincy_310L_parts.json", {cache:"no-store"});
+        if(!res.ok) return; // pas de fichier -> on garde le fallback
+        const data = await res.json();
+        // on accepte soit tableau [{id,nom,role,desc,circuit?}] soit objet {id:{...}}
+        let map = {};
+        if (Array.isArray(data)) {
+          for (const it of data) {
+            if (!it || !it.id) continue;
+            map[it.id] = {
+              nom: it.nom || it.name || "",
+              role: it.role || "",
+              desc: it.desc || it.description || "",
+              circuit: it.circuit || null
+            };
+          }
+        } else if (typeof data === "object") {
+          for (const [id, it] of Object.entries(data)) {
+            map[id] = {
+              nom: it.nom || it.name || "",
+              role: it.role || "",
+              desc: it.desc || it.description || "",
+              circuit: it.circuit || null
+            };
+          }
+        }
+        if (Object.keys(map).length) {
+          INVENTAIRE = map;
+        }
+      } catch (e) {
+        console.warn("Inventaire externe introuvable ou invalide:", e);
+      }
+    }
+
+    /******** Init ********/
+    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
+
+    async function init(){
+      resizeCanvas();
+      await tryLoadInventory();
+      refreshInventorySelect();
+      loadBackground();
+      applyLectureUI(false); // démarrer en Éditeur
+      refreshFitLabel();
+    }
+    init();
   </script>
 </body>
 </html>
+
+
 
 
 
