@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone: on gère le zoom dans Fabric (pas le zoom navigateur) -->
+  <!-- IMPORTANT iPhone: empêcher le zoom navigateur, on gère le zoom dans Fabric -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L – Éditeur / Lecture</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -21,12 +21,9 @@
     .toolbar.hidden{display:none}
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-    .stage{
-      background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;
-      min-height:65vh; /* plus grand sur mobile */
-    }
-    /* iOS: empêcher gestes natifs et sélections côté wrapper + canvas */
-    .stage, .stage canvas { touch-action:none !important; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
+    /* iOS: empêcher gestes natifs et sélections */
+    canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
     html, body { overscroll-behavior: none; }
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
@@ -78,9 +75,18 @@
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect" disabled></select>
       </div>
-      <div class="row"><label for="partName">Nom</label><input id="partName" readonly></div>
-      <div class="row"><label for="partRole">Rôle</label><input id="partRole" readonly></div>
-      <div class="row"><label for="partDesc">Description</label><textarea id="partDesc" readonly></textarea></div>
+      <div class="row">
+        <label for="partName">Nom</label>
+        <input id="partName" readonly>
+      </div>
+      <div class="row">
+        <label for="partRole">Rôle</label>
+        <input id="partRole" readonly>
+      </div>
+      <div class="row">
+        <label for="partDesc">Description</label>
+        <textarea id="partDesc" readonly></textarea>
+      </div>
       <div class="row" id="editorActions" style="display:flex;gap:8px">
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
@@ -110,10 +116,6 @@
   <div id="toast" class="toast">✅ Pièce associée à la zone</div>
 
   <script>
-    /* ===== iOS anti-blank: désactiver le cache bitmap Fabric global ===== */
-    fabric.Object.prototype.objectCaching = false;
-    fabric.Image.prototype.objectCaching  = false;
-
     /* ===================== Inventaire (fallback) ===================== */
     let INVENTAIRE = {
       "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
@@ -143,27 +145,14 @@
     };
 
     /* ===================== Canvas & background ===================== */
-    const canvas = new fabric.Canvas("c", {
-      selection:false,
-      preserveObjectStacking:true,
-      backgroundColor:"#0b1536",
-      enableRetinaScaling:false  // clé iOS: évite disparition au pan/zoom
-    });
+    const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true, backgroundColor:"#0b1536" });
     let bgImg = null;
     let FIT_MODE = "contain"; // contain | cover
 
     function resizeCanvas(){
-      const stage = document.querySelector(".stage");
-      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-      const w = stage.clientWidth;
-      const h = Math.max(520, (isMobile ? window.innerHeight * 0.80 : window.innerHeight * 0.65));
-
-      // 1) taille CSS visible
-      canvas.setDimensions({ width:w, height:h }, { cssOnly:true });
-      // 2) taille interne (backstore)
-      canvas.setDimensions({ width:w, height:h }, { backstoreOnly:true });
-
-      canvas.calcOffset();
+      const stage=document.querySelector(".stage");
+      canvas.setWidth(stage.clientWidth);
+      canvas.setHeight(Math.max(520, window.innerHeight*0.65));
       canvas.requestRenderAll();
     }
     window.addEventListener("resize", ()=>{ resizeCanvas(); fitBackgroundImage(bgImg); }, { passive:true });
@@ -179,9 +168,8 @@
     }
     function loadBackground(){
       fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
-        bgImg = img;
-        bgImg.objectCaching = false;  // iOS
-        bgImg.erasable = false;
+        bgImg=img;
+        bgImg.objectCaching = false; // iOS: éviter disparition au pinch
         canvas.add(bgImg);
         fitBackgroundImage(bgImg);
         requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
@@ -226,7 +214,7 @@
       try{
         const d=JSON.parse(raw); FIT_MODE=d.fit||"contain";
         (d.zones||[]).forEach(fromNormalized);
-        refreshFitChip();
+        refreshFitLabel();
       }catch(e){ console.warn("Aucune sauvegarde valide", e); }
     }
     function exportJSON(){
@@ -242,7 +230,7 @@
           const d=JSON.parse(r.result);
           canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
           FIT_MODE=d.fit||"contain"; (d.zones||[]).forEach(fromNormalized);
-          refreshFitChip(); canvas.requestRenderAll(); save();
+          refreshFitLabel(); canvas.requestRenderAll(); save();
         }catch(e){ alert("JSON invalide."); }
       };
       r.readAsText(file);
@@ -267,7 +255,7 @@
       if (o===bgImg) return;
       if (!o.__style) o.__style = { fill:o.fill, stroke:o.stroke, opacity:o.opacity, sw:o.strokeWidth };
       o.opacity     = 1;
-      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);  // 1%: hit-test iOS OK
+      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);  // 1% pour hit-test iOS
       o.stroke      = toTransparent(o.__style.stroke || o.stroke, 0.01);
       o.strokeWidth = 0.01;
       o.hasBorders  = false;
@@ -399,7 +387,7 @@
       canvas.requestRenderAll();
     });
 
-    // Pan & draw (souris/desktop)
+    // Pan : Lecture (fond/vide) et Éditeur (mode pan)
     canvas.on("mouse:down",(opt)=>{
       if(isReading){
         const t=opt.target;
@@ -420,10 +408,7 @@
     canvas.on("mouse:move",(opt)=>{
       if(canvas.isDragging){
         const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
-        if (bgImg) bgImg.dirty = true;  // iOS: force repaint pendant pan souris
-        hardRefresh();
-        return;
+        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
       }
       if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
       const p=canvas.getPointer(opt.e);
@@ -508,31 +493,9 @@
     document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
     document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
 
-    /* ====== AJUSTER (reset zoom/pan + fit image) ====== */
-    function adjustToFit() {
-      if (!bgImg) return;
-      FIT_MODE = "contain";
-      refreshFitChip();
-      fitBackgroundImage(bgImg);
-      canvas.setViewportTransform([1,0,0,1,0,0]);
-      document.getElementById("zoom").value = 100;
-      if (bgImg) bgImg.dirty = true;
-      hardRefresh();
-    }
-    document.getElementById("btn-fit").addEventListener("click", adjustToFit);
-
-    function refreshFitChip(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
-    document.getElementById("toggle-fit").addEventListener("click",()=>{
-      FIT_MODE = (FIT_MODE==="contain") ? "cover" : "contain";
-      refreshFitChip();
-      fitBackgroundImage(bgImg);
-      // reset vue pour rendre l'effet visible immédiatement
-      canvas.setViewportTransform([1,0,0,1,0,0]);
-      document.getElementById("zoom").value = 100;
-      if (bgImg) bgImg.dirty = true;
-      hardRefresh();
-      save();
-    });
+    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
+    document.getElementById("toggle-fit").addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; refreshFitLabel(); fitBackgroundImage(bgImg); save(); });
+    document.getElementById("btn-fit").addEventListener("click",()=>fitBackgroundImage(bgImg));
 
     /* ===================== Modal auto-assignation ===================== */
     const assignModal=document.getElementById("assignModal");
@@ -583,50 +546,50 @@
     const toastEl=document.getElementById("toast"); let toastTimer=null;
     function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-    /* ===================== iOS gestures: neutraliser ===================== */
+    /* ===================== iOS gestures: neutraliser */
     const upper = canvas.upperCanvasEl;
-    // Empêche le zoom natif iOS; on gère nous-mêmes le pinch
+    // Couper les anciens events de geste iOS pour éviter zoom/dézoom natif
     upper.addEventListener('gesturestart', e => e.preventDefault());
     upper.addEventListener('gesturechange', e => e.preventDefault());
     upper.addEventListener('gestureend', e => e.preventDefault());
 
-    /* ====== Touch iPhone — on NE gère QUE le PINCH; on laisse Fabric gérer le TAP ====== */
-    let pinchLastDist = 0;
-    let touchStartTime = 0;
-    let touchStartXY = null;
-
+    /* ===================== Pinch-zoom (mobile, iPhone OK) ===================== */
+    let pinchLastDist=0;
     function midpoint(t1, t2){ return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 }; }
     function clientToCanvasPoint(clientX, clientY){
       const rect = upper.getBoundingClientRect();
       return new fabric.Point(clientX - rect.left, clientY - rect.top);
     }
-    function dist2(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
 
-    upper.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        // PINCH: on prend la main
+    upper.addEventListener("touchstart",(e)=>{
+      if(e.touches.length===2){
         pinchLastDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
         canvas.isDragging = false;
         e.preventDefault();
-      } else if (e.touches.length === 1) {
-        // TAP/drag: laisser Fabric gérer pour préserver la sélection
-        touchStartTime = Date.now();
-        touchStartXY   = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        // pas de preventDefault ici
+      } else if (e.touches.length===1) {
+        // *** Correctif: ne pas bloquer le TAP sur une zone en Lecture ***
+        // On cherche la cible à cette position; si zone -> on laisse Fabric gérer (pas de pan)
+        const fakeEvent = e; // Fabric sait lire touches[0]
+        const target = canvas.findTarget(fakeEvent, false);
+        const isZone = !!(target && target !== bgImg);
+        const canPan = (!isZone && (isReading || mode==="pan"));
+        if (canPan) {
+          canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+          e.preventDefault();
+        } // sinon: on laisse le tap passer pour déclencher mouse:up/select
       }
-    }, { passive:false });
+    }, {passive:false});
 
-    upper.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2) {
-        // PINCH: zoom autour du milieu des doigts
-        const dist = Math.hypot(
+    upper.addEventListener("touchmove",(e)=>{
+      if(e.touches.length===2){
+        const dist=Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
-        if (!pinchLastDist) { pinchLastDist = dist; return; }
+        if(pinchLastDist===0) { pinchLastDist=dist; return; }
         const factor = dist / pinchLastDist;
         pinchLastDist = dist;
 
@@ -641,35 +604,19 @@
         hardRefresh();
         document.getElementById("zoom").value = Math.round(zoom*100);
         e.preventDefault();
-      } else {
-        // 1 doigt: laisser Fabric convertir en mouse:move/down/up (sélection OK)
+      } else if(e.touches.length===1 && canvas.isDragging){
+        const dx=e.touches[0].clientX - canvas.lastX;
+        const dy=e.touches[0].clientY - canvas.lastY;
+        canvas.relativePan(new fabric.Point(dx,dy));
+        canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+        e.preventDefault();
       }
-    }, { passive:false });
+    }, {passive:false});
 
-    upper.addEventListener('touchend', (e) => {
-      if (!e.touches || e.touches.length < 2) pinchLastDist = 0;
-
-      // Fallback TAP très fiable: petit mouvement + court -> forcer sélection
-      if (e.changedTouches && e.changedTouches.length === 1) {
-        const dt = Date.now() - touchStartTime;
-        const endXY = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-        const moved = touchStartXY ? dist2(endXY, touchStartXY) : 999;
-        if (dt < 300 && moved < 10) {
-          const fakeEvt = { clientX: endXY.x, clientY: endXY.y, target: upper };
-          const target = canvas.findTarget(fakeEvt, false);
-          if (target && target !== bgImg) {
-            if (isReading) {
-              fillPanelFromZone(target);
-              flashHighlightReading(target);
-            } else {
-              canvas.setActiveObject(target);
-              canvas.requestRenderAll();
-            }
-          }
-        }
-      }
-      // pas de preventDefault: on laisse Fabric finir ses mouse:up
-    }, { passive:false });
+    upper.addEventListener("touchend",(event)=>{
+      if(event.touches && event.touches.length===0){ canvas.isDragging=false; }
+      if(!event.touches || event.touches.length<2){ pinchLastDist=0; }
+    }, {passive:false});
 
     /* ===================== Inventaire JSON externe ===================== */
     async function tryLoadInventory(){
@@ -704,7 +651,7 @@
       }
     }
 
-    function refreshFitChip(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
+    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
 
     async function init(){
       resizeCanvas();
@@ -712,10 +659,11 @@
       refreshInventorySelect();
       loadBackground();
       applyLectureUI(true); // démarre en LECTURE
-      refreshFitChip();
+      refreshFitLabel();
     }
     init();
   </script>
 </body>
 </html>
+
 
