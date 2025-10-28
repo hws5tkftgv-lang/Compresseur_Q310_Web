@@ -2,7 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- IMPORTANT iPhone: empêcher le zoom navigateur, on gère le zoom dans Fabric -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L – Éditeur / Lecture</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
   <style>
@@ -21,7 +22,9 @@
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
     .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
-    canvas{touch-action:none;user-select:none}
+    /* iOS: empêcher gestes natifs et sélections */
+    canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    html, body { overscroll-behavior: none; }
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
     .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
@@ -84,7 +87,7 @@
         <label for="partDesc">Description</label>
         <textarea id="partDesc" readonly></textarea>
       </div>
-      <div class="row" id="editorActions" style="display:flex;gap:8px" class="hidden">
+      <div class="row" id="editorActions" style="display:flex;gap:8px">
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
@@ -152,7 +155,7 @@
       canvas.setHeight(Math.max(520, window.innerHeight*0.65));
       canvas.requestRenderAll();
     }
-    window.addEventListener("resize", ()=>{ resizeCanvas(); fitBackgroundImage(bgImg); });
+    window.addEventListener("resize", ()=>{ resizeCanvas(); fitBackgroundImage(bgImg); }, { passive:true });
 
     function fitBackgroundImage(img){
       if(!img) return;
@@ -165,9 +168,9 @@
     }
     function loadBackground(){
       fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
-        bgImg=img; 
+        bgImg=img;
         bgImg.objectCaching = false; // iOS: éviter disparition au pinch
-        canvas.add(bgImg); 
+        canvas.add(bgImg);
         fitBackgroundImage(bgImg);
         requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
       }, { crossOrigin:"anonymous" });
@@ -188,7 +191,7 @@
         fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
         selectable:true, hasControls:true, lockScalingFlip:true, evented:true
       });
-      rect.objectCaching = false; // iOS: éviter le cache bitmap
+      rect.objectCaching = false; // iOS
       rect.pieceId=z.id||"";
       canvas.add(rect); canvas.bringToFront(rect);
 
@@ -252,7 +255,7 @@
       if (o===bgImg) return;
       if (!o.__style) o.__style = { fill:o.fill, stroke:o.stroke, opacity:o.opacity, sw:o.strokeWidth };
       o.opacity     = 1;
-      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);
+      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);  // 1% pour hit-test iOS
       o.stroke      = toTransparent(o.__style.stroke || o.stroke, 0.01);
       o.strokeWidth = 0.01;
       o.hasBorders  = false;
@@ -305,7 +308,6 @@
 
     function setMode(m){
       mode = m;
-
       document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
       const map = { move:"btn-move", draw:"btn-draw", pan:"btn-pan", select:"btn-select" };
       if(map[m]) document.getElementById(map[m]).classList.add("active");
@@ -348,20 +350,17 @@
 
     function applyLectureUI(on){
       isReading = !!on;
-
       document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
       document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
-
       document.getElementById("inventorySelect").disabled = on;
       document.getElementById("editorActions").classList.toggle("hidden", on);
-
       setMode(on ? "select" : "move");
       setZonesVisibility(on);
-      hardRefresh(); // <<< Refresh dur pour éviter l'apparition furtive
+      hardRefresh(); // anti "flash"
     }
 
-    // Zoom centré (molette + slider)
+    // Zoom molette (desktop) centré
     canvas.on("mouse:wheel",(opt)=>{
       const delta=-opt.e.deltaY;
       const cur=canvas.getZoom();
@@ -433,7 +432,6 @@
       drawingRect.selectable=true;
       pendingNewRect=drawingRect;
 
-      // Sélection immédiate en Éditeur
       if (!isReading) {
         canvas.setActiveObject(pendingNewRect);
         pendingNewRect.selectable = true;
@@ -526,14 +524,11 @@
       const circ=item.circuit || guessCircuitFromIdName(id,item);
       const col=COULEURS[circ]||COULEURS.DEF;
       obj.set({fill:col.fill, stroke:col.stroke});
-
       document.getElementById("inventorySelect").value=id; showPart(id);
       canvas.setActiveObject(obj);
 
       if (!isReading && mode === "move") {
-        obj.selectable = true;
-        obj.hasControls = true;
-        obj.hasBorders = true;
+        obj.selectable = true; obj.hasControls = true; obj.hasBorders = true;
         obj.lockMovementX = obj.lockMovementY = obj.lockScalingX = obj.lockScalingY = obj.lockRotation = false;
       }
       if (isReading) {
@@ -551,19 +546,40 @@
     const toastEl=document.getElementById("toast"); let toastTimer=null;
     function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
+    /* ===================== iOS gestures: neutraliser */
+    const upper = canvas.upperCanvasEl;
+    // Couper les anciens events de geste iOS pour éviter zoom/dézoom natif
+    upper.addEventListener('gesturestart', e => e.preventDefault());
+    upper.addEventListener('gesturechange', e => e.preventDefault());
+    upper.addEventListener('gestureend', e => e.preventDefault());
+
     /* ===================== Pinch-zoom (mobile, iPhone OK) ===================== */
     let pinchLastDist=0;
-    const upper = canvas.upperCanvasEl;
+    function midpoint(t1, t2){ return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 }; }
+    function clientToCanvasPoint(clientX, clientY){
+      const rect = upper.getBoundingClientRect();
+      return new fabric.Point(clientX - rect.left, clientY - rect.top);
+    }
 
     upper.addEventListener("touchstart",(e)=>{
-      if(e.touches.length===1){
-        canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
-      }else if(e.touches.length===2){
+      if(e.touches.length===2){
         pinchLastDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
-        canvas.isDragging = false; // éviter conflit pan vs pinch
+        canvas.isDragging = false;
+        e.preventDefault();
+      } else if (e.touches.length===1) {
+        // *** Correctif: ne pas bloquer le TAP sur une zone en Lecture ***
+        // On cherche la cible à cette position; si zone -> on laisse Fabric gérer (pas de pan)
+        const fakeEvent = e; // Fabric sait lire touches[0]
+        const target = canvas.findTarget(fakeEvent, false);
+        const isZone = !!(target && target !== bgImg);
+        const canPan = (!isZone && (isReading || mode==="pan"));
+        if (canPan) {
+          canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+          e.preventDefault();
+        } // sinon: on laisse le tap passer pour déclencher mouse:up/select
       }
     }, {passive:false});
 
@@ -574,23 +590,19 @@
           e.touches[0].clientY - e.touches[1].clientY
         );
         if(pinchLastDist===0) { pinchLastDist=dist; return; }
-        const zoom=canvas.getZoom();
-        const next=Math.max(0.25, Math.min(3, zoom * (1 + (dist - pinchLastDist)/300)));
-        const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-        const viewport=canvas.viewportTransform;
-        const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
-        canvas.zoomToPoint(center,next);
-        const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
-        const dpt=new fabric.Point(newCenter.x - prevCenter.x, newCenter.y - prevCenter.y);
-        canvas.relativePan(dpt.multiplyScalar(-1));
-        document.getElementById("zoom").value=Math.round(next*100);
+        const factor = dist / pinchLastDist;
+        pinchLastDist = dist;
 
-        // iOS WebKit : forcer le rerender pour éviter disparition
+        let zoom = canvas.getZoom() * factor;
+        zoom = Math.max(0.25, Math.min(3, zoom));
+
+        const mid = midpoint(e.touches[0], e.touches[1]);
+        const p = clientToCanvasPoint(mid.x, mid.y);
+        canvas.zoomToPoint(p, zoom);
+
         if (bgImg) bgImg.dirty = true;
         hardRefresh();
-
-        canvas.requestRenderAll();
-        pinchLastDist=dist;
+        document.getElementById("zoom").value = Math.round(zoom*100);
         e.preventDefault();
       } else if(e.touches.length===1 && canvas.isDragging){
         const dx=e.touches[0].clientX - canvas.lastX;
@@ -646,24 +658,10 @@
       await tryLoadInventory();
       refreshInventorySelect();
       loadBackground();
-      applyLectureUI(true); // <<< démarre en LECTURE
+      applyLectureUI(true); // démarre en LECTURE
       refreshFitLabel();
     }
     init();
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
