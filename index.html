@@ -362,14 +362,19 @@
       save();
     });
 
-    // Zoom molette
-    canvas.on("mouse:wheel", (opt)=>{
-      const delta = -opt.e.deltaY;
-      const zoom = Math.max(0.25, Math.min(3, canvas.getZoom() * (1 + delta/1000)));
-      canvas.zoomToPoint({ x:opt.e.offsetX, y:opt.e.offsetY }, zoom);
-      document.getElementById("zoom").value = Math.round(zoom*100);
-      opt.e.preventDefault(); opt.e.stopPropagation();
-    });
+  canvas.on("mouse:wheel", (opt)=>{
+  const delta = -opt.e.deltaY;
+  const current = canvas.getZoom();
+  const next = Math.max(0.25, Math.min(3, current * (1 + delta/1000)));
+
+  const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+  canvas.zoomToPoint(center, next);
+
+  document.getElementById("zoom").value = Math.round(next*100);
+  opt.e.preventDefault();
+  opt.e.stopPropagation();
+});
+
 
     // Sélection : met la zone en valeur
     function highlight(o){
@@ -444,11 +449,12 @@
       }
     };
 
-    // Zoom slider
-    document.getElementById("zoom").addEventListener("input", (e)=>{
-      const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
-      canvas.setZoom(z); canvas.requestRenderAll();
-    });
+  document.getElementById("zoom").addEventListener("input", (e)=>{
+  const target = Math.max(.25, Math.min(3, Number(e.target.value)/100));
+  const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+  canvas.zoomToPoint(center, target);
+  canvas.requestRenderAll();
+});
 
     // Fit
     function refreshFitLabel(){
@@ -479,5 +485,6 @@
   </script>
 </body>
 </html>
+
 
 
