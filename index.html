@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- IMPORTANT iPhone: empêcher le zoom navigateur, on gère le zoom dans Fabric -->
+  <!-- iPhone: on gère le zoom dans Fabric -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L – Éditeur / Lecture</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -21,9 +21,11 @@
     .toolbar.hidden{display:none}
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
-    /* iOS: empêcher gestes natifs et sélections */
-    canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    .stage{
+      background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;
+      min-height:65vh;
+    }
+    .stage, .stage canvas { touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
     html, body { overscroll-behavior: none; }
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
@@ -38,6 +40,9 @@
     .modal h4{margin:0 0 10px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
+
+    /* Indice visuel quand un champ est éditable en Éditeur */
+    .editable { border-color:#4aa3ff !important; box-shadow:0 0 0 2px rgba(74,163,255,.25) inset; }
   </style>
 </head>
 <body>
@@ -70,7 +75,7 @@
     <div class="stage"><canvas id="c"></canvas></div>
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables (flash bref). Éditeur : dessin / redim / déplacement.</p>
+      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables. Éditeur : dessin / redim / déplacement + <b>édition des textes</b>.</p>
       <div class="row">
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect" disabled></select>
@@ -91,7 +96,7 @@
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-      <p class="hint">💾 Sauvegarde locale automatique. Utilisez Export/Import pour partager.</p>
+      <p class="hint">💾 Inventaire modifié enregistré localement. Export/Import pour partager.</p>
     </aside>
   </div>
 
@@ -116,7 +121,11 @@
   <div id="toast" class="toast">✅ Pièce associée à la zone</div>
 
   <script>
-    /* ===================== Inventaire (fallback) ===================== */
+    /* ===== iOS anti-blank: désactiver le cache bitmap Fabric global ===== */
+    fabric.Object.prototype.objectCaching = false;
+    fabric.Image.prototype.objectCaching  = false;
+
+    /* ===================== Inventaire & overrides ===================== */
     let INVENTAIRE = {
       "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
       "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
@@ -126,6 +135,20 @@
       "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrêt/démarrage selon pressions cut-in / cut-out.", circuit:"CTRL"},
       "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation et ventile les cylindres.", circuit:"TR"}
     };
+    const INV_LS_KEY = "q310_inventory_overrides_v1";
+    let INV_OVR = {};
+
+    function loadInvOverrides(){
+      try{
+        INV_OVR = JSON.parse(localStorage.getItem(INV_LS_KEY)||"{}");
+        for(const id in INV_OVR){
+          if(!INVENTAIRE[id]) INVENTAIRE[id] = {nom:"", role:"", desc:"", circuit:null};
+          Object.assign(INVENTAIRE[id], INV_OVR[id]);
+        }
+      }catch(e){ INV_OVR = {}; }
+    }
+    function saveInvOverrides(){ localStorage.setItem(INV_LS_KEY, JSON.stringify(INV_OVR)); }
+
     function guessCircuitFromIdName(id, item){
       const s = (id + " " + (item?.nom||"") + " " + (item?.role||"")).toLowerCase();
       if (/(lp|admission|aspiration|filtre air|entrée)/.test(s)) return "LP";
@@ -145,14 +168,23 @@
     };
 
     /* ===================== Canvas & background ===================== */
-    const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true, backgroundColor:"#0b1536" });
+    const canvas = new fabric.Canvas("c", {
+      selection:false,
+      preserveObjectStacking:true,
+      backgroundColor:"#0b1536",
+      enableRetinaScaling:false
+    });
     let bgImg = null;
     let FIT_MODE = "contain"; // contain | cover
 
     function resizeCanvas(){
       const stage=document.querySelector(".stage");
-      canvas.setWidth(stage.clientWidth);
-      canvas.setHeight(Math.max(520, window.innerHeight*0.65));
+      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+      const w = stage.clientWidth;
+      const h = Math.max(520, (isMobile ? window.innerHeight * 0.80 : window.innerHeight * 0.65));
+      canvas.setDimensions({ width:w, height:h }, { cssOnly:true });
+      canvas.setDimensions({ width:w, height:h }, { backstoreOnly:true });
+      canvas.calcOffset();
       canvas.requestRenderAll();
     }
     window.addEventListener("resize", ()=>{ resizeCanvas(); fitBackgroundImage(bgImg); }, { passive:true });
@@ -169,14 +201,14 @@
     function loadBackground(){
       fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
         bgImg=img;
-        bgImg.objectCaching = false; // iOS: éviter disparition au pinch
+        bgImg.objectCaching = false;
         canvas.add(bgImg);
         fitBackgroundImage(bgImg);
         requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
       }, { crossOrigin:"anonymous" });
     }
 
-    /* ===================== Sauvegarde ===================== */
+    /* ===================== Sauvegarde zones ===================== */
     const LS_KEY="q310_editor_reader_invisiblezones_v3";
     function toNormalized(o){
       const r=o.getBoundingRect(true,true);
@@ -191,16 +223,13 @@
         fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
         selectable:true, hasControls:true, lockScalingFlip:true, evented:true
       });
-      rect.objectCaching = false; // iOS
+      rect.objectCaching = false;
       rect.pieceId=z.id||"";
       canvas.add(rect); canvas.bringToFront(rect);
-
-      if (isReading) {
-        hideZone(rect);
-        rect.hasControls = false; rect.hasBorders = false;
-      } else {
+      if (isReading) { hideZone(rect); rect.hasControls=false; rect.hasBorders=false; }
+      else {
         showZone(rect);
-        rect.selectable = true;   rect.hasControls = true; rect.hasBorders = true;
+        rect.selectable = true; rect.hasControls = true; rect.hasBorders = true;
         rect.lockMovementX = rect.lockMovementY = rect.lockScalingX = rect.lockScalingY = rect.lockRotation = false;
       }
       return rect;
@@ -217,26 +246,8 @@
         refreshFitLabel();
       }catch(e){ console.warn("Aucune sauvegarde valide", e); }
     }
-    function exportJSON(){
-      const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-      const blob=new Blob([JSON.stringify({fit:FIT_MODE, zones},null,2)],{type:"application/json"});
-      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
-    }
-    function importJSON(file){
-      if(!file) return;
-      const r=new FileReader();
-      r.onload=()=>{
-        try{
-          const d=JSON.parse(r.result);
-          canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
-          FIT_MODE=d.fit||"contain"; (d.zones||[]).forEach(fromNormalized);
-          refreshFitLabel(); canvas.requestRenderAll(); save();
-        }catch(e){ alert("JSON invalide."); }
-      };
-      r.readAsText(file);
-    }
 
-    /* ===================== Helpers invisibilité & refresh ===================== */
+    /* ===================== Invisibilité & refresh ===================== */
     function toTransparent(fill, a){
       if (!fill) return `rgba(0,0,0,${a})`;
       const m = String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
@@ -255,7 +266,7 @@
       if (o===bgImg) return;
       if (!o.__style) o.__style = { fill:o.fill, stroke:o.stroke, opacity:o.opacity, sw:o.strokeWidth };
       o.opacity     = 1;
-      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);  // 1% pour hit-test iOS
+      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);
       o.stroke      = toTransparent(o.__style.stroke || o.stroke, 0.01);
       o.strokeWidth = 0.01;
       o.hasBorders  = false;
@@ -306,6 +317,15 @@
     let isReading=true; // démarre en Lecture
     let drawingRect=null, startPoint=null, pendingNewRect=null;
 
+    function setEditableFields(on){
+      const role = document.getElementById("partRole");
+      const desc = document.getElementById("partDesc");
+      role.readOnly = !on;
+      desc.readOnly = !on;
+      role.classList.toggle("editable", on);
+      desc.classList.toggle("editable", on);
+    }
+
     function setMode(m){
       mode = m;
       document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
@@ -355,9 +375,10 @@
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
       document.getElementById("inventorySelect").disabled = on;
       document.getElementById("editorActions").classList.toggle("hidden", on);
+      setEditableFields(!on); // ← rendre Rôle/Description éditables en Éditeur
       setMode(on ? "select" : "move");
       setZonesVisibility(on);
-      hardRefresh(); // anti "flash"
+      hardRefresh();
     }
 
     // Zoom molette (desktop) centré
@@ -387,7 +408,7 @@
       canvas.requestRenderAll();
     });
 
-    // Pan : Lecture (fond/vide) et Éditeur (mode pan)
+    // Pan & draw (souris/desktop)
     canvas.on("mouse:down",(opt)=>{
       if(isReading){
         const t=opt.target;
@@ -402,13 +423,16 @@
       const p=canvas.getPointer(opt.e);
       startPoint=p;
       drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
-      drawingRect.objectCaching = false; // iOS
+      drawingRect.objectCaching = false;
       canvas.add(drawingRect);
     });
     canvas.on("mouse:move",(opt)=>{
       if(canvas.isDragging){
         const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
+        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
+        if (bgImg) bgImg.dirty = true;
+        hardRefresh();
+        return;
       }
       if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
       const p=canvas.getPointer(opt.e);
@@ -469,11 +493,38 @@
       document.getElementById("inventorySelect").value=id;
       showPart(id);
     }
+
+    // Enregistre les champs (rôle/desc) dans les overrides pour la pièce sélectionnée
+    function persistPanelEdits(){
+      if (isReading) return;
+      const id = document.getElementById("inventorySelect").value;
+      if (!id) return;
+      const role = document.getElementById("partRole").value;
+      const desc = document.getElementById("partDesc").value;
+      if (!INV_OVR[id]) INV_OVR[id] = {};
+      INV_OVR[id].role = role;
+      INV_OVR[id].desc = desc;
+      if (!INVENTAIRE[id]) INVENTAIRE[id] = {nom:"", role:"", desc:"", circuit:null};
+      INVENTAIRE[id].role = role;
+      INVENTAIRE[id].desc = desc;
+      saveInvOverrides();
+    }
+
+    // Écouteurs: enregistrer quand on modifie les champs en Éditeur
+    document.getElementById("partRole").addEventListener("change", persistPanelEdits);
+    document.getElementById("partDesc").addEventListener("change", persistPanelEdits);
+    // (optionnel) sur perte de focus
+    document.getElementById("partRole").addEventListener("blur", persistPanelEdits);
+    document.getElementById("partDesc").addEventListener("blur", persistPanelEdits);
+
     document.getElementById("inventorySelect").addEventListener("change",(e)=>{ showPart(e.target.value); });
+
     document.getElementById("btn-apply").addEventListener("click",()=>{
       if(isReading) return;
       const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
       const id=document.getElementById("inventorySelect").value; if(!id){ alert("Choisis une pièce."); return; }
+      // Sauver les textes modifiés avant d’appliquer
+      persistPanelEdits();
       applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
     });
     document.getElementById("btn-show-all").addEventListener("click",()=>{
@@ -483,8 +534,40 @@
     });
 
     /* ===================== Import/Export + outils ===================== */
-    document.getElementById("btn-export").addEventListener("click", exportJSON);
-    document.getElementById("fileImport").addEventListener("change",(e)=>{ importJSON(e.target.files[0]); e.target.value=""; });
+    document.getElementById("btn-export").addEventListener("click", ()=>{
+      // exporter aussi les overrides d’inventaire à côté du JSON zones
+      const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
+      const payload = { fit:FIT_MODE, zones, inventory_overrides: INV_OVR };
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
+    });
+
+    document.getElementById("fileImport").addEventListener("change",(e)=>{
+      const file = e.target.files[0]; e.target.value="";
+      if(!file) return;
+      const r=new FileReader();
+      r.onload=()=>{
+        try{
+          const d=JSON.parse(r.result);
+          // Zones
+          canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
+          FIT_MODE=d.fit||"contain"; (d.zones||[]).forEach(fromNormalized);
+          // Overrides inventaire (si présents dans le fichier)
+          if (d.inventory_overrides && typeof d.inventory_overrides === "object") {
+            INV_OVR = d.inventory_overrides || {};
+            for(const id in INV_OVR){
+              if(!INVENTAIRE[id]) INVENTAIRE[id] = {nom:"", role:"", desc:"", circuit:null};
+              Object.assign(INVENTAIRE[id], INV_OVR[id]);
+            }
+            saveInvOverrides();
+            refreshInventorySelect();
+          }
+          refreshFitLabel(); canvas.requestRenderAll(); save();
+        }catch(e){ alert("JSON invalide."); }
+      };
+      r.readAsText(file);
+    });
+
     document.getElementById("toggleMode").addEventListener("click",()=>{ applyLectureUI(!isReading); });
     document.getElementById("btn-move").onclick=()=>setMode("move");
     document.getElementById("btn-draw").onclick=()=>setMode("draw");
@@ -493,9 +576,29 @@
     document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
     document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
 
+    function adjustToFit() {
+      if (!bgImg) return;
+      FIT_MODE = "contain";
+      refreshFitLabel();
+      fitBackgroundImage(bgImg);
+      canvas.setViewportTransform([1,0,0,1,0,0]);
+      document.getElementById("zoom").value = 100;
+      if (bgImg) bgImg.dirty = true;
+      hardRefresh();
+    }
+    document.getElementById("btn-fit").addEventListener("click", adjustToFit);
+
     function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
-    document.getElementById("toggle-fit").addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; refreshFitLabel(); fitBackgroundImage(bgImg); save(); });
-    document.getElementById("btn-fit").addEventListener("click",()=>fitBackgroundImage(bgImg));
+    document.getElementById("toggle-fit").addEventListener("click",()=>{
+      FIT_MODE=(FIT_MODE==="contain")?"cover":"contain";
+      refreshFitLabel();
+      fitBackgroundImage(bgImg);
+      canvas.setViewportTransform([1,0,0,1,0,0]);
+      document.getElementById("zoom").value = 100;
+      if (bgImg) bgImg.dirty = true;
+      hardRefresh();
+      save();
+    });
 
     /* ===================== Modal auto-assignation ===================== */
     const assignModal=document.getElementById("assignModal");
@@ -531,12 +634,8 @@
         obj.selectable = true; obj.hasControls = true; obj.hasBorders = true;
         obj.lockMovementX = obj.lockMovementY = obj.lockScalingX = obj.lockScalingY = obj.lockRotation = false;
       }
-      if (isReading) {
-        hideZone(obj);
-        obj.hasControls = false; obj.hasBorders = false;
-      } else {
-        highlight(obj);
-      }
+      if (isReading) { hideZone(obj); obj.hasControls = false; obj.hasBorders = false; }
+      else { highlight(obj); }
 
       canvas.requestRenderAll();
       save();
@@ -546,20 +645,23 @@
     const toastEl=document.getElementById("toast"); let toastTimer=null;
     function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-    /* ===================== iOS gestures: neutraliser */
+    /* ===================== iOS gestures: neutraliser ===================== */
     const upper = canvas.upperCanvasEl;
-    // Couper les anciens events de geste iOS pour éviter zoom/dézoom natif
     upper.addEventListener('gesturestart', e => e.preventDefault());
     upper.addEventListener('gesturechange', e => e.preventDefault());
     upper.addEventListener('gestureend', e => e.preventDefault());
 
-    /* ===================== Pinch-zoom (mobile, iPhone OK) ===================== */
-    let pinchLastDist=0;
+    /* ====== Touch iPhone: pinch (zoom), tap (sélection), pan sur fond ====== */
+    let pinchLastDist = 0;
+    let touchStartTime = 0;
+    let touchStartXY = null;
+
     function midpoint(t1, t2){ return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 }; }
     function clientToCanvasPoint(clientX, clientY){
       const rect = upper.getBoundingClientRect();
       return new fabric.Point(clientX - rect.left, clientY - rect.top);
     }
+    function dist2(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
 
     upper.addEventListener("touchstart",(e)=>{
       if(e.touches.length===2){
@@ -570,16 +672,16 @@
         canvas.isDragging = false;
         e.preventDefault();
       } else if (e.touches.length===1) {
-        // *** Correctif: ne pas bloquer le TAP sur une zone en Lecture ***
-        // On cherche la cible à cette position; si zone -> on laisse Fabric gérer (pas de pan)
-        const fakeEvent = e; // Fabric sait lire touches[0]
-        const target = canvas.findTarget(fakeEvent, false);
+        touchStartTime = Date.now();
+        touchStartXY   = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        const fakeEvt = e;
+        const target = canvas.findTarget(fakeEvt, false);
         const isZone = !!(target && target !== bgImg);
         const canPan = (!isZone && (isReading || mode==="pan"));
         if (canPan) {
           canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
           e.preventDefault();
-        } // sinon: on laisse le tap passer pour déclencher mouse:up/select
+        }
       }
     }, {passive:false});
 
@@ -613,9 +715,28 @@
       }
     }, {passive:false});
 
-    upper.addEventListener("touchend",(event)=>{
-      if(event.touches && event.touches.length===0){ canvas.isDragging=false; }
-      if(!event.touches || event.touches.length<2){ pinchLastDist=0; }
+    upper.addEventListener("touchend",(e)=>{
+      if(e.touches && e.touches.length===0){ canvas.isDragging=false; }
+      if(!e.touches || e.touches.length<2){ pinchLastDist=0; }
+
+      if (e.changedTouches && e.changedTouches.length === 1) {
+        const dt = Date.now() - touchStartTime;
+        const endXY = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+        const moved = touchStartXY ? dist2(endXY, touchStartXY) : 999;
+        if (dt < 300 && moved < 10) {
+          const fakeEvt = { clientX: endXY.x, clientY: endXY.y, target: upper };
+          const target = canvas.findTarget(fakeEvt, false);
+          if (target && target !== bgImg) {
+            if (isReading) {
+              fillPanelFromZone(target);
+              flashHighlightReading(target);
+            } else {
+              canvas.setActiveObject(target);
+              canvas.requestRenderAll();
+            }
+          }
+        }
+      }
     }, {passive:false});
 
     /* ===================== Inventaire JSON externe ===================== */
@@ -646,12 +767,14 @@
           }
         }
         if (Object.keys(map).length) INVENTAIRE = map;
+        // réappliquer les overrides locaux après fetch
+        loadInvOverrides();
       } catch (e) {
+        // si pas de JSON externe, on applique quand même les overrides locaux
+        loadInvOverrides();
         console.warn("Inventaire externe introuvable ou invalide:", e);
       }
     }
-
-    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
 
     async function init(){
       resizeCanvas();
@@ -665,5 +788,6 @@
   </script>
 </body>
 </html>
+
 
 
