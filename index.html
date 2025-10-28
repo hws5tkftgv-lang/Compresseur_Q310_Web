@@ -53,7 +53,7 @@
     <span class="chip">Zoom
       <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
     </span>
-    <span id="toggle-fit" class="btn chip">Affichage : <strong>Tout voir</strong></span>
+    <span id="toggle-fit" class="btn chip">Affichage : <strong>Remplir</strong></span>
     <button id="btn-fit" class="btn">🖼️ Ajuster</button>
   </div>
 
@@ -137,7 +137,6 @@
     };
     const INV_LS_KEY = "q310_inventory_overrides_v1";
     let INV_OVR = {};
-
     function loadInvOverrides(){
       try{
         INV_OVR = JSON.parse(localStorage.getItem(INV_LS_KEY)||"{}");
@@ -175,26 +174,32 @@
       enableRetinaScaling:false
     });
     let bgImg = null;
-    let FIT_MODE = "contain"; // contain | cover
+    let FIT_MODE = "cover"; // "cover" par défaut pour image pleine, "contain" = tout voir
 
     function resizeCanvas(){
       const stage=document.querySelector(".stage");
       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
       const w = stage.clientWidth;
-      const h = Math.max(520, (isMobile ? window.innerHeight * 0.80 : window.innerHeight * 0.65));
-      canvas.setDimensions({ width:w, height:h }, { cssOnly:true });
-      canvas.setDimensions({ width:w, height:h }, { backstoreOnly:true });
-      canvas.calcOffset();
+      const h = Math.max(600, isMobile ? window.innerHeight * 0.85 : window.innerHeight * 0.70);
+      canvas.setWidth(w);
+      canvas.setHeight(h);
+      fitBackgroundImage(bgImg);
       canvas.requestRenderAll();
     }
-    window.addEventListener("resize", ()=>{ resizeCanvas(); fitBackgroundImage(bgImg); }, { passive:true });
+    window.addEventListener("resize", ()=>{ resizeCanvas(); }, { passive:true });
 
     function fitBackgroundImage(img){
       if(!img) return;
       const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=img.width, ih=img.height;
-      const s = (FIT_MODE==="contain") ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
-      img.scale(s);
-      img.set({ left:(cw - iw*s)/2, top:(ch - ih*s)/2, selectable:false, evented:false, id:"__BG__" });
+      const scale = (FIT_MODE==="contain") ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
+      img.scale(scale);
+      img.set({
+        left:(cw - iw*scale)/2,
+        top:(ch - ih*scale)/2,
+        selectable:false,
+        evented:false,
+        id:"__BG__"
+      });
       canvas.sendToBack(img);
       canvas.requestRenderAll();
     }
@@ -241,7 +246,7 @@
     function loadSaved(){
       const raw=localStorage.getItem(LS_KEY); if(!raw) return;
       try{
-        const d=JSON.parse(raw); FIT_MODE=d.fit||"contain";
+        const d=JSON.parse(raw); FIT_MODE=d.fit||"cover";
         (d.zones||[]).forEach(fromNormalized);
         refreshFitLabel();
       }catch(e){ console.warn("Aucune sauvegarde valide", e); }
@@ -375,7 +380,7 @@
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
       document.getElementById("inventorySelect").disabled = on;
       document.getElementById("editorActions").classList.toggle("hidden", on);
-      setEditableFields(!on); // ← rendre Rôle/Description éditables en Éditeur
+      setEditableFields(!on); // champs éditables en Éditeur
       setMode(on ? "select" : "move");
       setZonesVisibility(on);
       hardRefresh();
@@ -442,11 +447,13 @@
     canvas.on("mouse:up",(e)=>{
       if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
 
-      if(mode==="select"){
+      // En lecture OU en éditeur (move/select), on remplit le panneau si on a cliqué une zone
+      if ((mode==="select") || (!isReading && (mode==="move"))) {
         const t=e.target;
         if(t && t!==bgImg){
           fillPanelFromZone(t);
-          flashHighlightReading(t);
+          if (isReading) flashHighlightReading(t);
+          else { canvas.setActiveObject(t); canvas.requestRenderAll(); }
         }
         return;
       }
@@ -469,6 +476,20 @@
 
       drawingRect=null; startPoint=null;
       openAssignModal();
+    });
+
+    // Sélection: tenir le panneau à jour
+    canvas.on('selection:created', (e)=>{
+      const o = e.selected && e.selected[0];
+      if (o && o !== bgImg) fillPanelFromZone(o);
+    });
+    canvas.on('selection:updated', (e)=>{
+      const o = e.selected && e.selected[0];
+      if (o && o !== bgImg) fillPanelFromZone(o);
+    });
+    canvas.on('selection:cleared', ()=>{
+      document.getElementById('inventorySelect').value = "";
+      showPart("");
     });
 
     function highlight(o){
@@ -494,7 +515,7 @@
       showPart(id);
     }
 
-    // Enregistre les champs (rôle/desc) dans les overrides pour la pièce sélectionnée
+    // Persister Rôle/Description (overrides locaux)
     function persistPanelEdits(){
       if (isReading) return;
       const id = document.getElementById("inventorySelect").value;
@@ -509,21 +530,16 @@
       INVENTAIRE[id].desc = desc;
       saveInvOverrides();
     }
-
-    // Écouteurs: enregistrer quand on modifie les champs en Éditeur
     document.getElementById("partRole").addEventListener("change", persistPanelEdits);
     document.getElementById("partDesc").addEventListener("change", persistPanelEdits);
-    // (optionnel) sur perte de focus
     document.getElementById("partRole").addEventListener("blur", persistPanelEdits);
     document.getElementById("partDesc").addEventListener("blur", persistPanelEdits);
-
-    document.getElementById("inventorySelect").addEventListener("change",(e)=>{ showPart(e.target.value); });
 
     document.getElementById("btn-apply").addEventListener("click",()=>{
       if(isReading) return;
       const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
       const id=document.getElementById("inventorySelect").value; if(!id){ alert("Choisis une pièce."); return; }
-      // Sauver les textes modifiés avant d’appliquer
+      // Sauver textes modifiés avant d’appliquer
       persistPanelEdits();
       applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
     });
@@ -535,13 +551,11 @@
 
     /* ===================== Import/Export + outils ===================== */
     document.getElementById("btn-export").addEventListener("click", ()=>{
-      // exporter aussi les overrides d’inventaire à côté du JSON zones
       const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
       const payload = { fit:FIT_MODE, zones, inventory_overrides: INV_OVR };
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
       const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
     });
-
     document.getElementById("fileImport").addEventListener("change",(e)=>{
       const file = e.target.files[0]; e.target.value="";
       if(!file) return;
@@ -551,8 +565,8 @@
           const d=JSON.parse(r.result);
           // Zones
           canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
-          FIT_MODE=d.fit||"contain"; (d.zones||[]).forEach(fromNormalized);
-          // Overrides inventaire (si présents dans le fichier)
+          FIT_MODE=d.fit||"cover"; (d.zones||[]).forEach(fromNormalized);
+          // Overrides inventaire
           if (d.inventory_overrides && typeof d.inventory_overrides === "object") {
             INV_OVR = d.inventory_overrides || {};
             for(const id in INV_OVR){
@@ -562,7 +576,7 @@
             saveInvOverrides();
             refreshInventorySelect();
           }
-          refreshFitLabel(); canvas.requestRenderAll(); save();
+          refreshFitLabel(); fitBackgroundImage(bgImg); canvas.requestRenderAll(); save();
         }catch(e){ alert("JSON invalide."); }
       };
       r.readAsText(file);
@@ -578,17 +592,19 @@
 
     function adjustToFit() {
       if (!bgImg) return;
-      FIT_MODE = "contain";
-      refreshFitLabel();
+      // On recadre avec le mode courant, mais on remet la vue au centre
       fitBackgroundImage(bgImg);
       canvas.setViewportTransform([1,0,0,1,0,0]);
       document.getElementById("zoom").value = 100;
       if (bgImg) bgImg.dirty = true;
       hardRefresh();
+      save();
     }
     document.getElementById("btn-fit").addEventListener("click", adjustToFit);
 
-    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
+    function refreshFitLabel(){
+      document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
+    }
     document.getElementById("toggle-fit").addEventListener("click",()=>{
       FIT_MODE=(FIT_MODE==="contain")?"cover":"contain";
       refreshFitLabel();
@@ -770,8 +786,7 @@
         // réappliquer les overrides locaux après fetch
         loadInvOverrides();
       } catch (e) {
-        // si pas de JSON externe, on applique quand même les overrides locaux
-        loadInvOverrides();
+        loadInvOverrides(); // si pas de JSON externe, on garde l’inventaire local
         console.warn("Inventaire externe introuvable ou invalide:", e);
       }
     }
@@ -788,6 +803,3 @@
   </script>
 </body>
 </html>
-
-
-
