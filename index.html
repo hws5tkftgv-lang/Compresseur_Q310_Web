@@ -39,8 +39,8 @@
 </head>
 <body>
   <div class="topbar">
-    <span class="mode-pill">Mode : <b id="modeLabel">Éditeur</b></span>
-    <button id="toggleMode" class="btn">Passer en Lecture</button>
+    <span class="mode-pill">Mode : <b id="modeLabel">Lecture</b></span>
+    <button id="toggleMode" class="btn">Passer en Éditeur</button>
     <span style="flex:1;"></span>
     <span class="chip">Zoom
       <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
@@ -49,7 +49,7 @@
     <button id="btn-fit" class="btn">🖼️ Ajuster</button>
   </div>
 
-  <div id="editorToolbar" class="toolbar">
+  <div id="editorToolbar" class="toolbar hidden">
     <button id="btn-move" class="btn">🧿 Déplacer / Redim.</button>
     <button id="btn-draw" class="btn">✏️ Dessiner</button>
     <button id="btn-pan"  class="btn">✋ Pan</button>
@@ -67,7 +67,7 @@
     <div class="stage"><canvas id="c"></canvas></div>
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Éditeur : après dessin, une fenêtre demande la pièce. Lecture : zones <b>invisibles</b> mais cliquables (flash bref).</p>
+      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables (flash bref). Éditeur : dessin / redim / déplacement.</p>
       <div class="row">
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect" disabled></select>
@@ -84,11 +84,11 @@
         <label for="partDesc">Description</label>
         <textarea id="partDesc" readonly></textarea>
       </div>
-      <div class="row" id="editorActions" style="display:flex;gap:8px">
+      <div class="row" id="editorActions" style="display:flex;gap:8px" class="hidden">
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-      <p class="hint">💾 Sauvegarde locale automatique (navigateur). Utilisez Export/Import pour partager.</p>
+      <p class="hint">💾 Sauvegarde locale automatique. Utilisez Export/Import pour partager.</p>
     </aside>
   </div>
 
@@ -165,13 +165,16 @@
     }
     function loadBackground(){
       fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
-        bgImg=img; canvas.add(img); fitBackgroundImage(img);
+        bgImg=img; 
+        bgImg.objectCaching = false; // iOS: éviter disparition au pinch
+        canvas.add(bgImg); 
+        fitBackgroundImage(bgImg);
         requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
       }, { crossOrigin:"anonymous" });
     }
 
     /* ===================== Sauvegarde ===================== */
-    const LS_KEY="q310_editor_reader_invisiblezones_v2";
+    const LS_KEY="q310_editor_reader_invisiblezones_v3";
     function toNormalized(o){
       const r=o.getBoundingRect(true,true);
       return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height};
@@ -185,10 +188,10 @@
         fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
         selectable:true, hasControls:true, lockScalingFlip:true, evented:true
       });
+      rect.objectCaching = false; // iOS: éviter le cache bitmap
       rect.pieceId=z.id||"";
       canvas.add(rect); canvas.bringToFront(rect);
 
-      // Patch #3 : état correct selon mode courant
       if (isReading) {
         hideZone(rect);
         rect.hasControls = false; rect.hasBorders = false;
@@ -230,7 +233,7 @@
       r.readAsText(file);
     }
 
-    /* ===================== Helpers invisibilité (Patch #1/#2) ===================== */
+    /* ===================== Helpers invisibilité & refresh ===================== */
     function toTransparent(fill, a){
       if (!fill) return `rgba(0,0,0,${a})`;
       const m = String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
@@ -287,13 +290,19 @@
       canvas.requestRenderAll();
       setTimeout(()=>{ hideZone(o); canvas.requestRenderAll(); }, 500);
     }
+    function hardRefresh() {
+      canvas.getObjects().forEach(o => { o.dirty = true; if (o.cacheCanvas) o.clearCache(); });
+      if (bgImg) { bgImg.dirty = true; bgImg.objectCaching = false; }
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      setTimeout(()=>canvas.requestRenderAll(), 0);
+    }
 
     /* ===================== Modes & interactions ===================== */
     let mode="move"; // move|draw|pan|select
-    let isReading=false;
+    let isReading=true; // démarre en Lecture
     let drawingRect=null, startPoint=null, pendingNewRect=null;
 
-    // Patch #1 : setMode robuste (édition en Éditeur, invisibilité en Lecture)
     function setMode(m){
       mode = m;
 
@@ -305,7 +314,6 @@
 
       canvas.getObjects().forEach(o=>{
         if (o === bgImg) return;
-
         if (isReading) {
           o.selectable     = true;
           o.evented        = true;
@@ -338,7 +346,6 @@
       canvas.requestRenderAll();
     }
 
-    // Patch #2 : applyLectureUI – ordre : setMode puis invisibilité
     function applyLectureUI(on){
       isReading = !!on;
 
@@ -349,8 +356,9 @@
       document.getElementById("inventorySelect").disabled = on;
       document.getElementById("editorActions").classList.toggle("hidden", on);
 
-      setMode(on ? "select" : "move");     // 1) verrous/contrôles
-      setZonesVisibility(on);              // 2) visibilité (invisible en Lecture)
+      setMode(on ? "select" : "move");
+      setZonesVisibility(on);
+      hardRefresh(); // <<< Refresh dur pour éviter l'apparition furtive
     }
 
     // Zoom centré (molette + slider)
@@ -395,6 +403,7 @@
       const p=canvas.getPointer(opt.e);
       startPoint=p;
       drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
+      drawingRect.objectCaching = false; // iOS
       canvas.add(drawingRect);
     });
     canvas.on("mouse:move",(opt)=>{
@@ -414,7 +423,7 @@
         const t=e.target;
         if(t && t!==bgImg){
           fillPanelFromZone(t);
-          flashHighlightReading(t); // Lecture : flash discret
+          flashHighlightReading(t);
         }
         return;
       }
@@ -424,7 +433,7 @@
       drawingRect.selectable=true;
       pendingNewRect=drawingRect;
 
-      // Patch #5 : sélectionner la zone tout de suite pour redim/déplacement (Éditeur)
+      // Sélection immédiate en Éditeur
       if (!isReading) {
         canvas.setActiveObject(pendingNewRect);
         pendingNewRect.selectable = true;
@@ -440,7 +449,6 @@
       openAssignModal();
     });
 
-    // Patch #4 : highlight inopérant en Lecture (on garde l’invisibilité)
     function highlight(o){
       if (isReading) return;
       canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; });
@@ -512,7 +520,6 @@
       closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
     });
 
-    // Patch #4 : appliquer pièce selon mode (invisibilité en Lecture, édition en Éditeur)
     function applyPieceToObject(obj,id){
       obj.pieceId=id;
       const item=INVENTAIRE[id]||{};
@@ -544,9 +551,10 @@
     const toastEl=document.getElementById("toast"); let toastTimer=null;
     function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-    /* ===================== Pinch-zoom (mobile) ===================== */
+    /* ===================== Pinch-zoom (mobile, iPhone OK) ===================== */
     let pinchLastDist=0;
     const upper = canvas.upperCanvasEl;
+
     upper.addEventListener("touchstart",(e)=>{
       if(e.touches.length===1){
         canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
@@ -555,8 +563,10 @@
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
+        canvas.isDragging = false; // éviter conflit pan vs pinch
       }
     }, {passive:false});
+
     upper.addEventListener("touchmove",(e)=>{
       if(e.touches.length===2){
         const dist=Math.hypot(
@@ -574,6 +584,11 @@
         const dpt=new fabric.Point(newCenter.x - prevCenter.x, newCenter.y - prevCenter.y);
         canvas.relativePan(dpt.multiplyScalar(-1));
         document.getElementById("zoom").value=Math.round(next*100);
+
+        // iOS WebKit : forcer le rerender pour éviter disparition
+        if (bgImg) bgImg.dirty = true;
+        hardRefresh();
+
         canvas.requestRenderAll();
         pinchLastDist=dist;
         e.preventDefault();
@@ -585,6 +600,7 @@
         e.preventDefault();
       }
     }, {passive:false});
+
     upper.addEventListener("touchend",(event)=>{
       if(event.touches && event.touches.length===0){ canvas.isDragging=false; }
       if(!event.touches || event.touches.length<2){ pinchLastDist=0; }
@@ -630,13 +646,15 @@
       await tryLoadInventory();
       refreshInventorySelect();
       loadBackground();
-      applyLectureUI(true); // démarrer en Éditeur (zones visibles et éditables)
+      applyLectureUI(true); // <<< démarre en LECTURE
       refreshFitLabel();
     }
     init();
   </script>
 </body>
 </html>
+
+
 
 
 
