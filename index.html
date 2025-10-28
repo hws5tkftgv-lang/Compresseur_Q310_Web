@@ -9,7 +9,6 @@
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
-
     .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);}
     .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px;}
     .mode-pill b{color:#91c9ff}
@@ -31,13 +30,10 @@
     textarea{min-height:120px;resize:vertical}
     .hint{font-size:.85rem;opacity:.8}
     .hidden{display:none!important}
-
-    /* Modal assignation */
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
     .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .modal h4{margin:0 0 10px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
   </style>
 </head>
@@ -56,10 +52,10 @@
   <div id="editorToolbar" class="toolbar">
     <button id="btn-move" class="btn">🧿 Déplacer / Redim.</button>
     <button id="btn-draw" class="btn">✏️ Dessiner</button>
-    <button id="btn-pan" class="btn">✋ Pan</button>
+    <button id="btn-pan"  class="btn">✋ Pan</button>
     <button id="btn-select" class="btn">🖱️ Sélection</button>
     <button id="btn-delete" class="btn">❌ Supprimer</button>
-    <button id="btn-clear" class="btn">🗑️ Effacer tout</button>
+    <button id="btn-clear"  class="btn">🗑️ Effacer tout</button>
     <span style="flex:1;"></span>
     <button id="btn-export" class="btn">💾 Export JSON</button>
     <label class="btn">📥 Import JSON
@@ -71,7 +67,7 @@
     <div class="stage"><canvas id="c"></canvas></div>
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Éditeur : après dessin, une fenêtre demande la pièce. Lecture : cliquez une zone invisible pour afficher la fiche (flash bref).</p>
+      <p class="hint">Éditeur : après dessin, une fenêtre demande la pièce. Lecture : zones <b>invisibles</b> mais cliquables (flash bref).</p>
       <div class="row">
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect" disabled></select>
@@ -104,18 +100,9 @@
         <label for="assignSelect">Pièce</label>
         <select id="assignSelect"></select>
       </div>
-      <div class="row">
-        <label>Nom</label>
-        <input id="assignName" readonly>
-      </div>
-      <div class="row">
-        <label>Rôle</label>
-        <input id="assignRole" readonly>
-      </div>
-      <div class="row">
-        <label>Description</label>
-        <textarea id="assignDesc" readonly></textarea>
-      </div>
+      <div class="row"><label>Nom</label><input id="assignName" readonly></div>
+      <div class="row"><label>Rôle</label><input id="assignRole" readonly></div>
+      <div class="row"><label>Description</label><textarea id="assignDesc" readonly></textarea></div>
       <div class="actions">
         <button id="assignCancel" class="btn">Annuler</button>
         <button id="assignOk" class="btn">Associer</button>
@@ -126,7 +113,7 @@
   <div id="toast" class="toast">✅ Pièce associée à la zone</div>
 
   <script>
-    /******** Inventaire ********/
+    /* ===================== Inventaire (fallback) ===================== */
     let INVENTAIRE = {
       "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
       "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
@@ -136,17 +123,15 @@
       "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrêt/démarrage selon pressions cut-in / cut-out.", circuit:"CTRL"},
       "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation et ventile les cylindres.", circuit:"TR"}
     };
-
     function guessCircuitFromIdName(id, item){
       const s = (id + " " + (item?.nom||"") + " " + (item?.role||"")).toLowerCase();
       if (/(lp|admission|aspiration|filtre air|entrée)/.test(s)) return "LP";
-      if (/(hp|haute|refoulement|intercooler|anti[- ]?retour|aftercooler)/.test(s)) return "HP";
+      if (/(hp|haute|refoulement|intercooler|anti[- ]?retour|aftercooler|réservoir)/.test(s)) return "HP";
       if (/(huile|lubrifi|graiss|carter|pompe)/.test(s)) return "LUB";
-      if (/(pressostat|pilote|décharge|unloader|sûret|sécurit|valve|commande|régula|manomètre)/.test(s)) return "CTRL";
-      if (/(courroie|poulie|volant|moteur)/.test(s)) return "TR";
+      if (/(pressostat|pilote|décharge|unloader|sûret|sécurit|valve|commande|régula|manomètre|purge)/.test(s)) return "CTRL";
+      if (/(courroie|poulie|volant|moteur|tendeur)/.test(s)) return "TR";
       return "DEF";
     }
-
     const COULEURS = {
       "LP":  { fill:"rgba(0,160,255,0.18)", stroke:"#00a0ff" },
       "HP":  { fill:"rgba(255,60,60,0.18)", stroke:"#ff3c3c" },
@@ -156,7 +141,7 @@
       "DEF": { fill:"rgba(200,200,200,0.12)", stroke:"#aaaaaa" }
     };
 
-    /******** Canvas ********/
+    /* ===================== Canvas & background ===================== */
     const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true, backgroundColor:"#0b1536" });
     let bgImg = null;
     let FIT_MODE = "contain"; // contain | cover
@@ -178,7 +163,6 @@
       canvas.sendToBack(img);
       canvas.requestRenderAll();
     }
-
     function loadBackground(){
       fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
         bgImg=img; canvas.add(img); fitBackgroundImage(img);
@@ -186,8 +170,8 @@
       }, { crossOrigin:"anonymous" });
     }
 
-    /******** Sauvegarde ********/
-    const LS_KEY="q310_editor_reader_invisiblezones_v1";
+    /* ===================== Sauvegarde ===================== */
+    const LS_KEY="q310_editor_reader_invisiblezones_v2";
     function toNormalized(o){
       const r=o.getBoundingRect(true,true);
       return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height};
@@ -203,6 +187,16 @@
       });
       rect.pieceId=z.id||"";
       canvas.add(rect); canvas.bringToFront(rect);
+
+      // Patch #3 : état correct selon mode courant
+      if (isReading) {
+        hideZone(rect);
+        rect.hasControls = false; rect.hasBorders = false;
+      } else {
+        showZone(rect);
+        rect.selectable = true;   rect.hasControls = true; rect.hasBorders = true;
+        rect.lockMovementX = rect.lockMovementY = rect.lockScalingX = rect.lockScalingY = rect.lockRotation = false;
+      }
       return rect;
     }
     function save(){
@@ -236,75 +230,127 @@
       r.readAsText(file);
     }
 
-    /******** Modes & interactions ********/
-    let mode="move"; // move|draw|pan|select
-    let isReading=false;
-    let drawingRect=null, startPoint=null, pendingNewRect=null;
-
-    function setMode(m){
-      mode=m;
-      document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
-      const map={move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"};
-      if(map[m]) document.getElementById(map[m]).classList.add("active");
-
-      canvas.getObjects().forEach(o=>{
-        if(o===bgImg) return;
-        if(isReading){
-          o.selectable=true; o.hasControls=false;
-          o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=true;
-          o.hoverCursor="pointer"; o.evented=true;
-        }else{
-          o.selectable=(m==="move"); o.hasControls=(m==="move");
-          o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=false;
-          o.hoverCursor=(m==="select")?"pointer":"move"; o.evented=true;
-        }
-      });
+    /* ===================== Helpers invisibilité (Patch #1/#2) ===================== */
+    function toTransparent(fill, a){
+      if (!fill) return `rgba(0,0,0,${a})`;
+      const m = String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
+      if (m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
+      const hex = String(fill).replace('#','');
+      if (hex.length===3) {
+        const r=parseInt(hex[0]+hex[0],16), g=parseInt(hex[1]+hex[1],16), b=parseInt(hex[2]+hex[2],16);
+        return `rgba(${r},${g},${b},${a})`;
+      } else if (hex.length===6) {
+        const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+      return `rgba(0,0,0,${a})`;
     }
-
-    /* Zones invisibles en Lecture + flash visuel à la sélection */
+    function hideZone(o){
+      if (o===bgImg) return;
+      if (!o.__style) o.__style = { fill:o.fill, stroke:o.stroke, opacity:o.opacity, sw:o.strokeWidth };
+      o.opacity     = 1;
+      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);
+      o.stroke      = toTransparent(o.__style.stroke || o.stroke, 0.01);
+      o.strokeWidth = 0.01;
+      o.hasBorders  = false;
+      o.hasControls = false;
+      o.evented     = true;
+      o.hoverCursor = "pointer";
+    }
+    function showZone(o){
+      if (o===bgImg) return;
+      const s = o.__style;
+      if (s){
+        o.fill        = s.fill;
+        o.stroke      = s.stroke;
+        o.opacity     = (typeof s.opacity === "number") ? s.opacity : 1;
+        o.strokeWidth = (typeof s.sw === "number") ? s.sw : 2;
+      }
+      o.hasBorders  = true;
+      o.hasControls = true;
+      o.evented     = true;
+      o.hoverCursor = "move";
+    }
     function setZonesVisibility(invisible){
       canvas.getObjects().forEach(o=>{
-        if(o===bgImg) return;
-        o.opacity    = invisible ? 0 : 1;
-        o.strokeWidth= invisible ? 0 : 2;
-        o.evented    = true; // doit rester cliquable
+        if (o===bgImg) return;
+        if (invisible) hideZone(o); else showZone(o);
       });
       canvas.requestRenderAll();
     }
     function flashHighlightReading(o){
       if(!isReading || !o || o===bgImg) return;
-      const prevOpacity = o.opacity;
-      const prevStrokeW = o.strokeWidth;
-      const prevStroke  = o.stroke;
-      o.opacity = 0.6;
+      const prev = { fill:o.fill, stroke:o.stroke, sw:o.strokeWidth };
+      o.fill        = toTransparent(prev.fill,   0.20);
+      o.stroke      = toTransparent(prev.stroke, 0.90);
       o.strokeWidth = 2;
-      o.stroke = "#00e0ff";
       canvas.requestRenderAll();
-      setTimeout(()=>{
-        o.opacity = 0;
-        o.strokeWidth = 0;
-        o.stroke = prevStroke;
-        canvas.requestRenderAll();
-      }, 900);
+      setTimeout(()=>{ hideZone(o); canvas.requestRenderAll(); }, 500);
     }
 
+    /* ===================== Modes & interactions ===================== */
+    let mode="move"; // move|draw|pan|select
+    let isReading=false;
+    let drawingRect=null, startPoint=null, pendingNewRect=null;
+
+    // Patch #1 : setMode robuste (édition en Éditeur, invisibilité en Lecture)
+    function setMode(m){
+      mode = m;
+
+      document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
+      const map = { move:"btn-move", draw:"btn-draw", pan:"btn-pan", select:"btn-select" };
+      if(map[m]) document.getElementById(map[m]).classList.add("active");
+
+      canvas.selection = (!isReading && m === "move");
+
+      canvas.getObjects().forEach(o=>{
+        if (o === bgImg) return;
+
+        if (isReading) {
+          o.selectable     = true;
+          o.evented        = true;
+          o.hasControls    = false;
+          o.hasBorders     = false;
+          o.lockMovementX  = true;
+          o.lockMovementY  = true;
+          o.lockScalingX   = true;
+          o.lockScalingY   = true;
+          o.lockRotation   = true;
+          o.hoverCursor    = "pointer";
+        } else {
+          const editing = (m === "move");
+          o.selectable     = editing;
+          o.evented        = true;
+          o.hasControls    = editing;
+          o.hasBorders     = editing;
+          o.lockMovementX  = !editing;
+          o.lockMovementY  = !editing;
+          o.lockScalingX   = !editing;
+          o.lockScalingY   = !editing;
+          o.lockRotation   = !editing;
+          o.hoverCursor    = editing ? "move" : (m === "select" ? "pointer" : "default");
+          o.transparentCorners = false;
+          o.cornerStyle = "rect";
+          o.cornerSize = 9;
+        }
+      });
+
+      canvas.requestRenderAll();
+    }
+
+    // Patch #2 : applyLectureUI – ordre : setMode puis invisibilité
     function applyLectureUI(on){
-      isReading=!!on;
-      document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
-      document.getElementById("toggleMode").textContent=on?"Passer en Éditeur":"Passer en Lecture";
+      isReading = !!on;
+
+      document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
+      document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
 
-      // Panneau : Lecture = lecture seule (sélecteur désactivé), actions cachées
       document.getElementById("inventorySelect").disabled = on;
       document.getElementById("editorActions").classList.toggle("hidden", on);
 
-      if(on){
-        setMode("select");
-        setZonesVisibility(true);   // INVISIBLES mais cliquables
-      }else{
-        setMode("move");
-        setZonesVisibility(false);  // Visibles en Éditeur
-      }
+      setMode(on ? "select" : "move");     // 1) verrous/contrôles
+      setZonesVisibility(on);              // 2) visibilité (invisible en Lecture)
     }
 
     // Zoom centré (molette + slider)
@@ -334,7 +380,7 @@
       canvas.requestRenderAll();
     });
 
-    // Pan : Lecture (fond/vide à 1 doigt/souris) et Éditeur (mode pan)
+    // Pan : Lecture (fond/vide) et Éditeur (mode pan)
     canvas.on("mouse:down",(opt)=>{
       if(isReading){
         const t=opt.target;
@@ -363,25 +409,45 @@
     });
     canvas.on("mouse:up",(e)=>{
       if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
+
       if(mode==="select"){
         const t=e.target;
         if(t && t!==bgImg){
           fillPanelFromZone(t);
-          flashHighlightReading(t); // flash bref en Lecture
+          flashHighlightReading(t); // Lecture : flash discret
         }
         return;
       }
+
       if(mode!=="draw"||!drawingRect||isReading) return;
-      drawingRect.selectable=true; pendingNewRect=drawingRect; drawingRect=null; startPoint=null;
+
+      drawingRect.selectable=true;
+      pendingNewRect=drawingRect;
+
+      // Patch #5 : sélectionner la zone tout de suite pour redim/déplacement (Éditeur)
+      if (!isReading) {
+        canvas.setActiveObject(pendingNewRect);
+        pendingNewRect.selectable = true;
+        pendingNewRect.hasControls = true;
+        pendingNewRect.hasBorders = true;
+        pendingNewRect.lockMovementX = pendingNewRect.lockMovementY =
+        pendingNewRect.lockScalingX  = pendingNewRect.lockScalingY =
+        pendingNewRect.lockRotation  = false;
+        canvas.requestRenderAll();
+      }
+
+      drawingRect=null; startPoint=null;
       openAssignModal();
     });
 
+    // Patch #4 : highlight inopérant en Lecture (on garde l’invisibilité)
     function highlight(o){
-      canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o && !isReading)?1:(isReading?0:0.2); });
+      if (isReading) return;
+      canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; });
       canvas.requestRenderAll();
     }
 
-    /******** Panneau ********/
+    /* ===================== Panneau ===================== */
     function refreshInventorySelect(){
       const sel=document.getElementById("inventorySelect");
       sel.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
@@ -410,7 +476,7 @@
       canvas.requestRenderAll();
     });
 
-    /******** Import/Export + outils éditeur ********/
+    /* ===================== Import/Export + outils ===================== */
     document.getElementById("btn-export").addEventListener("click", exportJSON);
     document.getElementById("fileImport").addEventListener("change",(e)=>{ importJSON(e.target.files[0]); e.target.value=""; });
     document.getElementById("toggleMode").addEventListener("click",()=>{ applyLectureUI(!isReading); });
@@ -421,13 +487,11 @@
     document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
     document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
 
-    function refreshFitLabel(){
-      document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
-    }
+    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
     document.getElementById("toggle-fit").addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; refreshFitLabel(); fitBackgroundImage(bgImg); save(); });
     document.getElementById("btn-fit").addEventListener("click",()=>fitBackgroundImage(bgImg));
 
-    /******** Auto-assignation (modal) ********/
+    /* ===================== Modal auto-assignation ===================== */
     const assignModal=document.getElementById("assignModal");
     const assignSelect=document.getElementById("assignSelect");
     const assignName=document.getElementById("assignName");
@@ -444,29 +508,45 @@
     document.getElementById("assignOk").addEventListener("click",()=>{
       const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
       if(!pendingNewRect){ closeAssignModal(); return; }
-      applyPieceToObject(pendingNewRect,id); closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
+      applyPieceToObject(pendingNewRect,id);
+      closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
     });
 
+    // Patch #4 : appliquer pièce selon mode (invisibilité en Lecture, édition en Éditeur)
     function applyPieceToObject(obj,id){
       obj.pieceId=id;
       const item=INVENTAIRE[id]||{};
       const circ=item.circuit || guessCircuitFromIdName(id,item);
       const col=COULEURS[circ]||COULEURS.DEF;
       obj.set({fill:col.fill, stroke:col.stroke});
+
       document.getElementById("inventorySelect").value=id; showPart(id);
       canvas.setActiveObject(obj);
-      if(!isReading){ highlight(obj); } // en lecture, on reste invisible
-      save(); canvas.requestRenderAll();
+
+      if (!isReading && mode === "move") {
+        obj.selectable = true;
+        obj.hasControls = true;
+        obj.hasBorders = true;
+        obj.lockMovementX = obj.lockMovementY = obj.lockScalingX = obj.lockScalingY = obj.lockRotation = false;
+      }
+      if (isReading) {
+        hideZone(obj);
+        obj.hasControls = false; obj.hasBorders = false;
+      } else {
+        highlight(obj);
+      }
+
+      canvas.requestRenderAll();
+      save();
     }
 
-    /******** Toast ********/
+    /* ===================== Toast ===================== */
     const toastEl=document.getElementById("toast"); let toastTimer=null;
     function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-    /******** Pinch-zoom tactile (2 doigts) + pan 1 doigt ********/
+    /* ===================== Pinch-zoom (mobile) ===================== */
     let pinchLastDist=0;
     const upper = canvas.upperCanvasEl;
-
     upper.addEventListener("touchstart",(e)=>{
       if(e.touches.length===1){
         canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
@@ -477,7 +557,6 @@
         );
       }
     }, {passive:false});
-
     upper.addEventListener("touchmove",(e)=>{
       if(e.touches.length===2){
         const dist=Math.hypot(
@@ -506,13 +585,12 @@
         e.preventDefault();
       }
     }, {passive:false});
-
     upper.addEventListener("touchend",(event)=>{
       if(event.touches && event.touches.length===0){ canvas.isDragging=false; }
       if(!event.touches || event.touches.length<2){ pinchLastDist=0; }
     }, {passive:false});
 
-    /******** Chargement inventaire JSON externe (si présent) ********/
+    /* ===================== Inventaire JSON externe ===================== */
     async function tryLoadInventory(){
       try{
         const res = await fetch("quincy_310L_parts.json", {cache:"no-store"});
@@ -539,9 +617,7 @@
             };
           }
         }
-        if (Object.keys(map).length) {
-          INVENTAIRE = map;
-        }
+        if (Object.keys(map).length) INVENTAIRE = map;
       } catch (e) {
         console.warn("Inventaire externe introuvable ou invalide:", e);
       }
@@ -554,13 +630,15 @@
       await tryLoadInventory();
       refreshInventorySelect();
       loadBackground();
-      applyLectureUI(true); // démarrer en Éditeur (les zones seront visibles)
+      applyLectureUI(false); // démarrer en Éditeur (zones visibles et éditables)
       refreshFitLabel();
     }
     init();
   </script>
 </body>
 </html>
+
+
 
 
 
