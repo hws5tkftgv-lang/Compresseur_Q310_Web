@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quincy 310L – Schéma interactif (Nom + Rôle + Description)</title>
+  <title>Quincy 310L – Schéma interactif (Éditeur / Lecture)</title>
 
   <!-- FabricJS -->
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -11,43 +11,86 @@
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin: 0; background:#0c132e; color:#eaf1ff; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
-    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:10px 12px; background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08); }
-    .btn { padding:7px 11px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:#1a2553; color:#eaf1ff; cursor:pointer; }
-    .btn:hover { filter:brightness(1.12); }
-    .btn.active { background:#0078ff; color:#fff; font-weight:700; border-color:#0053ad; box-shadow:0 0 8px rgba(0,120,255,.65); }
-    .chip { padding:6px 10px; border-radius:10px; background:#192247; border:1px solid rgba(255,255,255,.12); }
-    .wrap { display:grid; grid-template-columns: 1fr 370px; gap:12px; padding:12px; }
-    @media (max-width: 1100px) { .wrap { grid-template-columns: 1fr; } }
-    .stage { background:#0b1536; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; min-height:60vh; }
+    body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+
+    /* Barre du haut */
+    .topbar {
+      display:flex; gap:8px; align-items:center; padding:10px 12px;
+      background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .mode-pill {
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
+      background:#1b2553; border:1px solid rgba(255,255,255,.14); border-radius:999px;
+    }
+    .mode-pill b { color:#91c9ff; }
+    .btn { padding:7px 11px; border-radius:8px; border:1px solid rgba(255,255,255,.14);
+           background:#1b2553; color:#eaf1ff; cursor:pointer; }
+    .btn:hover { filter:brightness(1.08); }
+    .btn.active { background:#0078ff; font-weight:bold; border-color:#0053ad; box-shadow:0 0 8px rgba(0,120,255,.45); }
+    .chip { padding:6px 8px; background:#192247; border:1px solid rgba(255,255,255,.12); border-radius:8px; }
+
+    /* Barre d'outils d'édition (masquée en Lecture) */
+    .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:10px 12px; background:#0f1a3f; }
+    .toolbar.hidden { display:none; }
+
+    /* Layout */
+    .wrap { display:grid; grid-template-columns:1fr 360px; gap:12px; padding:12px; }
+    @media (max-width:1000px) { .wrap { grid-template-columns:1fr; } }
+
+    .stage { background:#0b1536; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; min-height:55vh; }
     canvas { touch-action:none; user-select:none; }
-    .panel { background:#0f1a44; border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:12px; }
-    .panel h3 { margin:6px 0 10px; }
-    .row { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
-    label { font-size:.92rem; opacity:.92; }
-    select, input[type="text"], textarea { width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:#0b1638; color:#eaf1ff; }
+
+    .panel {
+      padding:12px; background:#0f1a44; border:1px solid rgba(255,255,255,.10); border-radius:12px;
+    }
+    .panel h3 { margin:6px 0 10px; font-size:1.05rem; }
+    .row { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+    label { font-size:.9rem; opacity:.95; }
+    select, input, textarea {
+      width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.18);
+      background:#0b1638; color:#eaf1ff;
+    }
     textarea { min-height:120px; resize:vertical; }
-    .small { font-size:.85rem; opacity:.75; }
+    .hint { font-size:.85rem; opacity:.8; }
+
+    /* Lecture : look désactivé */
+    .readonly { opacity:.9; background:#0b1638; }
+    .hidden { display:none !important; }
   </style>
 </head>
 <body>
 
-  <!-- Barre d’outils -->
-  <div class="toolbar">
-    <button id="btn-move" class="btn">🧿 Déplacer/Redim.</button>
+  <!-- Barre supérieure : bascule Éditeur <-> Lecture -->
+  <div class="topbar">
+    <span class="mode-pill">Mode : <b id="modeLabel">Éditeur</b></span>
+    <button id="toggleMode" class="btn">Passer en Lecture</button>
+
+    <span style="flex:1;"></span>
+
+    <!-- Contrôles communs (toujours visibles) -->
+    <span class="chip">Zoom
+      <input type="range" id="zoom" min="25" max="300" step="1" value="100"
+             style="vertical-align:middle; margin-left:6px;">
+    </span>
+    <span id="toggle-fit" class="btn chip">Affichage : <strong>Tout voir</strong></span>
+    <button id="btn-fit" class="btn">🖼️ Ajuster</button>
+  </div>
+
+  <!-- Barre d’outils d’édition (masquée en Lecture) -->
+  <div id="editorToolbar" class="toolbar">
+    <button id="btn-move" class="btn">🧿 Déplacer / Redim.</button>
     <button id="btn-draw" class="btn">✏️ Dessiner</button>
     <button id="btn-pan" class="btn">✋ Pan</button>
     <button id="btn-select" class="btn">🖱️ Sélection</button>
     <button id="btn-delete" class="btn">❌ Supprimer</button>
     <button id="btn-clear" class="btn">🗑️ Effacer tout</button>
 
-    <span style="flex:1 1 auto;"></span>
+    <span style="flex:1;"></span>
 
-    <span class="chip">Zoom <input id="zoom" type="range" min="25" max="300" step="1" value="100"></span>
-    <span id="toggle-fit" class="btn chip">Mode: <strong>Tout voir</strong></span>
-    <button id="btn-fit" class="btn">🖼️ Ajuster</button>
     <button id="btn-export" class="btn">💾 Export JSON</button>
-    <label class="btn">📥 Import JSON <input id="fileImport" type="file" accept=".json,application/json" style="display:none"></label>
+    <label class="btn">📥 Import JSON
+      <input id="fileImport" type="file" accept=".json,application/json" style="display:none;">
+    </label>
   </div>
 
   <!-- Scène + Panneau -->
@@ -55,409 +98,386 @@
     <div class="stage"><canvas id="c"></canvas></div>
 
     <aside class="panel">
-      <h3>📘 Fiche zone (Nom + Rôle + Description)</h3>
-      <p class="small">Mode <b>Sélection</b> : clique une zone pour afficher sa fiche.<br>
-      Pour associer une pièce à une zone, choisis dans la liste puis “Appliquer”.</p>
+      <h3>📘 Fiche de la zone</h3>
+      <p class="hint" id="panelHint">
+        En <b>Sélection</b>, cliquez une zone pour afficher <b>Pièce / Nom / Rôle / Description</b>.
+      </p>
 
       <div class="row">
-        <label for="inventorySelect">Pièce (identifiant technique – conseillé)</label>
+        <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect"></select>
       </div>
-
       <div class="row">
         <label for="partName">Nom</label>
-        <input id="partName" type="text" readonly />
+        <input id="partName" class="readonly" readonly />
       </div>
-
       <div class="row">
         <label for="partRole">Rôle</label>
-        <input id="partRole" type="text" readonly />
+        <input id="partRole" class="readonly" readonly />
       </div>
-
       <div class="row">
         <label for="partDesc">Description</label>
-        <textarea id="partDesc" readonly></textarea>
+        <textarea id="partDesc" class="readonly" readonly></textarea>
       </div>
 
-      <div class="row" style="display:flex; gap:8px;">
+      <div class="row" id="editorActions" style="display:flex; gap:8px;">
         <button id="btn-apply" class="btn" style="flex:1;">✅ Appliquer à la zone</button>
-        <button id="btn-show-all" class="btn" style="flex:1;">👁️ Afficher toutes les zones</button>
+        <button id="btn-show-all" class="btn" style="flex:1;">👁️ Afficher tout</button>
       </div>
 
-      <p class="small">💾 Sauvegarde automatique locale (navigateur). Export/Import pour partager.</p>
+      <p class="hint">💾 Sauvegarde locale automatique (navigateur). Utilisez Export/Import pour partager.</p>
     </aside>
   </div>
 
   <script>
     /***********************
-     * INVENTAIRE INTÉGRÉ  *
-     * (Nom + Rôle + Description)
+     * INVENTAIRE (Nom / Rôle / Desc) + Circuit pour couleurs
      ***********************/
-    const INVENTAIRE = [
-      {"id":"filtre_air","nom":"Filtre à air capoté","role":"Filtrer l’air d’admission","description":"Réduit les poussières à l’entrée, protège les soupapes et cylindres."},
-      {"id":"element_filtre_air","nom":"Élément de filtre d’air","role":"Remplacement périodique","description":"Cartouche interne du filtre à air; essentielle pour la VE."},
-      {"id":"silencieux_admission","nom":"Silencieux d’admission","role":"Atténuer le bruit d’entrée","description":"Version capotée/hooded; se monte côté aspiration."},
-      {"id":"cylindre_lp","nom":"Cylindre basse pression (LP)","role":"Chambre compression 1ère étape","description":"Reçoit l’air ambiant via soupapes d’admission LP."},
-      {"id":"cylindre_hp","nom":"Cylindre haute pression (HP)","role":"Chambre compression 2e étape","description":"Reçoit l’air refroidi de l’intercooler."},
-      {"id":"piston_lp","nom":"Piston LP","role":"Compression 1ère étape","description":"Alésage typique ~3,5\", segments adaptés au LP."},
-      {"id":"piston_hp","nom":"Piston HP","role":"Compression 2e étape","description":"Alésage typique ~2,5\", travaille à pression plus élevée."},
-      {"id":"segments_lp","nom":"Segments de piston LP","role":"Étanchéité piston/cylindre","description":"Jeux/positionnement à respecter pour bonne VE."},
-      {"id":"segments_hp","nom":"Segments de piston HP","role":"Étanchéité piston/cylindre","description":"Matériaux adaptés à T°/P plus élevées."},
-      {"id":"axe_piston","nom":"Axis de piston","role":"Articulation piston–bielle","description":"Montage serré contrôlé; lubrification par barbotage/pression."},
-      {"id":"bielle_lp","nom":"Bielle LP","role":"Transmission mouvement","description":"Pied sur axe piston; tête sur maneton vilebrequin."},
-      {"id":"bielle_hp","nom":"Bielle HP","role":"Transmission mouvement","description":"Analogues LP mais cotes différentes."},
-      {"id":"coussinets_bielle","nom":"Coussinets de bielle","role":"Palier lisse tête de bielle","description":"Film d’huile; contrôle jeu radial."},
-      {"id":"vilebrequin","nom":"Vilebrequin","role":"Convertir rotation en translation","description":"Manetons, perçages huile, équilibrage."},
-      {"id":"paliers_vilbrequin","nom":"Paliers principaux","role":"Support vilebrequin","description":"Roulements/bronzes selon version; lub. forcée."},
-      {"id":"carter","nom":"Carter (crankcase)","role":"Structure et réservoir d’huile","description":"Loge paliers, pompe à huile, circuits d’huile."},
-      {"id":"porte_palier","nom":"Porte-palier (bearing carrier)","role":"Support palier + pompe","description":"Intègre filtration d’huile selon révision."},
-      {"id":"pompe_huile","nom":"Pompe à huile","role":"Distribution d’huile sous pression","description":"Alimente vilebrequin, bielles, têtes."},
-      {"id":"filtre_huile","nom":"Filtre à huile","role":"Filtration lubrifiant","description":"Retient particules; entretien régulier."},
-      {"id":"crepine_huile","nom":"Crépine d’aspiration","role":"Protection pompe à huile","description":"Maille avant pompe; évite gros débris."},
-      {"id":"jauge_huile","nom":"Jauge/dipstick","role":"Contrôle niveau d’huile","description":"Lecture niveau mini/maxi."},
-      {"id":"bouchon_remplissage","nom":"Bouchon de remplissage d’huile","role":"Remplir le carter","description":"Avec évent/reniflard selon versions."},
-      {"id":"reniflard","nom":"Breather/reniflard","role":"Évacuation vapeurs carter","description":"Limite surpressions internes carter."},
-      {"id":"joint_carter","nom":"Joint de carter","role":"Étanchéité carter","description":"Joint papier/fibre; se remplace à chaque dépose."},
-      {"id":"joint_couvre_carter","nom":"Joint couvercle carter","role":"Étanchéité couvercle","description":"Empêche fuite huile/air."},
-      {"id":"soupape_admission_lp","nom":"Soupape d’admission LP","role":"Admettre l’air cylindre LP","description":"Actionnée par diff. de pression."},
-      {"id":"soupape_decharge_lp","nom":"Soupape de décharge LP","role":"Évacuer air comprimé LP","description":"Vers l’intercooler; clapet anti-retour local."},
-      {"id":"soupape_admission_hp","nom":"Soupape d’admission HP","role":"Admettre l’air cylindre HP","description":"Depuis l’intercooler (refroidi)."},
-      {"id":"soupape_decharge_hp","nom":"Soupape de décharge HP","role":"Évacuer air vers refoulement","description":"Vers ligne de refoulement/réservoir."},
-      {"id":"plaque_valves","nom":"Platine/siège de soupapes","role":"Support/distribution soupapes","description":"Plateaux/sièges et visserie associée."},
-      {"id":"ressorts_soupapes","nom":"Ressorts de soupapes","role":"Rappel fermeture","description":"Caractéristiques LP/HP selon étage."},
-      {"id":"intercooler","nom":"Intercooler","role":"Refroidir air entre LP et HP","description":"Réduit T°, travail HP et humidité."},
-      {"id":"tubulure_intercooler","nom":"Tubulure d’intercooler","role":"Liaison LP→intercooler→HP","description":"Tuyauteries + raccords/olive."},
-      {"id":"clapet_antiretour","nom":"Clapet anti-retour","role":"Empêcher retour d’air","description":"Sécurité refoulement; protège soupapes."},
-      {"id":"dechargeur_admission","nom":"Déchargeur d’admission","role":"Démarrage à vide/contrôle charge","description":"Pilote l’ouverture admission pour no-load."},
-      {"id":"pilot_valve","nom":"Valve pilote","role":"Commander déchargeurs par pression","description":"Réglage consigne/différentiel."},
-      {"id":"ligne_pilotage","nom":"Ligne de pilotage","role":"Transmettre pression de commande","description":"Capillaire/rigide selon montage."},
-      {"id":"soupape_securite","nom":"Soupape de sûreté","role":"Protection surpression","description":"Tarée; monte sur refoulement/réservoir."},
-      {"id":"pressostat","nom":"Pressostat","role":"Commande marche/arrêt","description":"Coupe moteur selon consigne (mode simple)."},
-      {"id":"manometre_refoulement","nom":"Manomètre de refoulement","role":"Afficher pression sortie","description":"Lecture maintenance/diagnostic."},
-      {"id":"thermometre_inter","nom":"Thermomètre intercooler","role":"Surveiller T° inter-étage","description":"Aide au diagnostic VE/refroidissement."},
-      {"id":"volant","nom":"Volant/Flywheel","role":"Inertie + ventilation","description":"Pales de refroidissement intégrées."},
-      {"id":"courroies","nom":"Courroies de transmission","role":"Transmettre puissance moteur→pompe","description":"Sélection selon poulies/puissance."},
-      {"id":"poulie_moteur","nom":"Poulie moteur","role":"Adapter la vitesse","description":"Diamètre/stries selon courroies."},
-      {"id":"poulie_pompe","nom":"Poulie pompe","role":"Adapter la vitesse pompe","description":"Doit correspondre au volant/rapport."},
-      {"id":"garde_courroies","nom":"Garde-courroies","role":"Sécurité","description":"Empêche contact pièces tournantes."},
-      {"id":"joint_culasse","nom":"Joint de culasse","role":"Étanchéité tête/cylindre","description":"À remplacer à chaque démontage."},
-      {"id":"kit_joints","nom":"Kit joints complet","role":"Maintenance périodique","description":"Ensemble joints/consommables révision."},
-      {"id":"visserie_tete","nom":"Visserie de tête/cylindre","role":"Fixation tête/cylindre","description":"Couples de serrage à respecter."},
-      {"id":"vidange_reservoir","nom":"Robinet de purge réservoir","role":"Évacuer condensats","description":"Entretien réservoir d’air."},
-      {"id":"drain_intercooler","nom":"Purge intercooler","role":"Évacuer condensats inter-étage","description":"Évite eau dans cylindre HP."},
-      {"id":"support_base","nom":"Châssis / base support","role":"Supporter l’ensemble","description":"Pad anti-vib., points d’ancrage."},
-      {"id":"silentblocs","nom":"Silentblocs","role":"Limiter vibrations","description":"Entre groupe et base."}
-    ];
+    const INVENTAIRE = {
+      // Admission / LP (🟦)
+      "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
+      "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
+      "soupape_admission_lp": {nom:"Soupape d’admission LP", role:"Entrée d’air", desc:"S’ouvre sous dépression.", circuit:"LP"},
+
+      // HP / Refoulement (🔴)
+      "cylindre_hp":  {nom:"Cylindre haute pression", role:"Compression finale", desc:"Monte l’air à haute pression.", circuit:"HP"},
+      "intercooler":  {nom:"Intercooler", role:"Refroidir l’air", desc:"Réduit la température entre les étages.", circuit:"HP"},
+      "soupape_decharge_hp": {nom:"Soupape de décharge HP", role:"Sortie HP", desc:"Libère l’air vers le réservoir.", circuit:"HP"},
+
+      // Lubrification (🟧)
+      "carter":       {nom:"Carter", role:"Réservoir d’huile", desc:"Contient et distribue l’huile.", circuit:"LUB"},
+      "pompe_huile":  {nom:"Pompe à huile", role:"Distribution huile", desc:"Alimente les paliers.", circuit:"LUB"},
+      "filtre_huile": {nom:"Filtre à huile", role:"Filtrer l’huile", desc:"Retient les particules.", circuit:"LUB"},
+
+      // Contrôle / Régulation (🟪)
+      "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrête/démarre selon pression.", circuit:"CTRL"},
+      "valve_pilote": {nom:"Valve pilote", role:"Contrôle charge", desc:"Régule les déchargeurs.", circuit:"CTRL"},
+      "soupape_securite": {nom:"Soupape de sûreté", role:"Protection", desc:"Tarée contre surpression.", circuit:"CTRL"},
+
+      // Transmission (🟩)
+      "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation.", circuit:"TR"},
+      "courroies":    {nom:"Courroies", role:"Transmission", desc:"Relient moteur et compresseur.", circuit:"TR"},
+      "poulie_moteur":{nom:"Poulie moteur", role:"Adaptation vitesse", desc:"Détermine le ratio.", circuit:"TR"}
+    };
+
+    /******** COULEURS PAR CIRCUIT ********/
+    const COULEURS = {
+      "LP":  { fill:"rgba(0,160,255,0.18)", stroke:"#00a0ff" },
+      "HP":  { fill:"rgba(255,60,60,0.18)", stroke:"#ff3c3c" },
+      "LUB": { fill:"rgba(255,150,0,0.18)", stroke:"#ff9500" },
+      "CTRL":{ fill:"rgba(160,100,255,0.18)", stroke:"#a060ff" },
+      "TR":  { fill:"rgba(60,220,100,0.18)", stroke:"#3cdc64" },
+      "DEF": { fill:"rgba(200,200,200,0.12)", stroke:"#aaaaaa" }
+    };
 
     /***********************
-     * CANVAS & BACKGROUND *
+     * CANVAS + BACKGROUND
      ***********************/
-    const canvas = new fabric.Canvas('c', { selection:false, preserveObjectStacking:true, backgroundColor:'#0b1536' });
+    const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true, backgroundColor:"#0b1536" });
     let bgImg = null;
-    let FIT_MODE = 'contain'; // contain | cover
+    let FIT_MODE = "contain"; // contain | cover
 
     function resizeCanvas() {
-      const stage = document.querySelector('.stage');
+      const stage = document.querySelector(".stage");
       canvas.setWidth(stage.clientWidth);
-      canvas.setHeight(Math.max(540, window.innerHeight * 0.68));
+      canvas.setHeight(Math.max(520, window.innerHeight*0.65));
       canvas.requestRenderAll();
     }
-    window.addEventListener('resize', () => { resizeCanvas(); fitBackgroundImage(bgImg, true); });
+    window.addEventListener("resize", () => { resizeCanvas(); fitBackgroundImage(bgImg); });
 
-    function fitBackgroundImage(img, keepZoom=false){
+    function fitBackgroundImage(img){
       if(!img) return;
-      const cw = canvas.getWidth(), ch = canvas.getHeight(), iw = img.width, ih = img.height;
-      const s = (FIT_MODE==='contain') ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
+      const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=img.width, ih=img.height;
+      const s = (FIT_MODE==="contain") ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
       img.scale(s);
-      img.set({ left:(cw - iw*s)/2, top:(ch - ih*s)/2, selectable:false, evented:false, id:'__BG__' });
-      if(!keepZoom){ canvas.setZoom(1); document.getElementById('zoom').value = 100; }
+      img.set({ left:(cw - iw*s)/2, top:(ch - ih*s)/2, selectable:false, evented:false, id:"__BG__" });
       canvas.sendToBack(img);
       canvas.requestRenderAll();
     }
 
     function loadBackground(){
-      fabric.Image.fromURL('actif/compresseur_bg.png', (img)=>{
+      fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
         bgImg = img;
         canvas.add(img);
         fitBackgroundImage(img);
-        // charger zones après que le fond soit positionné
         requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
-      }, { crossOrigin:'anonymous' });
+      }, { crossOrigin:"anonymous" });
     }
 
     /***********************
-     * ZONES & SAUVEGARDE  *
+     * SAUVEGARDE
      ***********************/
-    const LS_KEY = 'quincy310L_layout_v3';
-
-    function toNormalized(obj){
-      const w = bgImg.getScaledWidth(), h = bgImg.getScaledHeight();
-      const bx = bgImg.left, by = bgImg.top;
-      const r = obj.getBoundingRect(true, true);
-      return {
-        type:'rect',
-        id: obj.pieceId ?? '',
-        x:(r.left - bx)/w,
-        y:(r.top  - by)/h,
-        w:r.width / w,
-        h:r.height / h
-      };
+    const LS_KEY = "q310_editor_reader_v1";
+    function toNormalized(o){
+      const r=o.getBoundingRect(true, true);
+      return { id:o.pieceId||"", x:r.left, y:r.top, w:r.width, h:r.height };
     }
-
     function fromNormalized(z){
-      const w = bgImg.getScaledWidth(), h = bgImg.getScaledHeight();
-      const bx = bgImg.left, by = bgImg.top;
+      const info = INVENTAIRE[z.id];
+      const col  = info ? COULEURS[info.circuit] : COULEURS.DEF;
       const rect = new fabric.Rect({
-        left: bx + z.x*w, top: by + z.y*h, width: z.w*w, height: z.h*h,
-        fill:'rgba(0,255,0,.16)', stroke:'rgba(0,255,0,.95)', strokeWidth:2, rx:6, ry:6,
-        selectable: isMoveMode, hasControls:true
+        left:z.x, top:z.y, width:z.w, height:z.h,
+        fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
+        selectable:true, hasControls:true, lockScalingFlip:true
       });
-      rect.pieceId = z.id || '';
-      canvas.add(rect);
-      canvas.bringToFront(rect);
+      rect.pieceId = z.id || "";
+      canvas.add(rect); canvas.bringToFront(rect);
       return rect;
     }
-
     function save(){
-      const zones = canvas.getObjects().filter(o=>o !== bgImg).map(toNormalized);
-      localStorage.setItem(LS_KEY, JSON.stringify({ fit: FIT_MODE, zones }));
+      const zones = canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
+      localStorage.setItem(LS_KEY, JSON.stringify({fit:FIT_MODE, zones}));
     }
-
     function loadSaved(){
       const raw = localStorage.getItem(LS_KEY);
       if(!raw) return;
       try{
         const data = JSON.parse(raw);
-        if(data.fit) FIT_MODE = data.fit;
+        FIT_MODE = data.fit || "contain";
         (data.zones||[]).forEach(fromNormalized);
         refreshFitLabel();
-      }catch(e){ console.warn('Aucune sauvegarde valide', e); }
+      }catch(e){ console.warn("Aucune sauvegarde valide", e); }
     }
 
     function exportJSON(){
-      const zones = canvas.getObjects().filter(o=>o !== bgImg).map(toNormalized);
-      const blob = new Blob([JSON.stringify({ fit: FIT_MODE, zones }, null, 2)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'quincy310L_zones.json';
-      a.click();
+      const zones = canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
+      const blob = new Blob([JSON.stringify({fit:FIT_MODE, zones}, null, 2)], {type:"application/json"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
     }
-
     function importJSON(file){
       if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ()=>{
+      const reader=new FileReader();
+      reader.onload=()=>{
         try{
-          const data = JSON.parse(reader.result);
-          // reset zones
-          canvas.getObjects().slice().forEach(o=>{ if(o !== bgImg) canvas.remove(o); });
-          if(Array.isArray(data)){ // compat ancien: tableau simple en pixels
-            const w = bgImg.getScaledWidth(), h = bgImg.getScaledHeight();
-            const bx = bgImg.left, by = bgImg.top;
-            data.forEach(z=>{
-              const norm = { type:'rect', id:String(z.id||''), x:(z.x - bx)/w, y:(z.y - by)/h, w:z.w/w, h:z.h/h };
-              fromNormalized(norm);
-            });
-          } else {
-            FIT_MODE = data.fit || 'contain';
-            (data.zones||[]).forEach(fromNormalized);
-          }
-          refreshFitLabel();
-          canvas.requestRenderAll();
-          save();
-        }catch(e){ alert('JSON invalide.'); }
+          const data=JSON.parse(reader.result);
+          canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
+          FIT_MODE = data.fit || "contain";
+          (data.zones||[]).forEach(fromNormalized);
+          refreshFitLabel(); canvas.requestRenderAll(); save();
+        }catch(e){ alert("JSON invalide."); }
       };
       reader.readAsText(file);
     }
 
     /***********************
-     * MODES & INTERACTIONS
+     * MODES (dessin/déplacement/pan/sélection) + LECTURE/ÉDITEUR
      ***********************/
-    let isDrawMode=false, isMoveMode=true, isPanMode=false, isSelectMode=false;
-    let drawingRect=null, startPoint=null;
+    let mode = "move";           // "move" | "draw" | "pan" | "select"
+    let isReading = false;       // Lecture = true, Éditeur = false
+    let drawingRect = null, startPoint = null;
 
-    function setActiveButton(id){
-      document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
-      const el = document.getElementById(id); if(el) el.classList.add('active');
-    }
-    function setMode({draw=false, move=false, pan=false, select=false}){
-      isDrawMode=draw; isMoveMode=move; isPanMode=pan; isSelectMode=select;
-      canvas.getObjects().forEach(o=>{ if(o !== bgImg) o.selectable = isMoveMode; });
+    function setMode(m){
+      mode = m;
+      document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
+      const map = { move:"btn-move", draw:"btn-draw", pan:"btn-pan", select:"btn-select" };
+      if(map[m]) document.getElementById(map[m]).classList.add("active");
+
+      // En Éditeur : zones déplaçables uniquement en mode "move"
+      // En Lecture  : zones sélectionnables mais ni déplaçables ni redimensionnables
+      canvas.getObjects().forEach(o=>{
+        if(o===bgImg) return;
+        if(isReading){
+          o.selectable = true;
+          o.hasControls = false;
+          o.lockMovementX = true;
+          o.lockMovementY = true;
+          o.lockScalingX = true;
+          o.lockScalingY = true;
+          o.hoverCursor = "pointer";
+        }else{
+          o.selectable = (m==="move");
+          o.hasControls = (m==="move");
+          o.lockMovementX = false;
+          o.lockMovementY = false;
+          o.lockScalingX = false;
+          o.lockScalingY = false;
+          o.hoverCursor = (m==="select") ? "pointer" : "move";
+        }
+      });
     }
 
-    // Dessin
-    canvas.on('mouse:down', (opt)=>{
-      if(isPanMode){
-        canvas.isDragging = true;
-        canvas.lastPosX = opt.e.clientX;
-        canvas.lastPosY = opt.e.clientY;
-        return;
+    function applyLectureUI(on){
+      isReading = !!on;
+
+      // Libellé et bouton
+      document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
+      document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
+
+      // Barre d’outils Éditeur visible seulement en Éditeur
+      document.getElementById("editorToolbar").classList.toggle("hidden", on);
+
+      // Panneau : sélecteur de pièce désactivé + bouton Appliquer masqué en Lecture
+      document.getElementById("inventorySelect").disabled = on;
+      document.getElementById("btn-apply").classList.toggle("hidden", on);
+
+      // En Lecture : forcer le mode Sélection, et interdire toute action autre que sélectionner
+      if(on){
+        setMode("select");
+      }else{
+        setMode("move");
       }
-      if(!isDrawMode) return;
-      const p = canvas.getPointer(opt.e);
-      startPoint = p;
+    }
+
+    // Dessin / Pan / Sélection
+    canvas.on("mouse:down", (opt)=>{
+      if(mode==="pan"){
+        canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
+      }
+      if(mode!=="draw" || isReading) return;
+      const p=canvas.getPointer(opt.e);
+      startPoint=p;
       drawingRect = new fabric.Rect({
         left:p.x, top:p.y, width:1, height:1,
-        fill:'rgba(0,255,0,.16)', stroke:'rgba(0,255,0,.95)', strokeWidth:2, rx:6, ry:6, selectable:false
+        fill:"rgba(255,255,255,0.10)", stroke:"#0ff", strokeWidth:2, rx:6, ry:6, selectable:false
       });
       canvas.add(drawingRect);
     });
-
-    canvas.on('mouse:move', (opt)=>{
-      if(canvas.isDragging && isPanMode){
-        const e = opt.e;
-        const v = new fabric.Point(e.clientX - canvas.lastPosX, e.clientY - canvas.lastPosY);
-        canvas.relativePan(v);
-        canvas.lastPosX = e.clientX; canvas.lastPosY = e.clientY;
-        return;
-      }
-      if(!isDrawMode || !drawingRect || !startPoint) return;
-      const p = canvas.getPointer(opt.e);
-      drawingRect.set({
-        left: Math.min(p.x, startPoint.x),
-        top : Math.min(p.y, startPoint.y),
-        width: Math.abs(p.x - startPoint.x),
-        height: Math.abs(p.y - startPoint.y)
-      });
+    canvas.on("mouse:move", (opt)=>{
+      if(canvas.isDragging && mode==="pan"){ const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
+        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return; }
+      if(mode!=="draw" || !drawingRect || !startPoint || isReading) return;
+      const p=canvas.getPointer(opt.e);
+      drawingRect.set({ left:Math.min(p.x,startPoint.x), top:Math.min(p.y,startPoint.y),
+                        width:Math.abs(p.x-startPoint.x), height:Math.abs(p.y-startPoint.y) });
       canvas.requestRenderAll();
     });
-
-    canvas.on('mouse:up', (e)=>{
+    canvas.on("mouse:up", (e)=>{
       if(canvas.isDragging){ canvas.isDragging=false; return; }
 
-      if(isSelectMode){
-        const target = e.target;
-        if(target && target !== bgImg){
-          // mettre en valeur la zone cliquée
-          canvas.getObjects().forEach(o=>{ if(o !== bgImg) o.opacity = (o===target)?1:0.15; });
-          canvas.requestRenderAll();
+      // Lecture ou Sélection : afficher la fiche sans modifier
+      if(mode==="select"){
+        const target=e.target;
+        if(target && target!==bgImg){
+          highlight(target);
           fillPanelFromZone(target);
         }
+        return;
       }
 
-      if(!isDrawMode || !drawingRect) return;
-      drawingRect.selectable = true;
+      // Fin du dessin
+      if(mode!=="draw" || !drawingRect || isReading) return;
+      drawingRect.selectable=true;
       drawingRect = null; startPoint = null;
       save();
     });
 
-    // Zoom (molette)
-    canvas.on('mouse:wheel', (opt)=>{
+    // Zoom molette
+    canvas.on("mouse:wheel", (opt)=>{
       const delta = -opt.e.deltaY;
       const zoom = Math.max(0.25, Math.min(3, canvas.getZoom() * (1 + delta/1000)));
-      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-      document.getElementById('zoom').value = Math.round(zoom*100);
+      canvas.zoomToPoint({ x:opt.e.offsetX, y:opt.e.offsetY }, zoom);
+      document.getElementById("zoom").value = Math.round(zoom*100);
       opt.e.preventDefault(); opt.e.stopPropagation();
     });
 
-    // Pinch-zoom mobile
-    let lastDist=0;
-    canvas.upperCanvasEl.addEventListener('touchstart',(e)=>{ if(e.touches.length===2) lastDist=getTouchDist(e); }, {passive:false});
-    canvas.upperCanvasEl.addEventListener('touchmove',(e)=>{
-      if(e.touches.length===2){
-        e.preventDefault();
-        const d=getTouchDist(e);
-        if(lastDist){
-          const factor = 1 + (d - lastDist)/300;
-          const zoom = Math.max(0.25, Math.min(3, canvas.getZoom()*factor));
-          canvas.zoomToPoint({ x:e.touches[0].clientX, y:e.touches[0].clientY }, zoom);
-          document.getElementById('zoom').value = Math.round(zoom*100);
-        }
-        lastDist=d;
-      }
-    }, {passive:false});
-    function getTouchDist(e){ const [a,b]=e.touches; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+    // Sélection : met la zone en valeur
+    function highlight(o){
+      canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; });
+      canvas.requestRenderAll();
+    }
 
     /***********************
-     * PANNEAU & INVENTAIRE
+     * PANNEAU & COULEURS
      ***********************/
     function refreshInventorySelect(){
-      const sel = document.getElementById('inventorySelect');
-      sel.innerHTML = '<option value="">— Sélectionne une pièce —</option>' +
-        INVENTAIRE.map(p=>`<option value="${p.id}">${p.id} — ${p.nom}</option>`).join('');
+      const sel=document.getElementById("inventorySelect");
+      sel.innerHTML = '<option value="">— Choisir —</option>' +
+        Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
     }
     function showPart(id){
-      const p = INVENTAIRE.find(x=>String(x.id)===String(id));
-      document.getElementById('partName').value = p ? p.nom  : '';
-      document.getElementById('partRole').value = p ? p.role : '';
-      document.getElementById('partDesc').value = p ? p.description : '';
+      const p=INVENTAIRE[id];
+      document.getElementById("partName").value = p ? p.nom  : "";
+      document.getElementById("partRole").value = p ? p.role : "";
+      document.getElementById("partDesc").value = p ? p.desc : "";
     }
     function fillPanelFromZone(zone){
-      const id = zone.pieceId || '';
-      document.getElementById('inventorySelect').value = id;
+      const id = zone.pieceId || "";
+      document.getElementById("inventorySelect").value = id;
       showPart(id);
     }
 
-    document.getElementById('inventorySelect').addEventListener('change', (e)=>{
+    // Changement de pièce (n’affecte pas la zone tant que l’on n’appuie pas sur Appliquer)
+    document.getElementById("inventorySelect").addEventListener("change", (e)=>{
+      if(isReading) { e.target.value = e.target.value; } // pas d'effet sur la zone en Lecture
       showPart(e.target.value);
     });
 
-    document.getElementById('btn-apply').addEventListener('click', ()=>{
+    // Appliquer pièce à la zone (Éditeur uniquement)
+    document.getElementById("btn-apply").addEventListener("click", ()=>{
+      if(isReading){ return; }
       const o = canvas.getActiveObject();
-      if(!o || o===bgImg){ alert('Sélectionne une zone.'); return; }
-      const id = document.getElementById('inventorySelect').value;
-      if(!id){ alert('Choisis une pièce dans la liste.'); return; }
+      if(!o || o===bgImg){ alert("Sélectionne une zone."); return; }
+      const id = document.getElementById("inventorySelect").value;
+      if(!id){ alert("Choisis une pièce."); return; }
       o.pieceId = id;
-      // afficher la fiche immédiatement
+      const info = INVENTAIRE[id], col = COULEURS[info?.circuit] || COULEURS.DEF;
+      o.set({ fill:col.fill, stroke:col.stroke });
       showPart(id);
-      save();
+      save(); canvas.requestRenderAll();
     });
 
-    document.getElementById('btn-show-all').addEventListener('click', ()=>{
-      canvas.getObjects().forEach(o=>{ if(o!==bgImg) o.opacity = 1; });
+    // Afficher toutes les zones
+    document.getElementById("btn-show-all").addEventListener("click", ()=>{
+      canvas.getObjects().forEach(o=>{ if(o!==bgImg) o.opacity=1; });
       canvas.requestRenderAll();
     });
 
     /***********************
-     * UI BOUTONS
+     * BOUTONS ÉDITEUR
      ***********************/
-    function refreshFitLabel(){
-      document.getElementById('toggle-fit').innerHTML = `Mode: <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
-    }
+    document.getElementById("btn-move").onclick   = ()=>setMode("move");
+    document.getElementById("btn-draw").onclick   = ()=>setMode("draw");
+    document.getElementById("btn-pan").onclick    = ()=>setMode("pan");
+    document.getElementById("btn-select").onclick = ()=>setMode("select");
 
-    document.getElementById('btn-move').addEventListener('click', ()=>{ setMode({move:true}); setActiveButton('btn-move'); });
-    document.getElementById('btn-draw').addEventListener('click', ()=>{ setMode({draw:true}); setActiveButton('btn-draw'); });
-    document.getElementById('btn-pan').addEventListener('click',  ()=>{ setMode({pan:true});  setActiveButton('btn-pan');  });
-    document.getElementById('btn-select').addEventListener('click',()=>{ setMode({select:true}); setActiveButton('btn-select'); });
-
-    document.getElementById('btn-delete').addEventListener('click', ()=>{
-      const o = canvas.getActiveObject();
+    document.getElementById("btn-delete").onclick = ()=>{
+      if(isReading) return;
+      const o=canvas.getActiveObject();
       if(o && o!==bgImg){ canvas.remove(o); save(); }
+    };
+    document.getElementById("btn-clear").onclick = ()=>{
+      if(isReading) return;
+      if(confirm("Effacer toutes les zones ?")){
+        canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
+        save(); canvas.requestRenderAll();
+      }
+    };
+
+    // Zoom slider
+    document.getElementById("zoom").addEventListener("input", (e)=>{
+      const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
+      canvas.setZoom(z); canvas.requestRenderAll();
     });
 
-    document.getElementById('btn-clear').addEventListener('click', ()=>{
-      if(!confirm('Effacer toutes les zones ?')) return;
-      canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
-      save();
+    // Fit
+    function refreshFitLabel(){
+      document.getElementById("toggle-fit").innerHTML = `Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
+    }
+    document.getElementById("toggle-fit").addEventListener("click", ()=>{
+      FIT_MODE = (FIT_MODE==="contain") ? "cover" : "contain";
+      refreshFitLabel(); fitBackgroundImage(bgImg); save();
     });
+    document.getElementById("btn-fit").addEventListener("click", ()=>fitBackgroundImage(bgImg));
 
-    document.getElementById('zoom').addEventListener('input', (e)=>{
-      const z = Math.max(0.25, Math.min(3, Number(e.target.value)/100));
-      canvas.setZoom(z);
-      canvas.requestRenderAll();
+    // Import / Export
+    document.getElementById("btn-export").addEventListener("click", exportJSON);
+    document.getElementById("fileImport").addEventListener("change", (e)=>{ importJSON(e.target.files[0]); e.target.value=""; });
+
+    // Bascule Éditeur / Lecture
+    document.getElementById("toggleMode").addEventListener("click", ()=>{
+      applyLectureUI(!isReading);
     });
-
-    document.getElementById('toggle-fit').addEventListener('click', ()=>{
-      FIT_MODE = (FIT_MODE==='contain') ? 'cover' : 'contain';
-      refreshFitLabel();
-      fitBackgroundImage(bgImg);
-      save();
-    });
-
-    document.getElementById('btn-fit').addEventListener('click', ()=>{
-      fitBackgroundImage(bgImg);
-    });
-
-    document.getElementById('btn-export').addEventListener('click', exportJSON);
-    document.getElementById('fileImport').addEventListener('change', (e)=>{ importJSON(e.target.files[0]); e.target.value=''; });
 
     /***********************
-     * BOOT
+     * DÉMARRAGE
      ***********************/
     resizeCanvas();
     loadBackground();
     refreshInventorySelect();
-    setMode({move:true}); setActiveButton('btn-move');
+    applyLectureUI(TRUE); // démarre en Éditeur
   </script>
 </body>
 </html>
+
+
