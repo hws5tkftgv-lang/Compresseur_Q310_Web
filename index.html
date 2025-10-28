@@ -71,10 +71,10 @@
     <div class="stage"><canvas id="c"></canvas></div>
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Éditeur : après dessin, une fenêtre demande la pièce. Lecture : cliquez une zone pour afficher la fiche.</p>
+      <p class="hint">Éditeur : après dessin, une fenêtre demande la pièce. Lecture : cliquez une zone invisible pour afficher la fiche (flash bref).</p>
       <div class="row">
         <label for="inventorySelect">Pièce</label>
-        <select id="inventorySelect"></select>
+        <select id="inventorySelect" disabled></select>
       </div>
       <div class="row">
         <label for="partName">Nom</label>
@@ -128,23 +128,21 @@
   <script>
     /******** Inventaire ********/
     let INVENTAIRE = {
-      // Fallback minimal si le JSON externe est absent
       "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
       "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
-      "cylindre_hp":  {nom:"Cylindre haute pression", role:"Compression finale", desc:"Monte l’air à haute pression.", circuit:"HP"},
-      "intercooler":  {nom:"Intercooler", role:"Refroidir l’air", desc:"Réduit la température entre les étages.", circuit:"HP"},
-      "carter":       {nom:"Carter", role:"Réservoir d’huile", desc:"Contient et distribue l’huile.", circuit:"LUB"},
-      "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrête/démarre selon pression.", circuit:"CTRL"},
-      "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation.", circuit:"TR"}
+      "cylindre_hp":  {nom:"Cylindre haute pression", role:"Compression finale", desc:"Monte l’air à la pression de service.", circuit:"HP"},
+      "intercooler":  {nom:"Intercooler", role:"Refroidir l’air entre étages", desc:"Abaisse la température et augmente le rendement global.", circuit:"HP"},
+      "carter":       {nom:"Carter", role:"Réservoir d’huile", desc:"Contient l’huile de lubrification et baigne le vilebrequin.", circuit:"LUB"},
+      "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrêt/démarrage selon pressions cut-in / cut-out.", circuit:"CTRL"},
+      "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation et ventile les cylindres.", circuit:"TR"}
     };
 
-    // Heuristique de circuit si non fourni
     function guessCircuitFromIdName(id, item){
       const s = (id + " " + (item?.nom||"") + " " + (item?.role||"")).toLowerCase();
       if (/(lp|admission|aspiration|filtre air|entrée)/.test(s)) return "LP";
-      if (/(hp|haute|refoulement|intercooler|anti[- ]?retour)/.test(s)) return "HP";
+      if (/(hp|haute|refoulement|intercooler|anti[- ]?retour|aftercooler)/.test(s)) return "HP";
       if (/(huile|lubrifi|graiss|carter|pompe)/.test(s)) return "LUB";
-      if (/(pressostat|pilote|décharge|unloader|sûret|sécurit|valve|commande|régula)/.test(s)) return "CTRL";
+      if (/(pressostat|pilote|décharge|unloader|sûret|sécurit|valve|commande|régula|manomètre)/.test(s)) return "CTRL";
       if (/(courroie|poulie|volant|moteur)/.test(s)) return "TR";
       return "DEF";
     }
@@ -189,7 +187,7 @@
     }
 
     /******** Sauvegarde ********/
-    const LS_KEY="q310_editor_reader_autoassign_touch_v1";
+    const LS_KEY="q310_editor_reader_invisiblezones_v1";
     function toNormalized(o){
       const r=o.getBoundingRect(true,true);
       return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height};
@@ -201,7 +199,7 @@
       const rect=new fabric.Rect({
         left:z.x, top:z.y, width:z.w, height:z.h,
         fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
-        selectable:true, hasControls:true, lockScalingFlip:true
+        selectable:true, hasControls:true, lockScalingFlip:true, evented:true
       });
       rect.pieceId=z.id||"";
       canvas.add(rect); canvas.bringToFront(rect);
@@ -254,20 +252,59 @@
         if(isReading){
           o.selectable=true; o.hasControls=false;
           o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=true;
-          o.hoverCursor="pointer";
+          o.hoverCursor="pointer"; o.evented=true;
         }else{
           o.selectable=(m==="move"); o.hasControls=(m==="move");
           o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=false;
-          o.hoverCursor=(m==="select")?"pointer":"move";
+          o.hoverCursor=(m==="select")?"pointer":"move"; o.evented=true;
         }
       });
     }
+
+    /* Zones invisibles en Lecture + flash visuel à la sélection */
+    function setZonesVisibility(invisible){
+      canvas.getObjects().forEach(o=>{
+        if(o===bgImg) return;
+        o.opacity    = invisible ? 0 : 1;
+        o.strokeWidth= invisible ? 0 : 2;
+        o.evented    = true; // doit rester cliquable
+      });
+      canvas.requestRenderAll();
+    }
+    function flashHighlightReading(o){
+      if(!isReading || !o || o===bgImg) return;
+      const prevOpacity = o.opacity;
+      const prevStrokeW = o.strokeWidth;
+      const prevStroke  = o.stroke;
+      o.opacity = 0.6;
+      o.strokeWidth = 2;
+      o.stroke = "#00e0ff";
+      canvas.requestRenderAll();
+      setTimeout(()=>{
+        o.opacity = 0;
+        o.strokeWidth = 0;
+        o.stroke = prevStroke;
+        canvas.requestRenderAll();
+      }, 900);
+    }
+
     function applyLectureUI(on){
       isReading=!!on;
       document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
       document.getElementById("toggleMode").textContent=on?"Passer en Éditeur":"Passer en Lecture";
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
-      if(on){ setMode("select"); } else { setMode("move"); }
+
+      // Panneau : Lecture = lecture seule (sélecteur désactivé), actions cachées
+      document.getElementById("inventorySelect").disabled = on;
+      document.getElementById("editorActions").classList.toggle("hidden", on);
+
+      if(on){
+        setMode("select");
+        setZonesVisibility(true);   // INVISIBLES mais cliquables
+      }else{
+        setMode("move");
+        setZonesVisibility(false);  // Visibles en Éditeur
+      }
     }
 
     // Zoom centré (molette + slider)
@@ -297,7 +334,7 @@
       canvas.requestRenderAll();
     });
 
-    // Pan : Lecture (fond/vide à 1 doigt) et Éditeur (mode pan)
+    // Pan : Lecture (fond/vide à 1 doigt/souris) et Éditeur (mode pan)
     canvas.on("mouse:down",(opt)=>{
       if(isReading){
         const t=opt.target;
@@ -311,7 +348,7 @@
       if(mode!=="draw"||isReading) return;
       const p=canvas.getPointer(opt.e);
       startPoint=p;
-      drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false});
+      drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
       canvas.add(drawingRect);
     });
     canvas.on("mouse:move",(opt)=>{
@@ -327,7 +364,12 @@
     canvas.on("mouse:up",(e)=>{
       if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
       if(mode==="select"){
-        const t=e.target; if(t && t!==bgImg){ highlight(t); fillPanelFromZone(t); } return;
+        const t=e.target;
+        if(t && t!==bgImg){
+          fillPanelFromZone(t);
+          flashHighlightReading(t); // flash bref en Lecture
+        }
+        return;
       }
       if(mode!=="draw"||!drawingRect||isReading) return;
       drawingRect.selectable=true; pendingNewRect=drawingRect; drawingRect=null; startPoint=null;
@@ -335,7 +377,7 @@
     });
 
     function highlight(o){
-      canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; });
+      canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o && !isReading)?1:(isReading?0:0.2); });
       canvas.requestRenderAll();
     }
 
@@ -362,7 +404,11 @@
       const id=document.getElementById("inventorySelect").value; if(!id){ alert("Choisis une pièce."); return; }
       applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
     });
-    document.getElementById("btn-show-all").addEventListener("click",()=>{ canvas.getObjects().forEach(o=>{if(o!==bgImg)o.opacity=1}); canvas.requestRenderAll(); });
+    document.getElementById("btn-show-all").addEventListener("click",()=>{
+      if(isReading) return;
+      canvas.getObjects().forEach(o=>{ if(o!==bgImg)o.opacity=1; });
+      canvas.requestRenderAll();
+    });
 
     /******** Import/Export + outils éditeur ********/
     document.getElementById("btn-export").addEventListener("click", exportJSON);
@@ -408,7 +454,8 @@
       const col=COULEURS[circ]||COULEURS.DEF;
       obj.set({fill:col.fill, stroke:col.stroke});
       document.getElementById("inventorySelect").value=id; showPart(id);
-      canvas.setActiveObject(obj); highlight(obj);
+      canvas.setActiveObject(obj);
+      if(!isReading){ highlight(obj); } // en lecture, on reste invisible
       save(); canvas.requestRenderAll();
     }
 
@@ -422,7 +469,6 @@
 
     upper.addEventListener("touchstart",(e)=>{
       if(e.touches.length===1){
-        // pan 1 doigt sur fond/vide même en Lecture
         canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
       }else if(e.touches.length===2){
         pinchLastDist = Math.hypot(
@@ -461,15 +507,17 @@
       }
     }, {passive:false});
 
-    upper.addEventListener("touchend",()=>{ if(event.touches && event.touches.length===0){ canvas.isDragging=false; } if(!event.touches || event.touches.length<2){ pinchLastDist=0; } }, {passive:false});
+    upper.addEventListener("touchend",(event)=>{
+      if(event.touches && event.touches.length===0){ canvas.isDragging=false; }
+      if(!event.touches || event.touches.length<2){ pinchLastDist=0; }
+    }, {passive:false});
 
     /******** Chargement inventaire JSON externe (si présent) ********/
     async function tryLoadInventory(){
       try{
         const res = await fetch("quincy_310L_parts.json", {cache:"no-store"});
-        if(!res.ok) return; // pas de fichier -> on garde le fallback
+        if(!res.ok) return;
         const data = await res.json();
-        // on accepte soit tableau [{id,nom,role,desc,circuit?}] soit objet {id:{...}}
         let map = {};
         if (Array.isArray(data)) {
           for (const it of data) {
@@ -499,7 +547,6 @@
       }
     }
 
-    /******** Init ********/
     function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
 
     async function init(){
@@ -507,13 +554,15 @@
       await tryLoadInventory();
       refreshInventorySelect();
       loadBackground();
-      applyLectureUI(false); // démarrer en Éditeur
+      applyLectureUI(false); // démarrer en Éditeur (les zones seront visibles)
       refreshFitLabel();
     }
     init();
   </script>
 </body>
 </html>
+
+
 
 
 
