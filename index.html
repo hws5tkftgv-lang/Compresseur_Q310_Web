@@ -2,538 +2,195 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone: on gère le zoom nous-mêmes -->
+  <!-- Important pour iPhone plus tard; sans impact PC -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>Quincy 310L – Éditeur / Lecture (stable iPhone)</title>
+  <title>Quincy 310L – DIAGNOSTIC (PC)</title>
+  <!-- Fabric.js depuis jsDelivr -->
+  <script>
+    // Affiche toute erreur JS à l’écran
+    (function(){
+      const box = document.createElement('div');
+      box.id = 'errbox';
+      box.style.cssText = 'position:fixed;left:12px;right:12px;top:12px;z-index:99999;background:#7a1e1e;color:#fff;padding:8px 10px;border-radius:8px;display:none;font:14px/1.4 system-ui,Segoe UI,Roboto,Arial';
+      document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(box));
+      function show(msg){ box.innerHTML = '❌ ' + msg; box.style.display = 'block'; }
+      window.__showErr = show;
+      window.addEventListener('error',e=>{ show(e.message + ' — ' + (e.filename||'') + ':' + (e.lineno||0)); });
+      window.addEventListener('unhandledrejection',e=>{ show('Promise rejetée: ' + (e.reason && (e.reason.message||e.reason)) ); });
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
   <style>
-    :root { color-scheme: dark; }
+    :root{ color-scheme: dark }
     *{ box-sizing:border-box }
-    html,body{ margin:0; height:100%; overscroll-behavior:none }
+    html,body{ margin:0; height:100% }
     body{ background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif }
     .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08)}
-    .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px}
-    .mode-pill b{color:#91c9ff}
-    .btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#1b2553;color:#eaf1ff;cursor:pointer}
-    .btn.active{background:#0078ff;font-weight:700;border-color:#0053ad;box-shadow:0 0 8px rgba(0,120,255,.45)}
-    .chip{padding:6px 8px;background:#192247;border:1px solid rgba(255,255,255,.12);border-radius:8px}
-    .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;background:#0f1a3f}
-    .toolbar.hidden{display:none}
+    .btn, select{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#1b2553;color:#eaf1ff;cursor:pointer}
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:65vh}
+    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:70vh}
     canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
-    .panel h3{margin:6px 0 10px}
-    .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-    select,input,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#0b1638;color:#eaf1ff}
-    textarea{min-height:120px;resize:vertical}
-    .hint{font-size:.85rem;opacity:.8}
-    .hidden{display:none!important}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
-    .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px}
-    .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
-    .editable{border-color:#4aa3ff!important;box-shadow:0 0 0 2px rgba(74,163,255,.25) inset}
-    .error{background:#7a1e1e}
+    .row{margin:8px 0}
   </style>
 </head>
 <body>
   <div class="topbar">
-    <span class="mode-pill">Mode : <b id="modeLabel">Lecture</b></span>
-    <button id="toggleMode" class="btn">Passer en Éditeur</button>
-
-    <label class="chip" style="margin-left:8px">Image
-      <select id="bgSelect" style="margin-left:6px">
-        <!-- clés = fichiers EXACTS (sensible à la casse) dans ./actif/ -->
-        <option value="compresseur_bg.png">Compresseur (fond)</option>
-        <option value="TETE.jpeg">Tête</option>
-        <option value="TETE_2.jpeg">Tête 2</option>
-        <option value="VUE_GENERAL.jpeg">Vue générale</option>
-        <option value="VUE_GENARAL_2.jpeg">Vue générale 2</option>
-        <option value="VERS_RESERVOIR.jpeg">Vers réservoir</option>
-        <option value="VERS_RESERVOIR_2.jpeg">Vers réservoir 2</option>
-        <option value="VUE_POMPE.jpeg">Vue pompe</option>
-        <option value="LOAD_SIDE.jpeg">Côté charge</option>
-        <option value="SOUPAPE_UNLOADER.jpeg">Soupape unloader</option>
-        <option value="POULIE.jpeg">Poulie</option>
-        <option value="FILTRE_AIR_COUVERCLE.jpeg">Filtre air – couvercle</option>
-        <option value="TOP.jpeg">Vue du haut</option>
-        <option value="__file__">— Fichier… —</option>
+    <button id="btnTest" class="btn">🔧 Test boutons</button>
+    <button id="btnFit" class="btn">🖼️ Ajuster</button>
+    <label>Image :
+      <select id="bgSelect">
+        <!-- NOMS EXACTS dans ./actif/ -->
+        <option value="compresseur_bg.png">compresseur_bg.png</option>
+        <option value="TETE.jpeg">TETE.jpeg</option>
+        <option value="TETE_2.jpeg">TETE_2.jpeg</option>
+        <option value="VUE_GENERAL.jpeg">VUE_GENERAL.jpeg</option>
+        <option value="VUE_GENARAL_2.jpeg">VUE_GENARAL_2.jpeg</option>
+        <option value="VERS_RESERVOIR.jpeg">VERS_RESERVOIR.jpeg</option>
+        <option value="VERS_RESERVOIR_2.jpeg">VERS_RESERVOIR_2.jpeg</option>
+        <option value="VUE_POMPE.jpeg">VUE_POMPE.jpeg</option>
+        <option value="LOAD_SIDE.jpeg">LOAD_SIDE.jpeg</option>
+        <option value="SOUPAPE_UNLOADER.jpeg">SOUPAPE_UNLOADER.jpeg</option>
+        <option value="POULIE.jpeg">POULIE.jpeg</option>
+        <option value="FILTRE_AIR_COUVERCLE.jpeg">FILTRE_AIR_COUVERCLE.jpeg</option>
+        <option value="TOP.jpeg">TOP.jpeg</option>
       </select>
     </label>
-    <input id="bgFile" type="file" accept="image/*" style="display:none">
-
-    <span style="flex:1;"></span>
-    <span class="chip">Zoom <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px"></span>
-    <span id="toggle-fit" class="btn chip">Affichage : <strong>—</strong></span>
-    <button id="btn-fit" class="btn">🖼️ Ajuster</button>
-  </div>
-
-  <div id="editorToolbar" class="toolbar hidden">
-    <button id="btn-move" class="btn">🧿 Déplacer / Redim.</button>
-    <button id="btn-draw" class="btn">✏️ Dessiner</button>
-    <button id="btn-pan"  class="btn">✋ Pan</button>
-    <button id="btn-select" class="btn">🖱️ Sélection</button>
-    <button id="btn-delete" class="btn">❌ Supprimer</button>
-    <button id="btn-clear"  class="btn">🗑️ Effacer tout</button>
-    <span style="flex:1;"></span>
-    <button id="btn-export" class="btn">💾 Export JSON</button>
-    <label class="btn">📥 Import JSON
-      <input id="fileImport" type="file" accept=".json,application/json" style="display:none">
-    </label>
+    <span style="flex:1"></span>
+    <span id="status" style="opacity:.85">⏳ Initialisation…</span>
   </div>
 
   <div class="wrap">
     <div class="stage"><canvas id="c"></canvas></div>
     <aside class="panel">
-      <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables. Éditeur : dessin / redim / déplacement + édition Rôle/Description.</p>
-      <div class="row">
-        <label for="inventorySelect">Pièce</label>
-        <select id="inventorySelect" disabled></select>
+      <h3>🩺 Diagnostic</h3>
+      <div class="row">Fabric chargé : <b id="fok">non</b></div>
+      <div class="row">Image courante : <b id="imgName">—</b></div>
+      <div class="row">Taille canvas : <b id="sz">—</b></div>
+      <div class="row">Dernière action : <b id="last">—</b></div>
+      <div class="row" style="font-size:.9rem;opacity:.9">
+        Si rien ne réagit :
+        <ul>
+          <li>Forcer le rechargement : <b>Ctrl+F5</b></li>
+          <li>Vérifier que la page est servie via <b>http(s)</b> (pas <code>file://</code>)</li>
+          <li>Vérifier l’existence de <code>/actif/&lt;image&gt;</code> (casse identique)</li>
+        </ul>
       </div>
-      <div class="row"><label>Nom</label><input id="partName" readonly></div>
-      <div class="row"><label>Rôle</label><input id="partRole" readonly></div>
-      <div class="row"><label>Description</label><textarea id="partDesc" readonly></textarea></div>
-      <div class="row" id="editorActions" style="display:flex;gap:8px">
-        <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
-        <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
-      </div>
-      <p class="hint">💾 Sauvegarde locale automatique <b>par image</b>.</p>
-      <div id="err" class="toast error hidden"></div>
     </aside>
-  </div>
-
-  <!-- Modal assignation -->
-  <div id="assignModal" class="modal-backdrop" role="dialog" aria-modal="true">
-    <div class="modal">
-      <h4>Associer cette zone à une pièce</h4>
-      <div class="row"><label>Pièce</label><select id="assignSelect"></select></div>
-      <div class="row"><label>Nom</label><input id="assignName" readonly></div>
-      <div class="row"><label>Rôle</label><input id="assignRole" readonly></div>
-      <div class="row"><label>Description</label><textarea id="assignDesc" readonly></textarea></div>
-      <div class="actions"><button id="assignCancel" class="btn">Annuler</button><button id="assignOk" class="btn">Associer</button></div>
-    </div>
-  </div>
-
-  <!-- Modal nouvelle pièce -->
-  <div id="newPartModal" class="modal-backdrop" role="dialog" aria-modal="true">
-    <div class="modal">
-      <h4>➕ Nouvelle pièce</h4>
-      <div class="row"><label>ID (sans espace)</label><input id="np_id" placeholder="ex. soupape_hp"></div>
-      <div class="row"><label>Nom</label><input id="np_nom" placeholder="Nom lisible"></div>
-      <div class="row"><label>Rôle</label><input id="np_role" placeholder="À quoi ça sert ?"></div>
-      <div class="row"><label>Description</label><textarea id="np_desc" placeholder="Description détaillée"></textarea></div>
-      <div class="row"><label>Circuit</label>
-        <select id="np_circ">
-          <option value="">(auto)</option><option value="LP">LP</option><option value="HP">HP</option>
-          <option value="LUB">LUB</option><option value="CTRL">CTRL</option><option value="TR">TR</option>
-        </select>
-      </div>
-      <div class="actions"><button id="np_cancel" class="btn">Annuler</button><button id="np_ok" class="btn">Créer</button></div>
-    </div>
   </div>
 
   <div id="toast" class="toast">OK</div>
 
   <script>
-  /* ====== Base ====== */
-  const IS_MOBILE=/iPhone|iPad|Android/i.test(navigator.userAgent);
-  fabric.Object.prototype.objectCaching=false;
-  fabric.Image.prototype.objectCaching=false;
+  (function(){
+    const status = (msg)=>{ document.getElementById('status').textContent = msg; };
+    const set = (id,val)=>{ document.getElementById(id).textContent = val; };
+    const toastEl = document.getElementById('toast');
+    let toastTimer=null;
+    function toast(msg){ toastEl.textContent=msg||'OK'; toastEl.style.display='block'; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display='none',1400); }
+    function log(msg){ set('last', msg); }
 
-  const BG_DIR = "./actif/";            // ← dossier GitHub Pages
-  const BG_DEFAULT = "compresseur_bg.png"; // ← fichier de fond par défaut
-  let currentFile = localStorage.getItem("q310_bg_file") || BG_DEFAULT;
-
-  function zonesKey(file){ return "q310_zones_"+file; }
-  function invKey(){ return "q310_inventory_overrides_v1"; }
-
-  const INVENTAIRE_BASE={
-    "filtre_air":{nom:"Filtre à air",role:"Filtrer l’air entrant",desc:"Retient les impuretés.",circuit:"LP"},
-    "cylindre_lp":{nom:"Cylindre basse pression",role:"Compression initiale",desc:"1re étape.",circuit:"LP"},
-    "cylindre_hp":{nom:"Cylindre haute pression",role:"Compression finale",desc:"Pression de service.",circuit:"HP"},
-    "intercooler":{nom:"Intercooler",role:"Refroidit entre étages",desc:"↑ rendement.",circuit:"HP"},
-    "carter":{nom:"Carter",role:"Réservoir d’huile",desc:"Lubrification.",circuit:"LUB"},
-    "pressostat":{nom:"Pressostat",role:"Commande moteur",desc:"Cut-in / cut-out.",circuit:"CTRL"},
-    "volant":{nom:"Volant",role:"Inertie & ventilation",desc:"Stabilise la rotation.",circuit:"TR"}
-  };
-  let INV_OVR={};
-  try{ INV_OVR=JSON.parse(localStorage.getItem(invKey())||"{}"); }catch(e){ INV_OVR={}; }
-  function getPart(id){ const b=INVENTAIRE_BASE[id]||{}, o=INV_OVR[id]||{}; return { nom:o.nom??b.nom||"", role:o.role??b.role||"", desc:o.desc??b.desc||"", circuit:o.circuit??b.circuit||null }; }
-  function saveInv(){ localStorage.setItem(invKey(), JSON.stringify(INV_OVR)); }
-
-  const COULEURS={
-    LP:{fill:"rgba(0,160,255,.18)",stroke:"#00a0ff"},
-    HP:{fill:"rgba(255,60,60,.18)",stroke:"#ff3c3c"},
-    LUB:{fill:"rgba(255,150,0,.18)",stroke:"#ff9500"},
-    CTRL:{fill:"rgba(160,100,255,.18)",stroke:"#a060ff"},
-    TR:{fill:"rgba(60,220,100,.18)",stroke:"#3cdc64"},
-    DEF:{fill:"rgba(200,200,200,.12)",stroke:"#aaa"}
-  };
-  function guessCircuit(id,item){ const s=(id+" "+(item?.nom||"")+" "+(item?.role||"")).toLowerCase();
-    if(/(lp|admission|aspiration|filtre|entrée)/.test(s))return"LP";
-    if(/(hp|haute|refoulement|intercooler|aftercooler|réservoir)/.test(s))return"HP";
-    if(/(huile|lubrifi|graiss|carter|pompe)/.test(s))return"LUB";
-    if(/(pressostat|décharge|unloader|sécur|valve|commande|manomètre|purge)/.test(s))return"CTRL";
-    if(/(courroie|poulie|volant|moteur|tendeur)/.test(s))return"TR";
-    return"DEF";
-  }
-  function toRGBA(fill,a){ const m=String(fill||"").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i); if(m)return`rgba(${m[1]},${m[2]},${m[3]},${a})`; return`rgba(0,0,0,${a})`; }
-
-  /* ====== UI refs ====== */
-  const modeLabel=document.getElementById("modeLabel");
-  const toggleMode=document.getElementById("toggleMode");
-  const bgSelect=document.getElementById("bgSelect");
-  const bgFile=document.getElementById("bgFile");
-  const zoomSlider=document.getElementById("zoom");
-  const toggleFit=document.getElementById("toggle-fit");
-  const btnFit=document.getElementById("btn-fit");
-  const editorToolbar=document.getElementById("editorToolbar");
-  const invSelect=document.getElementById("inventorySelect");
-  const partName=document.getElementById("partName");
-  const partRole=document.getElementById("partRole");
-  const partDesc=document.getElementById("partDesc");
-  const errBox=document.getElementById("err");
-  const toastEl=document.getElementById("toast");
-
-  /* ====== Canvas ====== */
-  const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536"});
-  let FIT_MODE = IS_MOBILE ? "cover" : "contain";
-  function fitLabel(){ toggleFit.innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
-  function resize(){ const stage=document.querySelector(".stage"); const w=stage.clientWidth; const h=Math.max(600, IS_MOBILE?window.innerHeight*0.85:window.innerHeight*0.70); canvas.setWidth(w); canvas.setHeight(h); setBgScale(); canvas.calcOffset(); canvas.requestRenderAll(); }
-  window.addEventListener("resize", resize, {passive:true});
-
-  let bgImg=null; // fabric.Image
-  function loadImageToBackground(src){
-    // Précharge sans CORS; marche sur GitHub Pages (même origine)
-    return new Promise((resolve,reject)=>{
-      const im=new Image(); im.onload=()=>resolve(im); im.onerror=reject; im.src=src+(src.startsWith("blob:")?"":`?t=${Date.now()}`);
-    }).then((im)=>{
-      return new Promise((resolve)=>{
-        const fimg=new fabric.Image(im,{originX:"left",originY:"top"}); fimg.objectCaching=false;
-        canvas.setBackgroundImage(fimg, ()=>{ bgImg=fimg; setBgScale(); resolve(true); });
-      });
-    });
-  }
-  function setBgScale(){
-    if(!bgImg) return;
-    const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=bgImg.width, ih=bgImg.height;
-    const s=(FIT_MODE==="contain")?Math.min(cw/iw,ch/ih):Math.max(cw/iw,ch/ih);
-    const left=(cw-iw*s)/2, top=(ch-ih*s)/2;
-    bgImg.scale(s); bgImg.set({left,top}); canvas.backgroundImage=bgImg;
-  }
-  async function setBackgroundFromFile(fileNameOrBlobURL){
-    showError(""); // reset
-    saveZones(); // sauve l'ancienne
-    try{
-      const src = fileNameOrBlobURL.startsWith("blob:") ? fileNameOrBlobURL : (BG_DIR + fileNameOrBlobURL);
-      await loadImageToBackground(src);
-      currentFile = fileNameOrBlobURL.startsWith("blob:") ? currentFile : fileNameOrBlobURL;
-      localStorage.setItem("q310_bg_file", currentFile);
-      loadZones(); // charge zones liées à cette image
-      ensureSampleZone(); // pour tester la sélection la 1re fois
-      adjustToFit();
-    }catch(e){
-      showError(`❌ Image introuvable : ${fileNameOrBlobURL}. Vérifie le nom dans /actif/ (casse exacte).`);
-      canvas.setBackgroundImage(null, ()=>{ bgImg=null; canvas.requestRenderAll(); });
-    }
-  }
-
-  /* ====== Zones save/load ====== */
-  function norm(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height}; }
-  function fromNorm(z){
-    const p=getPart(z.id), circ=p.circuit||guessCircuit(z.id,p), col=COULEURS[circ]||COULEURS.DEF;
-    const r=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,fill:col.fill,stroke:col.stroke,strokeWidth:2,rx:6,ry:6,selectable:true,hasControls:true,lockScalingFlip:true,evented:true});
-    r.pieceId=z.id||""; r.__style={fill:r.fill,stroke:r.stroke,opacity:r.opacity,sw:r.strokeWidth}; canvas.add(r); canvas.bringToFront(r);
-    if(isReading) hide(r); else show(r);
-    return r;
-  }
-  function saveZones(){ const zones=canvas.getObjects().map(norm); localStorage.setItem(zonesKey(currentFile), JSON.stringify({fit:FIT_MODE,zones})); }
-  function loadZones(){
-    canvas.getObjects().forEach(o=>canvas.remove(o));
-    const raw=localStorage.getItem(zonesKey(currentFile)); if(!raw){ fitLabel(); return; }
-    try{ const d=JSON.parse(raw); FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm); fitLabel(); }catch{}
-  }
-  function ensureSampleZone(){
-    if(canvas.getObjects().length===0){
-      const sample=fromNorm({id:"filtre_air",x:40,y:40,w:120,h:80}); if(isReading) hide(sample);
-    }
-  }
-
-  /* ====== Invisibilité ====== */
-  function hide(o){ if(!o.__style) o.__style={fill:o.fill,stroke:o.stroke,opacity:o.opacity,sw:o.strokeWidth}; o.opacity=1; o.fill=toRGBA(o.__style.fill,.01); o.stroke=toRGBA(o.__style.stroke,.01); o.strokeWidth=.5; o.hasBorders=false; o.hasControls=false; o.hoverCursor="pointer"; }
-  function show(o){ const s=o.__style; if(s){o.fill=s.fill;o.stroke=s.stroke;o.opacity=(typeof s.opacity==="number")?s.opacity:1;o.strokeWidth=(typeof s.sw==="number")?s.sw:2;} o.hasBorders=true;o.hasControls=true;o.hoverCursor="move"; }
-  function setVis(invisible){ canvas.getObjects().forEach(o=>{ invisible?hide(o):show(o); }); canvas.requestRenderAll(); }
-  function flash(o){ const prev={fill:o.fill,stroke:o.stroke,sw:o.strokeWidth}; o.fill=toRGBA(prev.fill,.20); o.stroke=toRGBA(prev.stroke,.90); o.strokeWidth=2; canvas.requestRenderAll(); setTimeout(()=>{ hide(o); canvas.requestRenderAll(); },450); }
-
-  /* ====== Modes ====== */
-  let isReading=true, mode="move", drawingRect=null, startPt=null, pending=null;
-  function setEditable(on){ partRole.readOnly=!on; partDesc.readOnly=!on; partRole.classList.toggle("editable",on); partDesc.classList.toggle("editable",on); }
-  function setMode(m){
-    mode=m;
-    document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
-    const id={move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"}[m]; if(id) document.getElementById(id).classList.add("active");
-    canvas.selection=(!isReading && m==="move");
-    canvas.getObjects().forEach(o=>{
-      if(isReading){ o.selectable=true;o.hasControls=false;o.hasBorders=false;o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=true;o.hoverCursor="pointer"; }
-      else{ const edit=(m==="move"); o.selectable=edit;o.hasControls=edit;o.hasBorders=edit;o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=!edit;o.hoverCursor=edit?"move":(m==="select"?"pointer":"default"); o.transparentCorners=false;o.cornerStyle="rect";o.cornerSize=9; }
-    });
-    canvas.requestRenderAll();
-  }
-  function applyLectureUI(on){
-    isReading=!!on;
-    modeLabel.textContent = on?"Lecture":"Éditeur";
-    toggleMode.textContent = on?"Passer en Éditeur":"Passer en Lecture";
-    editorToolbar.classList.toggle("hidden", on);
-    invSelect.disabled = on;
-    document.getElementById("editorActions").classList.toggle("hidden", on);
-    setEditable(!on);
-    setMode(on?"select":"move");
-    setVis(on);
-  }
-
-  toggleMode.addEventListener("click",()=>{
-    if(isReading){
-      const pwd=prompt("Mot de passe :"); if(pwd!=="PROF"){ alert("Mot de passe invalide."); return; }
-    }
-    applyLectureUI(!isReading);
-  });
-
-  /* ====== Souris ====== */
-  canvas.on("mouse:wheel",(opt)=>{
-    const delta=-opt.e.deltaY, cur=canvas.getZoom(), next=Math.max(.25, Math.min(3, cur*(1+delta/1000)));
-    const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-    const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-    canvas.zoomToPoint(c,next);
-    const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-    const d=new fabric.Point(now.x-prev.x,now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1));
-    zoomSlider.value=Math.round(next*100); opt.e.preventDefault(); opt.e.stopPropagation(); canvas.requestRenderAll();
-  });
-  zoomSlider.addEventListener("input",(e)=>{
-    const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
-    const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-    const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-    canvas.zoomToPoint(c,z);
-    const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-    const d=new fabric.Point(now.x-prev.x,now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1)); canvas.requestRenderAll();
-  });
-
-  canvas.on("mouse:down",(opt)=>{
-    if(isReading){
-      const t=opt.target;
-      if(!t){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
-    }
-    if(mode==="pan"){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
-    if(mode!=="draw"||isReading) return;
-    const p=canvas.getPointer(opt.e); startPt=p;
-    drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
-    canvas.add(drawingRect);
-  });
-  canvas.on("mouse:move",(opt)=>{
-    if(canvas.isDragging){ const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY; canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return; }
-    if(mode!=="draw"||!drawingRect||!startPt||isReading) return;
-    const p=canvas.getPointer(opt.e); drawingRect.set({left:Math.min(p.x,startPt.x),top:Math.min(p.y,startPt.y),width:Math.abs(p.x-startPt.x),height:Math.abs(p.y-startPt.y)}); canvas.requestRenderAll();
-  });
-  canvas.on("mouse:up",(e)=>{
-    if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
-    if(mode==="select" || (!isReading && mode==="move")){
-      const t=e.target; if(t){ fillPanelFromZone(t); if(isReading) flash(t); else canvas.setActiveObject(t); }
+    // 1) Vérif Fabric
+    if(!window.fabric){
+      __showErr('Fabric.js n’a pas été chargé. Le CDN est-il bloqué ?');
+      set('fok','❌ non'); status('Erreur: Fabric non chargé');
+      // On n’essaie pas plus loin si Fabric absent
+      // Astuce: connecte-toi à Internet ou change de réseau / VPN; réessaie.
       return;
+    } else {
+      set('fok','✅ oui (v'+(fabric?.version||'?')+')');
     }
-    if(mode!=="draw"||!drawingRect||isReading) return;
-    drawingRect.selectable=true; pending=drawingRect; canvas.setActiveObject(pending);
-    pending.hasControls=pending.hasBorders=true; pending.lockMovementX=pending.lockMovementY=pending.lockScalingX=pending.lockScalingY=pending.lockRotation=false;
-    drawingRect=null; startPt=null; openAssignModal();
-  });
 
-  /* ====== Touch iOS ====== */
-  const upper=canvas.upperCanvasEl;
-  upper.addEventListener('gesturestart',e=>e.preventDefault()); upper.addEventListener('gesturechange',e=>e.preventDefault()); upper.addEventListener('gestureend',e=>e.preventDefault());
-  let pinchLast=0, touchStart=null, t0=0;
-  function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2}; }
-  function clientToCanvas(x,y){ const r=upper.getBoundingClientRect(); return new fabric.Point(x-r.left,y-r.top); }
-  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+    // 2) Canvas de base
+    const canvas = new fabric.Canvas('c', { selection:false, preserveObjectStacking:true, backgroundColor:'#0b1536' });
+    function resize(){
+      const stage = document.querySelector('.stage');
+      const w = stage.clientWidth;
+      const h = Math.max(560, window.innerHeight*0.70);
+      canvas.setWidth(w); canvas.setHeight(h);
+      set('sz', w+' × '+h);
+      canvas.requestRenderAll();
+    }
+    window.addEventListener('resize', resize, {passive:true});
+    resize();
 
-  upper.addEventListener("touchstart",(e)=>{
-    if(e.touches.length===2){ pinchLast=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); canvas.isDragging=false; e.preventDefault(); }
-    else if(e.touches.length===1){
-      t0=Date.now(); touchStart={x:e.touches[0].clientX,y:e.touches[0].clientY};
-      // ne pan que si on ne touche pas une zone
-      const ev={clientX:e.touches[0].clientX, clientY:e.touches[0].clientY, target:upper};
-      const target=canvas.findTarget(ev,false);
-      if(!target && (isReading || mode==="pan")){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
+    // 3) Charger l’image de fond (robuste)
+    let bgImg = null, FIT_MODE = 'contain';
+    function setBgScale(){
+      if(!bgImg) return;
+      const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=bgImg.width, ih=bgImg.height;
+      const s = (FIT_MODE==='contain') ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
+      const left=(cw-iw*s)/2, top=(ch-ih*s)/2;
+      bgImg.scale(s); bgImg.set({left, top});
+      canvas.setBackgroundImage(bgImg, canvas.requestRenderAll.bind(canvas));
     }
-  }, {passive:false});
-  upper.addEventListener("touchmove",(e)=>{
-    if(e.touches.length===2){
-      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-      if(pinchLast===0){ pinchLast=d; return; }
-      const factor=d/pinchLast; pinchLast=d;
-      let z=canvas.getZoom()*factor; z=Math.max(.25,Math.min(3,z));
-      const m=midpoint(e.touches[0],e.touches[1]), p=clientToCanvas(m.x,m.y);
-      canvas.zoomToPoint(p,z); zoomSlider.value=Math.round(z*100);
-      setBgScale(); canvas.requestRenderAll(); e.preventDefault();
-    } else if(e.touches.length===1 && canvas.isDragging){
-      const dx=e.touches[0].clientX-canvas.lastX, dy=e.touches[0].clientY-canvas.lastY;
-      canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
-      setBgScale(); canvas.requestRenderAll(); e.preventDefault();
+    function loadBackgroundFrom(path){
+      return new Promise((resolve, reject)=>{
+        const im = new Image();
+        im.onload = ()=>resolve(im);
+        im.onerror = ()=>reject(new Error('Introuvable: '+path));
+        // cache-bust pour éviter vieilles versions
+        im.src = path + (path.startsWith('blob:') ? '' : ('?t='+Date.now()));
+      }).then(im=>{
+        bgImg = new fabric.Image(im, { originX:'left', originY:'top' });
+        bgImg.objectCaching = false;
+        setBgScale();
+        canvas.requestRenderAll();
+        return true;
+      });
     }
-  }, {passive:false});
-  upper.addEventListener("touchend",(e)=>{
-    if(e.touches && e.touches.length===0) canvas.isDragging=false;
-    if(!e.touches || e.touches.length<2) pinchLast=0;
-    // TAP rapide -> sélection zone
-    if(e.changedTouches && e.changedTouches.length===1){
-      const dt=Date.now()-t0; const end={x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY};
-      if(dt<300 && touchStart && dist(end,touchStart)<10){
-        const ev={clientX:end.x, clientY:end.y, target:upper};
-        const target=canvas.findTarget(ev,false);
-        if(target){ if(isReading){ fillPanelFromZone(target); flash(target); } else { canvas.setActiveObject(target); } }
+
+    // 4) UI
+    const bgSelect = document.getElementById('bgSelect');
+    document.getElementById('btnTest').addEventListener('click', ()=>{
+      toast('Boutons OK');
+      log('Bouton Test cliqué');
+    });
+    document.getElementById('btnFit').addEventListener('click', ()=>{
+      FIT_MODE = (FIT_MODE==='contain' ? 'cover' : 'contain');
+      setBgScale(); canvas.setViewportTransform([1,0,0,1,0,0]);
+      toast('Ajuster: '+FIT_MODE);
+      log('Ajuster: '+FIT_MODE);
+    });
+
+    bgSelect.addEventListener('change', async ()=>{
+      const f = bgSelect.value;
+      set('imgName', f);
+      try{
+        await loadBackgroundFrom('./actif/'+f);
+        status('Image chargée: '+f);
+        log('Image chargée');
+      }catch(e){
+        __showErr(e.message + ' (./actif/'+f+')');
+        status('Erreur image');
       }
-    }
-  }, {passive:false});
+    });
 
-  /* ====== Panneau / inventaire ====== */
-  function refreshInv(){
-    const opts=Object.keys({...INVENTAIRE_BASE,...INV_OVR}).map(id=>`<option value="${id}">${id} — ${getPart(id).nom||""}</option>`).join("");
-    invSelect.innerHTML=`<option value="">— Choisir —</option>${opts}<option value="__new__">➕ Nouvelle pièce…</option>`;
-  }
-  function showPart(id){ if(!id){ partName.value=partRole.value=partDesc.value=""; return; } const p=getPart(id); partName.value=p.nom||""; partRole.value=p.role||""; partDesc.value=p.desc||""; }
-  function fillPanelFromZone(z){ const id=z?.pieceId||""; invSelect.value=id||""; showPart(id); }
-
-  invSelect.addEventListener("change",()=>{
-    const v=invSelect.value;
-    if(v==="__new__"){ openNewPartModal(); invSelect.value=""; return; }
-    showPart(v);
-  });
-
-  function persistEdits(){
-    if(isReading) return;
-    const id=invSelect.value; if(!id) return;
-    const role=partRole.value, desc=partDesc.value;
-    if(!INV_OVR[id]) INV_OVR[id]={};
-    INV_OVR[id].role=role; INV_OVR[id].desc=desc; saveInv(); // applique pour l’avenir
-  }
-  partRole.addEventListener("change",persistEdits);
-  partDesc.addEventListener("change",persistEdits);
-  partRole.addEventListener("blur",persistEdits);
-  partDesc.addEventListener("blur",persistEdits);
-
-  document.getElementById("btn-apply").addEventListener("click",()=>{
-    if(isReading) return;
-    const o=canvas.getActiveObject(); if(!o){ alert("Sélectionne une zone."); return; }
-    const id=invSelect.value; if(!id){ alert("Choisis une pièce."); return; }
-    persistEdits(); applyPiece(o,id); toast("✅ Pièce associée");
-  });
-  document.getElementById("btn-show-all").addEventListener("click",()=>{ if(isReading) return; canvas.getObjects().forEach(o=>o.opacity=1); canvas.requestRenderAll(); });
-
-  /* ====== Import/Export ====== */
-  document.getElementById("btn-export").addEventListener("click",()=>{
-    const zones=canvas.getObjects().map(norm);
-    const blob=new Blob([JSON.stringify({fit:FIT_MODE,zones,inventory_overrides:INV_OVR,image_file:currentFile},null,2)],{type:"application/json"});
-    const a=document.createElement("a"); const url=URL.createObjectURL(blob); a.href=url; a.download="quincy310L_zones.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),0);
-  });
-  document.getElementById("fileImport").addEventListener("change",(e)=>{
-    const f=e.target.files[0]; e.target.value=""; if(!f) return;
-    const r=new FileReader(); r.onload=()=>{
-      try{ const d=JSON.parse(r.result);
-        if(d.image_file){ currentFile=d.image_file; localStorage.setItem("q310_bg_file", currentFile); }
-        canvas.getObjects().forEach(o=>canvas.remove(o));
-        FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm);
-        if(d.inventory_overrides && typeof d.inventory_overrides==="object"){ INV_OVR=d.inventory_overrides; saveInv(); refreshInv(); }
-        fitLabel(); setBgScale(); canvas.requestRenderAll(); saveZones();
-      }catch{ alert("JSON invalide."); }
-    }; r.readAsText(f);
-  });
-
-  /* ====== Topbar ====== */
-  function adjustToFit(){ setBgScale(); canvas.setViewportTransform([1,0,0,1,0,0]); zoomSlider.value=100; canvas.requestRenderAll(); saveZones(); }
-  btnFit.addEventListener("click",adjustToFit);
-  toggleFit.addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; fitLabel(); adjustToFit(); });
-
-  bgSelect.addEventListener("change",()=>{
-    const v=bgSelect.value;
-    if(v==="__file__"){ bgFile.click(); return; }
-    setBackgroundFromFile(v);
-  });
-  bgFile.addEventListener("change",(e)=>{
-    const file=e.target.files[0]; e.target.value=""; if(!file) return;
-    const url=URL.createObjectURL(file);
-    setBackgroundFromFile(url); // blob: URL
-  });
-
-  /* ====== Assignation ====== */
-  const assignModal=document.getElementById("assignModal");
-  const assignSelect=document.getElementById("assignSelect");
-  const assignName=document.getElementById("assignName");
-  const assignRole=document.getElementById("assignRole");
-  const assignDesc=document.getElementById("assignDesc");
-
-  function openAssignModal(){
-    assignSelect.innerHTML='<option value="">— Choisir —</option>'+
-      Object.keys({...INVENTAIRE_BASE,...INV_OVR}).map(id=>`<option value="${id}">${id} — ${getPart(id).nom||""}</option>`).join("")+
-      '<option value="__new__">➕ Nouvelle pièce…</option>';
-    assignName.value=assignRole.value=assignDesc.value=""; assignModal.style.display="flex"; assignSelect.focus();
-  }
-  function closeAssignModal(){ assignModal.style.display="none"; }
-  assignSelect.addEventListener("change",()=>{
-    const v=assignSelect.value;
-    if(v==="__new__"){ closeAssignModal(); openNewPartModal(true); return; }
-    const p=getPart(v); assignName.value=p.nom||""; assignRole.value=p.role||""; assignDesc.value=p.desc||"";
-  });
-  document.getElementById("assignCancel").addEventListener("click",()=>{ closeAssignModal(); if(pending){ saveZones(); pending=null; } });
-  document.getElementById("assignOk").addEventListener("click",()=>{
-    const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
-    if(!pending){ closeAssignModal(); return; }
-    applyPiece(pending,id); closeAssignModal(); pending=null; toast("✅ Pièce associée");
-  });
-
-  function applyPiece(obj,id){
-    obj.pieceId=id;
-    const p=getPart(id), circ=p.circuit||guessCircuit(id,p), col=COULEURS[circ]||COULEURS.DEF;
-    obj.set({fill:col.fill,stroke:col.stroke}); obj.__style={fill:obj.fill,stroke:obj.stroke,opacity:obj.opacity,sw:obj.strokeWidth};
-    invSelect.value=id; showPart(id); canvas.setActiveObject(obj);
-    if(isReading){ hide(obj); obj.hasControls=false; obj.hasBorders=false; } else { obj.selectable=true; obj.hasControls=true; obj.hasBorders=true; obj.lockMovementX=obj.lockMovementY=obj.lockScalingX=obj.lockScalingY=obj.lockRotation=false; }
-    canvas.requestRenderAll(); saveZones();
-  }
-
-  /* ====== Nouvelle pièce ====== */
-  const newPartModal=document.getElementById("newPartModal");
-  function openNewPartModal(apply=false){ newPartModal.dataset.apply=apply?"1":"0"; newPartModal.style.display="flex"; document.getElementById("np_id").focus(); }
-  function closeNewPartModal(){ newPartModal.style.display="none"; }
-  document.getElementById("np_cancel").addEventListener("click", closeNewPartModal);
-  document.getElementById("np_ok").addEventListener("click",()=>{
-    const id=(document.getElementById("np_id").value||"").trim();
-    const nom=(document.getElementById("np_nom").value||"").trim();
-    const role=(document.getElementById("np_role").value||"").trim();
-    const desc=(document.getElementById("np_desc").value||"").trim();
-    const circ=(document.getElementById("np_circ").value||"").trim()||null;
-    if(!id || /\s/.test(id)){ alert("ID requis, sans espace."); return; }
-    if(!INV_OVR[id]) INV_OVR[id]={};
-    Object.assign(INV_OVR[id], {nom,role,desc,circuit:circ});
-    saveInv(); refreshInv();
-    if(newPartModal.dataset.apply==="1" && pending){ applyPiece(pending,id); pending=null; }
-    invSelect.value=id; showPart(id); closeNewPartModal(); toast("✅ Pièce créée");
-  });
-
-  /* ====== Utilitaires ====== */
-  let toastTimer=null;
-  function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
-  function showError(msg){ errBox.textContent=msg||""; errBox.classList.toggle("hidden", !msg); }
-
-  /* ====== Init ====== */
-  function refreshInvAndUI(){ refreshInv(); fitLabel(); resize(); }
-  async function init(){
-    refreshInvAndUI();
-    await setBackgroundFromFile(currentFile); // charge l’image + zones liées
-    applyLectureUI(true); // démarrer en Lecture
-  }
-  init();
+    // 5) Chargement initial
+    (async function init(){
+      status('Initialisation…');
+      const first = bgSelect.value || 'compresseur_bg.png';
+      set('imgName', first);
+      try{
+        await loadBackgroundFrom('./actif/'+first);
+        status('Prêt ✅');
+        log('Init OK');
+        // Ajoute une zone de test pour vérifier la sélection
+        const r = new fabric.Rect({left:40, top:40, width:160, height:90, fill:'rgba(0,160,255,0.18)', stroke:'#00a0ff', strokeWidth:2, rx:6, ry:6});
+        canvas.add(r); canvas.bringToFront(r);
+        canvas.on('mouse:up',(e)=>{ if(e.target===r){ toast('Zone test sélectionnée'); log('Zone test cliquée'); } });
+      }catch(e){
+        __showErr(e.message + ' (./actif/'+first+')');
+        status('Erreur: impossible de charger l’image initiale');
+      }
+    })();
+  })();
   </script>
 </body>
 </html>
+
 
 
 
