@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
   <title>Quincy 310L — Éditeur/Lecture (FULL-DEBUG)</title>
 
-  <!-- Affiche toute erreur JS à l’écran -->
+  <!-- Affichage des erreurs JS à l’écran -->
   <script>
   (function(){
     const box=document.createElement('div');
@@ -66,7 +66,6 @@
         <option value="VUE_GENERAL.jpeg">VUE_GENERAL.jpeg</option>
         <option value="VUE_GENARAL_2.jpeg">VUE_GENARAL_2.jpeg</option>
         <option value="VERS_RESERVOIR.jpeg">VERS_RESERVOIR.jpeg</option>
-        <option value="VERS_RESERVOIR_2.jpeg">VERS_RESERVOIR_2.jpeg</option>
         <option value="VUE_POMPE.jpeg">VUE_POMPE.jpeg</option>
         <option value="LOAD_SIDE.jpeg">LOAD_SIDE.jpeg</option>
         <option value="SOUPAPE_UNLOADER.jpeg">SOUPAPE_UNLOADER.jpeg</option>
@@ -110,7 +109,7 @@
     </aside>
   </div>
 
-  <!-- Modals minimaux pour éviter erreurs -->
+  <!-- Modal assignation minimal -->
   <div id="assignModal" class="modal-backdrop"><div class="modal">
     <h4>Associer cette zone à une pièce</h4>
     <div class="row"><label>Pièce</label><select id="assignSelect"></select></div>
@@ -120,12 +119,8 @@
   <div id="toast" class="toast">OK</div>
 
   <script>
-  // ----------- Étape 0 : garde-fou Fabric -----------
-  (function(){
-    if(!window.fabric){ __ERR.show('Fabric.js n’a pas été chargé (CDN bloqué?)'); }
-  })();
+  if(!window.fabric){ __ERR.show('Fabric.js n’a pas été chargé (CDN?)'); }
 
-  // ----------- Étape 1 : variables sûres -----------
   const IS_MOBILE=/iPhone|iPad|Android/i.test(navigator.userAgent);
   const statusEl=document.getElementById('status');
   const setStatus=(t)=>statusEl.textContent=t;
@@ -142,7 +137,7 @@
     DEF:{fill:'rgba(200,200,200,.12)',stroke:'#aaa'}
   };
 
-  // ----------- Étape 2 : références DOM (toujours OK même si suite échoue) -----------
+  // ---- DOM
   const modeLabel=document.getElementById('modeLabel');
   const toggleMode=document.getElementById('toggleMode');
   const bgSelect=document.getElementById('bgSelect');
@@ -156,7 +151,7 @@
   const partDesc=document.getElementById('partDesc');
   const toastEl=document.getElementById('toast');
 
-  // Attache IMMÉDIATE de tous les écouteurs UI (même si l’image foire)
+  // listeners UI
   toggleMode.onclick = ()=>{
     if(isReading){
       const pwd=prompt('Mot de passe :'); if(pwd!=='PROF'){ alert('Mot de passe invalide'); return; }
@@ -168,7 +163,6 @@
   toggleFit.onclick = ()=>{ FIT_MODE=(FIT_MODE==='contain')?'cover':'contain'; fitLabel(); adjustToFit(); };
   zoomSlider.oninput = (e)=>{ const z=Math.max(.25,Math.min(3,Number(e.target.value)/100)); zoomTo(z); };
 
-  // Boutons éditeur
   document.getElementById('btn-move').onclick=()=>setMode('move');
   document.getElementById('btn-draw').onclick=()=>setMode('draw');
   document.getElementById('btn-pan').onclick =()=>setMode('pan');
@@ -176,7 +170,7 @@
   document.getElementById('btn-delete').onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o) { canvas.remove(o); saveZones(); } };
   document.getElementById('btn-clear').onclick =()=>{ if(isReading) return; if(confirm('Effacer toutes les zones ?')){ canvas.getObjects().forEach(o=>canvas.remove(o)); saveZones(); } };
 
-  // ----------- Étape 3 : Canvas + fond -----------
+  // ---- Canvas / fond
   const canvas=new fabric.Canvas('c',{selection:false,preserveObjectStacking:true,backgroundColor:'#0b1536'});
   let bgImg=null, FIT_MODE=IS_MOBILE?'cover':'contain';
   function fitLabel(){ toggleFit.innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
@@ -200,32 +194,51 @@
     }catch(e){
       __ERR.show(e.message+' (/actif/'+file+')');
       setStatus('Erreur image');
-      // on garde l’UI fonctionnelle : pas de throw
     }
   }
 
   function adjustToFit(){ setBgScale(); canvas.setViewportTransform([1,0,0,1,0,0]); zoomSlider.value=100; canvas.requestRenderAll(); saveZones(); }
   function zoomTo(z){ const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2); const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform)); canvas.zoomToPoint(c,z); const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform)); const d=new fabric.Point(now.x-prev.x,now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1)); canvas.requestRenderAll(); }
 
-  // ----------- Étape 4 : Zones & modes -----------
+  // ---- Zones / modes
   function k(){ return 'q310_z_'+currentFile; }
   function norm(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||'',x:r.left,y:r.top,w:r.width,h:r.height}; }
   function fromNorm(z){ const col=COULEURS.DEF; const r=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,fill:col.fill,stroke:col.stroke,strokeWidth:2,rx:6,ry:6}); r.pieceId=z.id||''; canvas.add(r); if(isReading) hide(r); return r; }
-  function saveZones(){ try{ const zones=canvas.getObjects().map(norm); localStorage.setItem(k(), JSON.stringify({fit:FIT_MODE,zones})); }catch(e){ /* no-op */ } }
+  function saveZones(){ try{ const zones=canvas.getObjects().map(norm); localStorage.setItem(k(), JSON.stringify({fit:FIT_MODE,zones})); }catch(e){} }
   function loadZones(){ canvas.getObjects().forEach(o=>canvas.remove(o)); try{ const raw=localStorage.getItem(k()); if(!raw) return; const d=JSON.parse(raw); FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm); fitLabel(); }catch(e){} }
   function ensureSample(){ if(canvas.getObjects().length===0){ const r=fromNorm({id:'sample',x:40,y:40,w:140,h:90}); if(isReading) hide(r); } }
-  function toRGBA(fill,a){ const m=String(fill||'').match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i); if(m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`; return `rgba(0,0,0,${a})`; }
+
+  // *** Correctif #1 : toRGBA sans regex fragile ***
+  function toRGBA(fill, a){
+    try{
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.fillStyle = fill || '#000';
+      const norm = ctx.fillStyle; // #rrggbb ou rgba(...)
+      if (norm.startsWith('#')) {
+        let hex = norm.slice(1);
+        if (hex.length === 3) hex = hex.split('').map(ch=>ch+ch).join('');
+        const r = parseInt(hex.slice(0,2),16);
+        const g = parseInt(hex.slice(2,4),16);
+        const b = parseInt(hex.slice(4,6),16);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+      const m = norm.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
+    }catch(_){}
+    return `rgba(0,0,0,${a})`;
+  }
+
   function hide(o){ if(!o.__s) o.__s={fill:o.fill,stroke:o.stroke,op:o.opacity,sw:o.strokeWidth}; o.opacity=1; o.fill=toRGBA(o.__s.fill,.01); o.stroke=toRGBA(o.__s.stroke,.01); o.strokeWidth=.5; o.hasBorders=false; o.hasControls=false; o.hoverCursor='pointer'; }
   function show(o){ const s=o.__s; if(s){ o.fill=s.fill;o.stroke=s.stroke;o.opacity=(typeof s.op==='number')?s.op:1;o.strokeWidth=(typeof s.sw==='number')?s.sw:2; } o.hasBorders=true;o.hasControls=true;o.hoverCursor='move'; }
   function flash(o){ const prev={fill:o.fill,stroke:o.stroke,sw:o.strokeWidth}; o.fill=toRGBA(prev.fill,.20); o.stroke=toRGBA(prev.stroke,.90); o.strokeWidth=2; canvas.requestRenderAll(); setTimeout(()=>{ hide(o); canvas.requestRenderAll(); },450); }
 
   let isReading=true, mode='move', drawing=null, start=null, pending=null;
-  function setMode(m){ mode=m; document.querySelectorAll('#editorToolbar .btn').forEach(b=>b.classList.remove('active')); ({move:'btn-move',draw:'btn-draw',pan:'btn-pan',select:'btn-select'}[m] && document.getElementById({move:'btn-move',draw:'btn-draw',pan:'btn-pan',select:'btn-select'}[m]).classList.add('active')); canvas.selection=(!isReading && m==='move'); canvas.requestRenderAll(); }
+  function setMode(m){ mode=m; document.querySelectorAll('#editorToolbar .btn').forEach(b=>b.classList.remove('active')); const id={move:'btn-move',draw:'btn-draw',pan:'btn-pan',select:'btn-select'}[m]; if(id) document.getElementById(id).classList.add('active'); canvas.selection=(!isReading && m==='move'); canvas.requestRenderAll(); }
   function setEditable(on){ partRole.readOnly=!on; partDesc.readOnly=!on; partRole.classList.toggle('editable',on); partDesc.classList.toggle('editable',on); }
   function applyLectureUI(on){ isReading=!!on; modeLabel.textContent=on?'Lecture':'Éditeur'; toggleMode.textContent=on?'Passer en Éditeur':'Passer en Lecture'; editorToolbar.classList.toggle('hidden',on); invSelect.disabled=on; document.getElementById('editorActions').classList.toggle('hidden',on); setEditable(!on); setMode(on?'select':'move'); setVis(on); }
   function setVis(invis){ canvas.getObjects().forEach(o=>{ invis?hide(o):show(o); }); canvas.requestRenderAll(); }
 
-  // pan/zoom souris
+  // souris
   canvas.on('mouse:wheel',(opt)=>{ const delta=-opt.e.deltaY, cur=canvas.getZoom(), next=Math.max(.25,Math.min(3,cur*(1+delta/1000))); zoomSlider.value=Math.round(next*100); zoomTo(next); opt.e.preventDefault(); opt.e.stopPropagation(); });
   canvas.on('mouse:down',(opt)=>{ if(isReading){ const t=opt.target; if(!t){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor('grabbing'); return; } }
     if(mode==='pan'){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor('grabbing'); return; }
@@ -238,46 +251,75 @@
     if(mode==='select' || (!isReading && mode==='move')){ const t=e.target; if(t){ if(isReading) flash(t); } return; }
     if(mode!=='draw'||!drawing||isReading) return; drawing.selectable=true; pending=drawing; canvas.setActiveObject(pending); drawing=null; start=null; openAssign(); });
 
-  // touch iOS : pinch/pan
+  // iOS gestures
   const upper=canvas.upperCanvasEl;
-  upper.addEventListener('gesturestart',e=>e.preventDefault()); upper.addEventListener('gesturechange',e=>e.preventDefault()); upper.addEventListener('gestureend',e=>e.preventDefault());
+  upper.addEventListener('gesturestart',e=>e.preventDefault());
+  upper.addEventListener('gesturechange',e=>e.preventDefault());
+  upper.addEventListener('gestureend',e=>e.preventDefault());
   let pinch=0;
-  upper.addEventListener('touchstart',e=>{ if(e.touches.length===2){ pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); canvas.isDragging=false; e.preventDefault(); } else if(e.touches.length===1){ const tgt=canvas.findTarget({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY,target:upper},false); if(!tgt && (isReading||mode==='pan')){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); } }, {passive:false});
-  upper.addEventListener('touchmove',e=>{ if(e.touches.length===2){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); if(pinch===0){ pinch=d; return; } const factor=d/pinch; pinch=d; let z=canvas.getZoom()*factor; z=Math.max(.25,Math.min(3,z)); const rect=upper.getBoundingClientRect(); const mx=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left; const my=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top; canvas.zoomToPoint(new fabric.Point(mx,my),z); zoomSlider.value=Math.round(z*100); setBgScale(); canvas.requestRenderAll(); e.preventDefault(); } else if(e.touches.length===1 && canvas.isDragging){ const dx=e.touches[0].clientX-canvas.lastX, dy=e.touches[0].clientY-canvas.lastY; canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; setBgScale(); canvas.requestRenderAll(); e.preventDefault(); } }, {passive:false});
-  upper.addEventListener('touchend',()=>{ if(event.touches && event.touches.length===0) canvas.isDragging=false; if(!event.touches || event.touches.length<2) pinch=0; }, {passive:false});
+  upper.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+      canvas.isDragging=false; e.preventDefault();
+    } else if(e.touches.length===1){
+      const tgt=canvas.findTarget({clientX:e.touches[0].clientX,clientY:e.touches[0].clientY,target:upper},false);
+      if(!tgt && (isReading||mode==='pan')){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
+    }
+  }, {passive:false});
 
-  // ----------- Étape 5 : Assignation minimale -----------
+  upper.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+      if(pinch===0){ pinch=d; return; }
+      const factor=d/pinch; pinch=d;
+      let z=canvas.getZoom()*factor; z=Math.max(.25,Math.min(3,z));
+      const rect=upper.getBoundingClientRect();
+      const mx=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left;
+      const my=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top;
+      canvas.zoomToPoint(new fabric.Point(mx,my),z);
+      zoomSlider.value=Math.round(z*100);
+      setBgScale(); canvas.requestRenderAll();
+      e.preventDefault();
+    } else if(e.touches.length===1 && canvas.isDragging){
+      const dx=e.touches[0].clientX-canvas.lastX;
+      const dy=e.touches[0].clientY-canvas.lastY;
+      canvas.relativePan(new fabric.Point(dx,dy));
+      canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+      setBgScale(); canvas.requestRenderAll();
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  // *** Correctif #2 : utiliser e dans touchend ***
+  upper.addEventListener('touchend',(e)=>{
+    if(e.touches && e.touches.length===0) canvas.isDragging=false;
+    if(!e.touches || e.touches.length<2) pinch=0;
+  }, {passive:false});
+
+  // Assignation basique
   const assignModal=document.getElementById('assignModal');
   const assignSelect=document.getElementById('assignSelect');
   document.getElementById('assignCancel').onclick=()=>{ assignModal.style.display='none'; pending=null; };
   document.getElementById('assignOk').onclick=()=>{ if(!pending) return; pending.pieceId=assignSelect.value||''; if(isReading) hide(pending); canvas.requestRenderAll(); saveZones(); assignModal.style.display='none'; pending=null; };
   function openAssign(){ assignSelect.innerHTML='<option value="">—(aucune)—</option><option value="filtre_air">filtre_air</option><option value="cylindre_lp">cylindre_lp</option>'; assignModal.style.display='flex'; }
 
-  // ----------- Étape 6 : Init sûre -----------
+  // Init
   (async function init(){
     try{
       setStatus('Initialisation…'); fitLabel(); resize();
-      // charge l’option sélectionnée si elle existe, sinon force compresseur_bg.png
       const opt = Array.from(bgSelect.options).some(o=>o.value===currentFile) ? currentFile : 'compresseur_bg.png';
       bgSelect.value = opt;
-      await setBackground(opt);           // si ça échoue, UI reste active grâce au catch interne
-      applyLectureUI(true);               // démarre en lecture
+      await setBackground(opt);
+      applyLectureUI(true);
       setStatus('Prêt ✅');
     }catch(e){
       __ERR.show(e.message||e); setStatus('Erreur init');
     }
   })();
 
-  // ----------- Utilitaires -----------
+  // util
   let toastTimer=null;
   function toast(msg){ toastEl.textContent=msg||'OK'; toastEl.style.display='block'; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display='none',1400); }
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
