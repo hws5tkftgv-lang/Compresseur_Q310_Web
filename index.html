@@ -2,7 +2,6 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone/iPad: empêcher le zoom navigateur, on gère le zoom dans Fabric -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L – Éditeur / Lecture</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -11,7 +10,6 @@
     * { box-sizing: border-box; }
     html, body { margin:0; height:100%; overscroll-behavior: none; }
     body { background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
-
     .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);}
     .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px;}
     .mode-pill b{color:#91c9ff}
@@ -21,20 +19,10 @@
     .chip{padding:6px 8px;background:#192247;border:1px solid rgba(255,255,255,.12);border-radius:8px}
     .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;background:#0f1a3f}
     .toolbar.hidden{display:none}
-
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-
-    .stage{
-      background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;
-      min-height:65vh;
-      will-change:transform; transform:translateZ(0); /* iOS anti-blank */
-    }
-    .stage canvas{
-      touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
-      will-change:transform; transform:translateZ(0);
-    }
-
+    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:65vh;will-change:transform;transform:translateZ(0)}
+    .stage canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;will-change:transform;transform:translateZ(0)}
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
     .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
@@ -43,14 +31,11 @@
     textarea{min-height:120px;resize:vertical}
     .hint{font-size:.85rem;opacity:.8}
     .hidden{display:none!important}
-
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
     .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .modal h4{margin:0 0 10px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
-
     .editable { border-color:#4aa3ff !important; box-shadow:0 0 0 2px rgba(74,163,255,.25) inset; }
   </style>
 </head>
@@ -61,9 +46,19 @@
 
     <label class="chip" style="margin-left:8px">Image
       <select id="bgSelect" style="margin-left:6px">
-        <option value="compresseur">Compresseur</option>
-        <option value="schema">Schéma</option>
-        <option value="atelier">Atelier</option>
+        <option value="compresseur">Compresseur (fond)</option>
+        <option value="tete">Tête</option>
+        <option value="tete2">Tête 2</option>
+        <option value="vueGenerale">Vue générale</option>
+        <option value="vueGenerale2">Vue générale 2 (GENARAL_2)</option>
+        <option value="versRes">Vers réservoir</option>
+        <option value="versRes2">Vers réservoir 2</option>
+        <option value="pompe">Vue pompe</option>
+        <option value="charge">Côté charge (LOAD_SIDE)</option>
+        <option value="soupape">Soupape unloader</option>
+        <option value="poulie">Poulie</option>
+        <option value="couvercle">Filtre air – couvercle</option>
+        <option value="top">Vue du haut (TOP)</option>
         <option value="custom">— Fichier… —</option>
       </select>
     </label>
@@ -95,7 +90,7 @@
     <div class="stage"><canvas id="c"></canvas></div>
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables. Éditeur : dessin / redim / déplacement + <b>édition des textes</b>.</p>
+      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables. Éditeur : dessin / redim / déplacement + <b>édition Rôle/Description</b>.</p>
       <div class="row">
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect" disabled></select>
@@ -116,7 +111,7 @@
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-      <p class="hint">💾 Zones & préférences sauvegardées localement <b>par image</b>. Export/Import pour partager.</p>
+      <p class="hint">💾 Sauvegarde locale automatique <b>par image</b>. Export/Import pour partager.</p>
     </aside>
   </div>
 
@@ -141,13 +136,12 @@
   <div id="toast" class="toast">✅ Pièce associée à la zone</div>
 
   <script>
-    /* ====== iOS anti-blank / anti-scintillement ====== */
+    /* ===== iOS anti-blank ===== */
     fabric.Object.prototype.objectCaching = false;
     fabric.Image.prototype.objectCaching  = false;
-
     const IS_MOBILE = /iPhone|iPad|Android/i.test(navigator.userAgent);
 
-    /* ===================== Inventaire & overrides ===================== */
+    /* ===== Inventaire + overrides ===== */
     let INVENTAIRE = {
       "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
       "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
@@ -179,7 +173,6 @@
         circuit: (ovr.circuit ?? base.circuit) || null
       };
     }
-
     function guessCircuitFromIdName(id, item){
       const s = (id + " " + (item?.nom||"") + " " + (item?.role||"")).toLowerCase();
       if (/(lp|admission|aspiration|filtre air|entrée)/.test(s)) return "LP";
@@ -198,255 +191,123 @@
       "DEF": { fill:"rgba(200,200,200,0.12)", stroke:"#aaaaaa" }
     };
 
-    /* ===================== Images disponibles & état courant ===================== */
+    /* ======= IMAGES DISPONIBLES (tes fichiers du dossier /actif) ======= */
     const BG_IMAGES = {
       compresseur: "actif/compresseur_bg.png",
-      schema:      "actif/schema_bg.png",
-      atelier:     "actif/atelier_bg.png"
+      tete: "actif/TETE.jpeg",
+      tete2: "actif/TETE_2.jpeg",
+      vueGenerale: "actif/VUE_GENERAL.jpeg",
+      vueGenerale2: "actif/VUE_GENARAL_2.jpeg",        // ⚠️ capture montre GENARAL_2 (avec un A manquant)
+      versRes: "actif/VERS_RESERVOIR.jpeg",
+      versRes2: "actif/VERS_RESERVOIR_2.jpeg",
+      pompe: "actif/VUE_POMPE.jpeg",
+      charge: "actif/LOAD_SIDE.jpeg",
+      soupape: "actif/SOUPAPE_UNLOADER.jpeg",
+      poulie: "actif/POULIE.jpeg",
+      couvercle: "actif/FILTRE_AIR_COUVERCLE.jpeg",
+      top: "actif/TOP.jpeg"
     };
+
+    /* ===== état image courante ===== */
     let currentBgKey = localStorage.getItem("q310_bg_key") || "compresseur";
     let currentBgURL = localStorage.getItem("q310_bg_url") || BG_IMAGES[currentBgKey] || "actif/compresseur_bg.png";
     function zonesKeyFor(bgUrl){ return `q310_zones_${bgUrl}`; }
 
-    /* ===================== Canvas & background ===================== */
+    /* ===== Canvas & background ===== */
     const canvas = new fabric.Canvas("c", {
-      selection:false,
-      preserveObjectStacking:true,
-      backgroundColor:"#0b1536",
-      enableRetinaScaling:false // ✅ clé iOS
+      selection:false, preserveObjectStacking:true, backgroundColor:"#0b1536",
+      enableRetinaScaling:false
     });
     let bgImg = null;
-
-    // Mode auto: Mobile = cover, PC = contain
     let FIT_MODE = IS_MOBILE ? "cover" : "contain";
     function refreshFitLabel(){
       document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
     }
-
     function resizeCanvas(){
       const stage=document.querySelector(".stage");
       const w = stage.clientWidth;
-      const h = Math.max(600, IS_MOBILE ? window.innerHeight * 0.85 : window.innerHeight * 0.70);
-      canvas.setWidth(w);
-      canvas.setHeight(h);
+      const h = Math.max(600, IS_MOBILE ? window.innerHeight*0.85 : window.innerHeight*0.70);
+      canvas.setWidth(w); canvas.setHeight(h);
       const targetFit = IS_MOBILE ? "cover" : "contain";
       if (FIT_MODE !== targetFit) { FIT_MODE = targetFit; refreshFitLabel(); }
-
-      fitBackgroundImage(bgImg);
-      canvas.calcOffset();              // ✅ fiabilise le hit-test
-      canvas.requestRenderAll();
-      setTimeout(()=>canvas.requestRenderAll(), 16);
+      fitBackgroundImage(bgImg); canvas.calcOffset(); canvas.requestRenderAll();
+      setTimeout(()=>canvas.requestRenderAll(),16);
     }
     window.addEventListener("resize", resizeCanvas, { passive:true });
-
     function fitBackgroundImage(img){
       if(!img) return;
       const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=img.width, ih=img.height;
       const scale = (FIT_MODE==="contain") ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
       img.scale(scale);
-      img.set({
-        left:(cw - iw*scale)/2,
-        top:(ch - ih*scale)/2,
-        selectable:false,
-        evented:false,
-        id:"__BG__"
-      });
-      canvas.sendToBack(img);
-      canvas.calcOffset();
-      canvas.requestRenderAll();
-      setTimeout(()=>canvas.requestRenderAll(), 0);
+      img.set({ left:(cw-iw*scale)/2, top:(ch-ih*scale)/2, selectable:false, evented:false, id:"__BG__" });
+      canvas.sendToBack(img); canvas.calcOffset(); canvas.requestRenderAll(); setTimeout(()=>canvas.requestRenderAll(),0);
     }
-
     function loadBackground(fromUrl){
       const url = fromUrl || currentBgURL;
-      // Si on change d’image, sauvegarde d’abord les zones de l’ancienne
-      if (bgImg && fromUrl) saveZonesForCurrent();
-
+      if (bgImg && fromUrl) saveZonesForCurrent(); // sauvegarde de l’ancienne
       fabric.Image.fromURL(url + `?t=${Date.now()}`, (img)=>{
         if (bgImg) canvas.remove(bgImg);
-        bgImg=img; bgImg.objectCaching=false;
-        canvas.add(bgImg);
-        fitBackgroundImage(bgImg);
-        canvas.sendToBack(bgImg);
-        loadZonesFor(url);
-        adjustToFit();
-        canvas.calcOffset();
-        hardRefresh();
-        currentBgURL = url;
-        localStorage.setItem("q310_bg_url", currentBgURL);
+        bgImg=img; bgImg.objectCaching=false; canvas.add(bgImg);
+        fitBackgroundImage(bgImg); canvas.sendToBack(bgImg);
+        loadZonesFor(url); adjustToFit(); canvas.calcOffset(); hardRefresh();
+        currentBgURL = url; localStorage.setItem("q310_bg_url", currentBgURL);
       }, { crossOrigin:"anonymous" });
     }
 
-    /* ===================== Sauvegarde zones (par image) ===================== */
-    function toNormalized(o){
-      const r=o.getBoundingRect(true,true);
-      return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height};
-    }
+    /* ===== Sauvegarde zones (par image) ===== */
+    function toNormalized(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height}; }
     function fromNormalized(z){
-      const item = INVENTAIRE[z.id] || {};
-      const circ = item.circuit || guessCircuitFromIdName(z.id, item);
+      const item = INVENTAIRE[z.id] || {}; const circ = item.circuit || guessCircuitFromIdName(z.id, item);
       const col  = COULEURS[circ] || COULEURS.DEF;
-      const rect=new fabric.Rect({
-        left:z.x, top:z.y, width:z.w, height:z.h,
-        fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6,
-        selectable:true, hasControls:true, lockScalingFlip:true, evented:true
-      });
-      rect.objectCaching = false;
-      rect.pieceId=z.id||"";
-      rect.__style = { fill: rect.fill, stroke: rect.stroke, opacity: rect.opacity, sw: rect.strokeWidth }; // pour hide/show
+      const rect=new fabric.Rect({left:z.x, top:z.y, width:z.w, height:z.h, fill:col.fill, stroke:col.stroke, strokeWidth:2, rx:6, ry:6, selectable:true, hasControls:true, lockScalingFlip:true, evented:true});
+      rect.objectCaching=false; rect.pieceId=z.id||""; rect.__style = { fill: rect.fill, stroke: rect.stroke, opacity: rect.opacity, sw: rect.strokeWidth };
       canvas.add(rect); canvas.bringToFront(rect);
       if (isReading) { hideZone(rect); rect.hasControls=false; rect.hasBorders=false; }
-      else {
-        showZone(rect);
-        rect.selectable = true; rect.hasControls = true; rect.hasBorders = true;
-        rect.lockMovementX = rect.lockMovementY = rect.lockScalingX = rect.lockScalingY = rect.lockRotation = false;
-      }
+      else { showZone(rect); rect.selectable=true; rect.hasControls=true; rect.hasBorders=true; rect.lockMovementX=rect.lockMovementY=rect.lockScalingX=rect.lockScalingY=rect.lockRotation=false; }
       return rect;
     }
-    function saveZonesForCurrent(){
-      const zones = canvas.getObjects().filter(o => o !== bgImg).map(toNormalized);
-      localStorage.setItem(zonesKeyFor(currentBgURL), JSON.stringify({ fit: FIT_MODE, zones }));
-    }
+    function saveZonesForCurrent(){ const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized); localStorage.setItem(zonesKeyFor(currentBgURL), JSON.stringify({fit:FIT_MODE, zones})); }
     function loadZonesFor(url){
-      canvas.getObjects().slice().forEach(o => { if (o !== bgImg) canvas.remove(o); });
-      const raw = localStorage.getItem(zonesKeyFor(url));
-      if(!raw){ refreshFitLabel(); canvas.requestRenderAll(); return; }
-      try{
-        const d = JSON.parse(raw);
-        FIT_MODE = d.fit || FIT_MODE;
-        (d.zones || []).forEach(fromNormalized);
-        refreshFitLabel();
-        canvas.requestRenderAll();
-      }catch(e){ console.warn("Zones invalides pour", url, e); }
+      canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
+      const raw = localStorage.getItem(zonesKeyFor(url)); if(!raw){ refreshFitLabel(); canvas.requestRenderAll(); return; }
+      try{ const d=JSON.parse(raw); FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNormalized); refreshFitLabel(); canvas.requestRenderAll(); }catch(e){ console.warn("Zones invalides:", e); }
     }
-    // Compat ancienne API
     function save(){ saveZonesForCurrent(); }
     function loadSaved(){ loadZonesFor(currentBgURL); }
 
-    /* ===================== Invisibilité & refresh ===================== */
+    /* ===== Invisibilité & refresh ===== */
     function toTransparent(fill, a){
       if (!fill) return `rgba(0,0,0,${a})`;
       const m = String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
       if (m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
-      const hex = String(fill).replace('#','');
-      if (hex.length===3) {
-        const r=parseInt(hex[0]+hex[0],16), g=parseInt(hex[1]+hex[1],16), b=parseInt(hex[2]+hex[2],16);
-        return `rgba(${r},${g},${b},${a})`;
-      } else if (hex.length===6) {
-        const r=parseInt(hex.slice(0,2),16), g=parseInt(hex.slice(2,4),16), b=parseInt(hex.slice(4,6),16);
-        return `rgba(${r},${g},${b},${a})`;
-      }
+      const hex = String(fill).replace('#',''); if (hex.length===3){const r=parseInt(hex[0]+hex[0],16),g=parseInt(hex[1]+hex[1],16),b=parseInt(hex[2]+hex[2],16);return `rgba(${r},${g},${b},${a})`;}
+      if (hex.length===6){const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return `rgba(${r},${g},${b},${a})`;}
       return `rgba(0,0,0,${a})`;
     }
-    function hideZone(o){
-      if (o===bgImg) return;
-      if (!o.__style) o.__style = { fill:o.fill, stroke:o.stroke, opacity:o.opacity, sw:o.strokeWidth };
-      o.opacity     = 1;
-      o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);
-      o.stroke      = toTransparent(o.__style.stroke || o.stroke, 0.01);
-      o.strokeWidth = 0.5; // hit-test fiable
-      o.hasBorders  = false;
-      o.hasControls = false;
-      o.evented     = true;
-      o.hoverCursor = "pointer";
-    }
-    function showZone(o){
-      if (o===bgImg) return;
-      const s = o.__style;
-      if (s){
-        o.fill        = s.fill;
-        o.stroke      = s.stroke;
-        o.opacity     = (typeof s.opacity === "number") ? s.opacity : 1;
-        o.strokeWidth = (typeof s.sw === "number") ? s.sw : 2;
-      }
-      o.hasBorders  = true;
-      o.hasControls = true;
-      o.evented     = true;
-      o.hoverCursor = "move";
-    }
-    function setZonesVisibility(invisible){
+    function hideZone(o){ if (o===bgImg) return; if (!o.__style) o.__style = { fill:o.fill, stroke:o.stroke, opacity:o.opacity, sw:o.strokeWidth };
+      o.opacity=1; o.fill=toTransparent(o.__style.fill||o.fill,0.01); o.stroke=toTransparent(o.__style.stroke||o.stroke,0.01); o.strokeWidth=0.5; o.hasBorders=false; o.hasControls=false; o.evented=true; o.hoverCursor="pointer"; }
+    function showZone(o){ if (o===bgImg) return; const s=o.__style; if(s){ o.fill=s.fill; o.stroke=s.stroke; o.opacity=(typeof s.opacity==="number")?s.opacity:1; o.strokeWidth=(typeof s.sw==="number")?s.sw:2; } o.hasBorders=true; o.hasControls=true; o.evented=true; o.hoverCursor="move"; }
+    function setZonesVisibility(invisible){ canvas.getObjects().forEach(o=>{ if (o===bgImg) return; if (invisible) hideZone(o); else showZone(o); }); canvas.requestRenderAll(); setTimeout(()=>canvas.requestRenderAll(),0); }
+    function flashHighlightReading(o){ if(!isReading || !o || o===bgImg) return; const prev={fill:o.fill,stroke:o.stroke,sw:o.strokeWidth}; o.fill=toTransparent(prev.fill,0.20); o.stroke=toTransparent(prev.stroke,0.90); o.strokeWidth=2; canvas.requestRenderAll(); setTimeout(()=>{ hideZone(o); canvas.requestRenderAll(); }, 500); }
+    function hardRefresh(){ canvas.getObjects().forEach(o=>{ o.dirty=true; if(o.cacheCanvas) o.clearCache(); }); if (bgImg){ bgImg.dirty=true; bgImg.objectCaching=false; } canvas.discardActiveObject(); canvas.requestRenderAll(); setTimeout(()=>canvas.requestRenderAll(),16); }
+
+    /* ===== Modes & interactions ===== */
+    let mode="move", isReading=true, drawingRect=null, startPoint=null, pendingNewRect=null;
+    function setEditableFields(on){ const role=document.getElementById("partRole"), desc=document.getElementById("partDesc"); role.readOnly=!on; desc.readOnly=!on; role.classList.toggle("editable", on); desc.classList.toggle("editable", on); }
+    function setMode(m){
+      mode=m;
+      document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
+      const map={move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"}; if(map[m]) document.getElementById(map[m]).classList.add("active");
+      canvas.selection = (!isReading && m==="move");
       canvas.getObjects().forEach(o=>{
         if (o===bgImg) return;
-        if (invisible) hideZone(o); else showZone(o);
+        if (isReading){ o.selectable=true; o.evented=true; o.hasControls=false; o.hasBorders=false; o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=true; o.hoverCursor="pointer"; }
+        else { const editing=(m==="move"); o.selectable=editing; o.evented=true; o.hasControls=editing; o.hasBorders=editing; o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=!editing; o.hoverCursor=editing?"move":(m==="select"?"pointer":"default"); o.transparentCorners=false; o.cornerStyle="rect"; o.cornerSize=9; }
       });
-      canvas.requestRenderAll();
-      setTimeout(()=>canvas.requestRenderAll(), 0);
-    }
-    function flashHighlightReading(o){
-      if(!isReading || !o || o===bgImg) return;
-      const prev = { fill:o.fill, stroke:o.stroke, sw:o.strokeWidth };
-      o.fill        = toTransparent(prev.fill,   0.20);
-      o.stroke      = toTransparent(prev.stroke, 0.90);
-      o.strokeWidth = 2;
-      canvas.requestRenderAll();
-      setTimeout(()=>{ hideZone(o); canvas.requestRenderAll(); }, 500);
-    }
-    function hardRefresh() {
-      canvas.getObjects().forEach(o => { o.dirty = true; if (o.cacheCanvas) o.clearCache(); });
-      if (bgImg) { bgImg.dirty = true; bgImg.objectCaching = false; }
-      canvas.discardActiveObject();
-      canvas.requestRenderAll();
-      setTimeout(()=>canvas.requestRenderAll(), 16);
-    }
-
-    /* ===================== Modes & interactions ===================== */
-    let mode="move"; // move|draw|pan|select
-    let isReading=true; // démarre en Lecture
-    let drawingRect=null, startPoint=null, pendingNewRect=null;
-
-    function setEditableFields(on){
-      const role = document.getElementById("partRole");
-      const desc = document.getElementById("partDesc");
-      role.readOnly = !on;
-      desc.readOnly = !on;
-      role.classList.toggle("editable", on);
-      desc.classList.toggle("editable", on);
-    }
-
-    function setMode(m){
-      mode = m;
-      document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
-      const map = { move:"btn-move", draw:"btn-draw", pan:"btn-pan", select:"btn-select" };
-      if(map[m]) document.getElementById(map[m]).classList.add("active");
-
-      canvas.selection = (!isReading && m === "move");
-
-      canvas.getObjects().forEach(o=>{
-        if (o === bgImg) return;
-        if (isReading) {
-          o.selectable     = true;
-          o.evented        = true;
-          o.hasControls    = false;
-          o.hasBorders     = false;
-          o.lockMovementX  = true;
-          o.lockMovementY  = true;
-          o.lockScalingX   = true;
-          o.lockScalingY   = true;
-          o.lockRotation   = true;
-          o.hoverCursor    = "pointer";
-        } else {
-          const editing = (m === "move");
-          o.selectable     = editing;
-          o.evented        = true;
-          o.hasControls    = editing;
-          o.hasBorders     = editing;
-          o.lockMovementX  = !editing;
-          o.lockMovementY  = !editing;
-          o.lockScalingX   = !editing;
-          o.lockScalingY   = !editing;
-          o.lockRotation   = !editing;
-          o.hoverCursor    = editing ? "move" : (m === "select" ? "pointer" : "default");
-          o.transparentCorners = false;
-          o.cornerStyle = "rect";
-          o.cornerSize = 9;
-        }
-      });
-
       hardRefresh();
     }
-
     function applyLectureUI(on){
-      isReading = !!on;
+      isReading=!!on;
       document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
       document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
@@ -457,118 +318,67 @@
       setZonesVisibility(on);
     }
 
-    // Zoom molette (desktop) centré
+    // Zoom molette (desktop)
     canvas.on("mouse:wheel",(opt)=>{
-      const delta=-opt.e.deltaY;
-      const cur=canvas.getZoom();
-      const next=Math.max(0.25, Math.min(3, cur*(1+delta/1000)));
+      const delta=-opt.e.deltaY, cur=canvas.getZoom(), next=Math.max(0.25, Math.min(3, cur*(1+delta/1000)));
       const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-      const viewport=canvas.viewportTransform;
-      const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
+      const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
       canvas.zoomToPoint(center,next);
       const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
       const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
       canvas.relativePan(dpt.multiplyScalar(-1));
       document.getElementById("zoom").value=Math.round(next*100);
-      opt.e.preventDefault(); opt.e.stopPropagation();
-      hardRefresh();
+      opt.e.preventDefault(); opt.e.stopPropagation(); hardRefresh();
     });
     document.getElementById("zoom").addEventListener("input",(e)=>{
       const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
       const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-      const viewport=canvas.viewportTransform;
-      const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
+      const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
       canvas.zoomToPoint(center,z);
       const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
       const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
-      canvas.relativePan(dpt.multiplyScalar(-1));
-      hardRefresh();
+      canvas.relativePan(dpt.multiplyScalar(-1)); hardRefresh();
     });
 
-    // Pan & draw (souris/desktop)
+    // Pan / draw (souris)
     canvas.on("mouse:down",(opt)=>{
       if(isReading){
         const t=opt.target;
-        if(!t || t===bgImg){
-          canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
-        }
+        if(!t || t===bgImg){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
       }
-      if(mode==="pan"){
-        canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
-      }
+      if(mode==="pan"){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
       if(mode!=="draw"||isReading) return;
       const p=canvas.getPointer(opt.e);
       startPoint=p;
       drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
-      drawingRect.objectCaching = false;
-      canvas.add(drawingRect);
+      drawingRect.objectCaching=false; canvas.add(drawingRect);
     });
     canvas.on("mouse:move",(opt)=>{
-      if(canvas.isDragging){
-        const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
-        hardRefresh();
-        return;
-      }
+      if(canvas.isDragging){ const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY; canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; hardRefresh(); return; }
       if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
-      const p=canvas.getPointer(opt.e);
-      drawingRect.set({left:Math.min(p.x,startPoint.x),top:Math.min(p.y,startPoint.y),width:Math.abs(p.x-startPoint.x),height:Math.abs(p.y-startPoint.y)});
-      canvas.requestRenderAll();
+      const p=canvas.getPointer(opt.e); drawingRect.set({left:Math.min(p.x,startPoint.x),top:Math.min(p.y,startPoint.y),width:Math.abs(p.x-startPoint.x),height:Math.abs(p.y-startPoint.y)}); canvas.requestRenderAll();
     });
     canvas.on("mouse:up",(e)=>{
       if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
-
       if ((mode==="select") || (!isReading && (mode==="move"))) {
-        const t=e.target;
-        if(t && t!==bgImg){
-          fillPanelFromZone(t);
-          if (isReading) flashHighlightReading(t);
-          else { canvas.setActiveObject(t); hardRefresh(); }
-        }
+        const t=e.target; if(t && t!==bgImg){ fillPanelFromZone(t); if (isReading) flashHighlightReading(t); else { canvas.setActiveObject(t); hardRefresh(); } }
         return;
       }
-
       if(mode!=="draw"||!drawingRect||isReading) return;
-
-      drawingRect.selectable=true;
-      pendingNewRect=drawingRect;
-
-      if (!isReading) {
-        canvas.setActiveObject(pendingNewRect);
-        pendingNewRect.selectable = true;
-        pendingNewRect.hasControls = true;
-        pendingNewRect.hasBorders = true;
-        pendingNewRect.lockMovementX = pendingNewRect.lockMovementY =
-        pendingNewRect.lockScalingX  = pendingNewRect.lockScalingY =
-        pendingNewRect.lockRotation  = false;
-        hardRefresh();
-      }
-
-      drawingRect=null; startPoint=null;
-      openAssignModal();
+      drawingRect.selectable=true; pendingNewRect=drawingRect;
+      if (!isReading) { canvas.setActiveObject(pendingNewRect); pendingNewRect.selectable=true; pendingNewRect.hasControls=true; pendingNewRect.hasBorders=true;
+        pendingNewRect.lockMovementX=pendingNewRect.lockMovementY=pendingNewRect.lockScalingX=pendingNewRect.lockScalingY=pendingNewRect.lockRotation=false; hardRefresh(); }
+      drawingRect=null; startPoint=null; openAssignModal();
     });
 
-    // Sélection: tenir le panneau à jour
-    canvas.on('selection:created', (e)=>{
-      const o = e.selected && e.selected[0];
-      if (o && o !== bgImg) fillPanelFromZone(o);
-    });
-    canvas.on('selection:updated', (e)=>{
-      const o = e.selected && e.selected[0];
-      if (o && o !== bgImg) fillPanelFromZone(o);
-    });
-    canvas.on('selection:cleared', ()=>{
-      document.getElementById('inventorySelect').value = "";
-      showPart("");
-    });
+    // tenir panneau à jour
+    canvas.on('selection:created', (e)=>{ const o=e.selected&&e.selected[0]; if(o&&o!==bgImg) fillPanelFromZone(o); });
+    canvas.on('selection:updated', (e)=>{ const o=e.selected&&e.selected[0]; if(o&&o!==bgImg) fillPanelFromZone(o); });
+    canvas.on('selection:cleared', ()=>{ document.getElementById('inventorySelect').value=""; showPart(""); });
 
-    function highlight(o){
-      if (isReading) return;
-      canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; });
-      canvas.requestRenderAll();
-    }
+    function highlight(o){ if (isReading) return; canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; }); canvas.requestRenderAll(); }
 
-    /* ===================== Panneau ===================== */
+    /* ===== Panneau ===== */
     function refreshInventorySelect(){
       const sel=document.getElementById("inventorySelect");
       sel.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
@@ -581,25 +391,16 @@
       document.getElementById("partDesc").value=p.desc;
     }
     function fillPanelFromZone(zone){
-      const id=zone?.pieceId||"";
-      document.getElementById("inventorySelect").value=id;
-      showPart(id);
+      const id=zone?.pieceId||""; document.getElementById("inventorySelect").value=id; showPart(id);
     }
     function persistPanelEdits(){
       if (isReading) return;
-      const id = document.getElementById("inventorySelect").value;
-      if (!id) return;
-      const active = canvas.getActiveObject();
-      if (!active || !active.pieceId || active.pieceId !== id) return; // éviter écrasement sur mauvaise pièce
-      const role = document.getElementById("partRole").value;
-      const desc = document.getElementById("partDesc").value;
-      if (!INV_OVR[id]) INV_OVR[id] = {};
-      INV_OVR[id].role = role;
-      INV_OVR[id].desc = desc;
+      const id = document.getElementById("inventorySelect").value; if (!id) return;
+      const active = canvas.getActiveObject(); if (!active || !active.pieceId || active.pieceId !== id) return;
+      const role = document.getElementById("partRole").value; const desc = document.getElementById("partDesc").value;
+      if (!INV_OVR[id]) INV_OVR[id] = {}; INV_OVR[id].role = role; INV_OVR[id].desc = desc;
       if (!INVENTAIRE[id]) INVENTAIRE[id] = {nom:"", role:"", desc:"", circuit:null};
-      INVENTAIRE[id].role = role;
-      INVENTAIRE[id].desc = desc;
-      saveInvOverrides();
+      INVENTAIRE[id].role = role; INVENTAIRE[id].desc = desc; saveInvOverrides();
     }
     document.getElementById("partRole").addEventListener("change", persistPanelEdits);
     document.getElementById("partDesc").addEventListener("change", persistPanelEdits);
@@ -610,53 +411,34 @@
       if(isReading) return;
       const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
       const id=document.getElementById("inventorySelect").value; if(!id){ alert("Choisis une pièce."); return; }
-      persistPanelEdits();
-      applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
+      persistPanelEdits(); applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
     });
-    document.getElementById("btn-show-all").addEventListener("click",()=>{
-      if(isReading) return;
-      canvas.getObjects().forEach(o=>{ if(o!==bgImg)o.opacity=1; });
-      canvas.requestRenderAll();
-    });
+    document.getElementById("btn-show-all").addEventListener("click",()=>{ if(isReading) return; canvas.getObjects().forEach(o=>{ if(o!==bgImg)o.opacity=1; }); canvas.requestRenderAll(); });
 
-    /* ===================== Import/Export + outils ===================== */
+    /* ===== Import/Export ===== */
     document.getElementById("btn-export").addEventListener("click", ()=>{
       const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
       const payload = { fit:FIT_MODE, zones, inventory_overrides: INV_OVR, image_url: currentBgURL };
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
-      const a=document.createElement("a"); const url=URL.createObjectURL(blob);
-      a.href=url; a.download="quincy310L_zones.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),0);
+      const a=document.createElement("a"); const url=URL.createObjectURL(blob); a.href=url; a.download="quincy310L_zones.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),0);
     });
     document.getElementById("fileImport").addEventListener("change",(e)=>{
-      const file = e.target.files[0]; e.target.value="";
-      if(!file) return;
+      const file = e.target.files[0]; e.target.value=""; if(!file) return;
       const r=new FileReader();
       r.onload=()=>{
         try{
           const d=JSON.parse(r.result);
-          // si le JSON contient une image, la charger avant les zones
-          if (d.image_url) {
-            currentBgURL = d.image_url;
-            localStorage.setItem("q310_bg_url", currentBgURL);
-            loadBackground(currentBgURL);
-          }
-          // Zones
+          if (d.image_url) { currentBgURL = d.image_url; localStorage.setItem("q310_bg_url", currentBgURL); loadBackground(currentBgURL); }
           canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
           FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNormalized);
-          // Overrides inventaire
           if (d.inventory_overrides && typeof d.inventory_overrides === "object") {
             INV_OVR = d.inventory_overrides || {};
-            for(const id in INV_OVR){
-              if(!INVENTAIRE[id]) INVENTAIRE[id] = {nom:"", role:"", desc:"", circuit:null};
-              Object.assign(INVENTAIRE[id], INV_OVR[id]);
-            }
-            saveInvOverrides();
-            refreshInventorySelect();
+            for(const id in INV_OVR){ if(!INVENTAIRE[id]) INVENTAIRE[id] = {nom:"", role:"", desc:"", circuit:null}; Object.assign(INVENTAIRE[id], INV_OVR[id]); }
+            saveInvOverrides(); refreshInventorySelect();
           }
           refreshFitLabel(); fitBackgroundImage(bgImg); hardRefresh(); save();
         }catch(e){ alert("JSON invalide."); }
-      };
-      r.readAsText(file);
+      }; r.readAsText(file);
     });
 
     document.getElementById("toggleMode").addEventListener("click",()=>{ applyLectureUI(!isReading); });
@@ -667,27 +449,11 @@
     document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
     document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); hardRefresh(); } };
 
-    function adjustToFit() {
-      if (!bgImg) return;
-      fitBackgroundImage(bgImg);
-      canvas.setViewportTransform([1,0,0,1,0,0]);
-      document.getElementById("zoom").value = 100;
-      hardRefresh();
-      save();
-    }
+    function adjustToFit(){ if (!bgImg) return; fitBackgroundImage(bgImg); canvas.setViewportTransform([1,0,0,1,0,0]); document.getElementById("zoom").value=100; hardRefresh(); save(); }
     document.getElementById("btn-fit").addEventListener("click", adjustToFit);
+    document.getElementById("toggle-fit").addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; refreshFitLabel(); fitBackgroundImage(bgImg); canvas.setViewportTransform([1,0,0,1,0,0]); document.getElementById("zoom").value=100; hardRefresh(); save(); });
 
-    document.getElementById("toggle-fit").addEventListener("click",()=>{
-      FIT_MODE=(FIT_MODE==="contain")?"cover":"contain";
-      refreshFitLabel();
-      fitBackgroundImage(bgImg);
-      canvas.setViewportTransform([1,0,0,1,0,0]);
-      document.getElementById("zoom").value = 100;
-      hardRefresh();
-      save();
-    });
-
-    /* ===================== Modal auto-assignation ===================== */
+    /* ===== Modal assignation ===== */
     const assignModal=document.getElementById("assignModal");
     const assignSelect=document.getElementById("assignSelect");
     const assignName=document.getElementById("assignName");
@@ -695,201 +461,110 @@
     const assignDesc=document.getElementById("assignDesc");
     function openAssignModal(){
       assignSelect.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
-      assignName.value=""; assignRole.value=""; assignDesc.value="";
-      assignModal.style.display="flex"; assignSelect.focus();
+      assignName.value=""; assignRole.value=""; assignDesc.value=""; assignModal.style.display="flex"; assignSelect.focus();
     }
     function closeAssignModal(){ assignModal.style.display="none"; }
     assignSelect.addEventListener("change",()=>{ const p=INVENTAIRE[assignSelect.value]; assignName.value=p?p.nom:""; assignRole.value=p?p.role:""; assignDesc.value=p?p.desc:""; });
     document.getElementById("assignCancel").addEventListener("click",()=>{ closeAssignModal(); if(pendingNewRect){ save(); pendingNewRect=null; } });
-    document.getElementById("assignOk").addEventListener("click",()=>{
-      const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
-      if(!pendingNewRect){ closeAssignModal(); return; }
-      applyPieceToObject(pendingNewRect,id);
-      closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
-    });
+    document.getElementById("assignOk").addEventListener("click",()=>{ const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; } if(!pendingNewRect){ closeAssignModal(); return; } applyPieceToObject(pendingNewRect,id); closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone"); });
 
     function applyPieceToObject(obj,id){
       obj.pieceId=id;
-      const item=INVENTAIRE[id]||{};
-      const circ=item.circuit || guessCircuitFromIdName(id,item);
-      const col=COULEURS[circ]||COULEURS.DEF;
-      obj.set({fill:col.fill, stroke:col.stroke});
-      obj.__style = { fill: obj.fill, stroke: obj.stroke, opacity: obj.opacity, sw: obj.strokeWidth }; // maj style
-
-      document.getElementById("inventorySelect").value=id; showPart(id);
-      canvas.setActiveObject(obj);
-
-      if (!isReading && mode === "move") {
-        obj.selectable = true; obj.hasControls = true; obj.hasBorders = true;
-        obj.lockMovementX = obj.lockMovementY = obj.lockScalingX = obj.lockScalingY = obj.lockRotation = false;
-      }
-      if (isReading) { hideZone(obj); obj.hasControls = false; obj.hasBorders = false; }
-      else { highlight(obj); }
-
-      hardRefresh();
-      save();
+      const item=INVENTAIRE[id]||{}; const circ=item.circuit || guessCircuitFromIdName(id,item); const col=COULEURS[circ]||COULEURS.DEF;
+      obj.set({fill:col.fill, stroke:col.stroke}); obj.__style = { fill: obj.fill, stroke: obj.stroke, opacity: obj.opacity, sw: obj.strokeWidth };
+      document.getElementById("inventorySelect").value=id; showPart(id); canvas.setActiveObject(obj);
+      if (!isReading && mode === "move") { obj.selectable = true; obj.hasControls = true; obj.hasBorders = true; obj.lockMovementX = obj.lockMovementY = obj.lockScalingX = obj.lockScalingY = obj.lockRotation = false; }
+      if (isReading) { hideZone(obj); obj.hasControls = false; obj.hasBorders = false; } else { highlight(obj); }
+      hardRefresh(); save();
     }
 
-    /* ===================== Toast ===================== */
+    /* ===== Toast ===== */
     const toastEl=document.getElementById("toast"); let toastTimer=null;
     function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-    /* ===================== iOS gestures: neutraliser ===================== */
+    /* ===== iOS: neutraliser les gestes natifs & gérer pinch/tap/pan ===== */
     const upper = canvas.upperCanvasEl;
     upper.addEventListener('gesturestart', e => e.preventDefault());
     upper.addEventListener('gesturechange', e => e.preventDefault());
     upper.addEventListener('gestureend', e => e.preventDefault());
 
-    /* ====== Touch iPhone: pinch (zoom), tap (sélection), pan sur fond ====== */
-    let pinchLastDist = 0;
-    let touchStartTime = 0;
-    let touchStartXY = null;
-
+    let pinchLastDist = 0, touchStartTime = 0, touchStartXY = null;
     function midpoint(t1, t2){ return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 }; }
-    function clientToCanvasPoint(clientX, clientY){
-      const rect = upper.getBoundingClientRect();
-      return new fabric.Point(clientX - rect.left, clientY - rect.top);
-    }
+    function clientToCanvasPoint(clientX, clientY){ const rect=upper.getBoundingClientRect(); return new fabric.Point(clientX-rect.left, clientY-rect.top); }
     function dist2(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
 
     upper.addEventListener("touchstart",(e)=>{
       if(e.touches.length===2){
-        pinchLastDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        canvas.isDragging = false;
-        e.preventDefault();
+        pinchLastDist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        canvas.isDragging=false; e.preventDefault();
       } else if (e.touches.length===1) {
-        touchStartTime = Date.now();
-        touchStartXY   = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        touchStartTime = Date.now(); touchStartXY = { x:e.touches[0].clientX, y:e.touches[0].clientY };
         const target = canvas.findTarget(e, false);
         const isZone = !!(target && target !== bgImg);
         const canPan = (!isZone && (isReading || mode==="pan"));
-        if (canPan) {
-          canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
-          e.preventDefault();
-        }
+        if (canPan) { canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
       }
     }, {passive:false});
 
     upper.addEventListener("touchmove",(e)=>{
       if(e.touches.length===2){
-        const dist=Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
+        const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
         if(pinchLastDist===0) { pinchLastDist=dist; return; }
-        const factor = dist / pinchLastDist;
-        pinchLastDist = dist;
-
-        let zoom = canvas.getZoom() * factor;
-        zoom = Math.max(0.25, Math.min(3, zoom));
-
-        const mid = midpoint(e.touches[0], e.touches[1]);
-        const p = clientToCanvasPoint(mid.x, mid.y);
-        canvas.zoomToPoint(p, zoom);
-
-        if (bgImg) bgImg.dirty = true;
-        hardRefresh();
-        document.getElementById("zoom").value = Math.round(zoom*100);
-        e.preventDefault();
+        const factor = dist / pinchLastDist; pinchLastDist = dist;
+        let zoom = canvas.getZoom() * factor; zoom = Math.max(0.25, Math.min(3, zoom));
+        const mid = midpoint(e.touches[0], e.touches[1]); const p = clientToCanvasPoint(mid.x, mid.y); canvas.zoomToPoint(p, zoom);
+        if (bgImg) bgImg.dirty = true; hardRefresh(); document.getElementById("zoom").value=Math.round(zoom*100); e.preventDefault();
       } else if(e.touches.length===1 && canvas.isDragging){
-        const dx=e.touches[0].clientX - canvas.lastX;
-        const dy=e.touches[0].clientY - canvas.lastY;
-        canvas.relativePan(new fabric.Point(dx,dy));
-        canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
-        e.preventDefault();
-        canvas.requestRenderAll();
-        setTimeout(()=>canvas.requestRenderAll(), 0);
+        const dx=e.touches[0].clientX - canvas.lastX; const dy=e.touches[0].clientY - canvas.lastY;
+        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault();
+        canvas.requestRenderAll(); setTimeout(()=>canvas.requestRenderAll(),0);
       }
     }, {passive:false});
 
     upper.addEventListener("touchend",(e)=>{
       if(e.touches && e.touches.length===0){ canvas.isDragging=false; }
       if(!e.touches || e.touches.length<2){ pinchLastDist=0; }
-
       if (e.changedTouches && e.changedTouches.length === 1) {
-        const dt = Date.now() - touchStartTime;
-        const endXY = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+        const dt = Date.now() - touchStartTime; const endXY = { x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY };
         const moved = touchStartXY ? dist2(endXY, touchStartXY) : 999;
         if (dt < 300 && moved < 10) {
-          const fakeEvt = { clientX: endXY.x, clientY: endXY.y, target: upper };
+          const fakeEvt = { clientX:endXY.x, clientY:endXY.y, target: upper };
           const target = canvas.findTarget(fakeEvt, false);
-          if (target && target !== bgImg) {
-            if (isReading) {
-              fillPanelFromZone(target);
-              flashHighlightReading(target);
-            } else {
-              canvas.setActiveObject(target);
-              hardRefresh();
-            }
-          }
+          if (target && target !== bgImg) { if (isReading) { fillPanelFromZone(target); flashHighlightReading(target); } else { canvas.setActiveObject(target); hardRefresh(); } }
         }
       }
     }, {passive:false});
 
-    /* ===================== Changement d'image (menu + fichier) ===================== */
+    /* ===== Changement d'image (menu + fichier) ===== */
     const bgSelect = document.getElementById("bgSelect");
     const bgFile   = document.getElementById("bgFile");
     if (BG_IMAGES[currentBgKey]) bgSelect.value = currentBgKey; else bgSelect.value = "custom";
-
     function switchBackgroundByKey(key){
-      if (key === "custom") {
-        bgFile.click();
-        return;
-      }
-      const url = BG_IMAGES[key];
-      if (!url) return;
-      currentBgKey = key;
-      localStorage.setItem("q310_bg_key", currentBgKey);
-      loadBackground(url);
+      if (key === "custom") { bgFile.click(); return; }
+      const url = BG_IMAGES[key]; if (!url) return;
+      currentBgKey = key; localStorage.setItem("q310_bg_key", currentBgKey); loadBackground(url);
     }
     bgSelect.addEventListener("change", () => { switchBackgroundByKey(bgSelect.value); });
     bgFile.addEventListener("change", e => {
-      const file = e.target.files[0]; e.target.value = "";
-      if (!file) return;
+      const file = e.target.files[0]; e.target.value = ""; if (!file) return;
       const url = URL.createObjectURL(file);
-      currentBgKey = "custom";
-      currentBgURL = url;
-      localStorage.setItem("q310_bg_key", currentBgKey);
-      localStorage.setItem("q310_bg_url", currentBgURL);
+      currentBgKey = "custom"; currentBgURL = url;
+      localStorage.setItem("q310_bg_key", currentBgKey); localStorage.setItem("q310_bg_url", currentBgURL);
       loadBackground(url);
     });
 
-    /* ===================== Inventaire JSON externe ===================== */
+    /* ===== Inventaire JSON externe (optionnel) ===== */
     async function tryLoadInventory(){
       try{
         const res = await fetch("quincy_310L_parts.json", {cache:"no-store"});
-        if(!res.ok) return;
-        const data = await res.json();
-        let map = {};
-        if (Array.isArray(data)) {
-          for (const it of data) {
-            if (!it || !it.id) continue;
-            map[it.id] = {
-              nom: it.nom || it.name || "",
-              role: it.role || "",
-              desc: it.desc || it.description || "",
-              circuit: it.circuit || null
-            };
-          }
-        } else if (typeof data === "object") {
-          for (const [id, it] of Object.entries(data)) {
-            map[id] = {
-              nom: it.nom || it.name || "",
-              role: it.role || "",
-              desc: it.desc || it.description || "",
-              circuit: it.circuit || null
-            };
-          }
+        if(res.ok){
+          const data = await res.json(); let map = {};
+          if (Array.isArray(data)) { for (const it of data) { if (!it || !it.id) continue; map[it.id] = { nom:it.nom||it.name||"", role:it.role||"", desc:it.desc||it.description||"", circuit:it.circuit||null }; } }
+          else if (typeof data === "object") { for (const [id, it] of Object.entries(data)) { map[id] = { nom:it.nom||it.name||"", role:it.role||"", desc:it.desc||it.description||"", circuit:it.circuit||null }; } }
+          if (Object.keys(map).length) INVENTAIRE = map;
         }
-        if (Object.keys(map).length) INVENTAIRE = map;
         loadInvOverrides();
-      } catch (e) {
-        loadInvOverrides();
-        console.warn("Inventaire externe introuvable ou invalide:", e);
-      }
+      } catch(e){ loadInvOverrides(); console.warn("Inventaire externe introuvable ou invalide:", e); }
     }
 
     async function init(){
@@ -897,11 +572,12 @@
       await tryLoadInventory();
       refreshInventorySelect();
       loadBackground(currentBgURL);
-      applyLectureUI(true); // démarre en LECTURE
+      applyLectureUI(true);
       refreshFitLabel();
     }
     init();
   </script>
 </body>
 </html>
+
 
