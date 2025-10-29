@@ -2,9 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone : on gère le zoom dans l’app, pas par le navigateur -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Quincy 310L – Éditeur / Lecture</title>
+  <!-- iPhone: on gère le zoom nous-mêmes -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+  <title>Quincy 310L – Éditeur / Lecture (stable iPhone)</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
   <style>
     :root { color-scheme: dark; }
@@ -15,29 +15,27 @@
     .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px}
     .mode-pill b{color:#91c9ff}
     .btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#1b2553;color:#eaf1ff;cursor:pointer}
-    .btn:hover{filter:brightness(1.08)}
     .btn.active{background:#0078ff;font-weight:700;border-color:#0053ad;box-shadow:0 0 8px rgba(0,120,255,.45)}
     .chip{padding:6px 8px;background:#192247;border:1px solid rgba(255,255,255,.12);border-radius:8px}
     .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;background:#0f1a3f}
     .toolbar.hidden{display:none}
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:65vh;will-change:transform;transform:translateZ(0)}
-    .stage canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;will-change:transform;transform:translateZ(0);backface-visibility:hidden}
+    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:65vh}
+    canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
-    .panel h3{margin:6px 0 10px;font-size:1.05rem}
+    .panel h3{margin:6px 0 10px}
     .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-    label{font-size:.9rem;opacity:.95}
     select,input,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#0b1638;color:#eaf1ff}
     textarea{min-height:120px;resize:vertical}
     .hint{font-size:.85rem;opacity:.8}
     .hidden{display:none!important}
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
-    .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .modal h4{margin:0 0 10px}
+    .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
     .editable{border-color:#4aa3ff!important;box-shadow:0 0 0 2px rgba(74,163,255,.25) inset}
+    .error{background:#7a1e1e}
   </style>
 </head>
 <body>
@@ -47,28 +45,27 @@
 
     <label class="chip" style="margin-left:8px">Image
       <select id="bgSelect" style="margin-left:6px">
-        <option value="compresseur">Compresseur (fond)</option>
-        <option value="tete">Tête</option>
-        <option value="tete2">Tête 2</option>
-        <option value="vueGenerale">Vue générale</option>
-        <option value="vueGenerale2">Vue générale 2</option>
-        <option value="versRes">Vers réservoir</option>
-        <option value="versRes2">Vers réservoir 2</option>
-        <option value="pompe">Vue pompe</option>
-        <option value="charge">Côté charge</option>
-        <option value="soupape">Soupape unloader</option>
-        <option value="poulie">Poulie</option>
-        <option value="couvercle">Filtre air – couvercle</option>
-        <option value="top">Vue du haut</option>
-        <option value="custom">— Fichier… —</option>
+        <!-- clés = fichiers EXACTS (sensible à la casse) dans ./actif/ -->
+        <option value="compresseur_bg.png">Compresseur (fond)</option>
+        <option value="TETE.jpeg">Tête</option>
+        <option value="TETE_2.jpeg">Tête 2</option>
+        <option value="VUE_GENERAL.jpeg">Vue générale</option>
+        <option value="VUE_GENARAL_2.jpeg">Vue générale 2</option>
+        <option value="VERS_RESERVOIR.jpeg">Vers réservoir</option>
+        <option value="VERS_RESERVOIR_2.jpeg">Vers réservoir 2</option>
+        <option value="VUE_POMPE.jpeg">Vue pompe</option>
+        <option value="LOAD_SIDE.jpeg">Côté charge</option>
+        <option value="SOUPAPE_UNLOADER.jpeg">Soupape unloader</option>
+        <option value="POULIE.jpeg">Poulie</option>
+        <option value="FILTRE_AIR_COUVERCLE.jpeg">Filtre air – couvercle</option>
+        <option value="TOP.jpeg">Vue du haut</option>
+        <option value="__file__">— Fichier… —</option>
       </select>
     </label>
     <input id="bgFile" type="file" accept="image/*" style="display:none">
 
     <span style="flex:1;"></span>
-    <span class="chip">Zoom
-      <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
-    </span>
+    <span class="chip">Zoom <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px"></span>
     <span id="toggle-fit" class="btn chip">Affichage : <strong>—</strong></span>
     <button id="btn-fit" class="btn">🖼️ Ajuster</button>
   </div>
@@ -96,41 +93,27 @@
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect" disabled></select>
       </div>
-      <div class="row">
-        <label for="partName">Nom</label>
-        <input id="partName" readonly>
-      </div>
-      <div class="row">
-        <label for="partRole">Rôle</label>
-        <input id="partRole" readonly>
-      </div>
-      <div class="row">
-        <label for="partDesc">Description</label>
-        <textarea id="partDesc" readonly></textarea>
-      </div>
+      <div class="row"><label>Nom</label><input id="partName" readonly></div>
+      <div class="row"><label>Rôle</label><input id="partRole" readonly></div>
+      <div class="row"><label>Description</label><textarea id="partDesc" readonly></textarea></div>
       <div class="row" id="editorActions" style="display:flex;gap:8px">
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-      <p class="hint">💾 Sauvegarde locale automatique <b>par image</b>. Export/Import pour partager.</p>
+      <p class="hint">💾 Sauvegarde locale automatique <b>par image</b>.</p>
+      <div id="err" class="toast error hidden"></div>
     </aside>
   </div>
 
-  <!-- Modal assignation zone -->
+  <!-- Modal assignation -->
   <div id="assignModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal">
       <h4>Associer cette zone à une pièce</h4>
-      <div class="row">
-        <label for="assignSelect">Pièce</label>
-        <select id="assignSelect"></select>
-      </div>
+      <div class="row"><label>Pièce</label><select id="assignSelect"></select></div>
       <div class="row"><label>Nom</label><input id="assignName" readonly></div>
       <div class="row"><label>Rôle</label><input id="assignRole" readonly></div>
       <div class="row"><label>Description</label><textarea id="assignDesc" readonly></textarea></div>
-      <div class="actions">
-        <button id="assignCancel" class="btn">Annuler</button>
-        <button id="assignOk" class="btn">Associer</button>
-      </div>
+      <div class="actions"><button id="assignCancel" class="btn">Annuler</button><button id="assignOk" class="btn">Associer</button></div>
     </div>
   </div>
 
@@ -142,467 +125,416 @@
       <div class="row"><label>Nom</label><input id="np_nom" placeholder="Nom lisible"></div>
       <div class="row"><label>Rôle</label><input id="np_role" placeholder="À quoi ça sert ?"></div>
       <div class="row"><label>Description</label><textarea id="np_desc" placeholder="Description détaillée"></textarea></div>
-      <div class="row">
-        <label>Circuit</label>
+      <div class="row"><label>Circuit</label>
         <select id="np_circ">
-          <option value="">(auto)</option>
-          <option value="LP">LP</option><option value="HP">HP</option>
-          <option value="LUB">LUB</option><option value="CTRL">CTRL</option>
-          <option value="TR">TR</option>
+          <option value="">(auto)</option><option value="LP">LP</option><option value="HP">HP</option>
+          <option value="LUB">LUB</option><option value="CTRL">CTRL</option><option value="TR">TR</option>
         </select>
       </div>
-      <div class="actions">
-        <button id="np_cancel" class="btn">Annuler</button>
-        <button id="np_ok" class="btn">Créer</button>
-      </div>
+      <div class="actions"><button id="np_cancel" class="btn">Annuler</button><button id="np_ok" class="btn">Créer</button></div>
     </div>
   </div>
 
   <div id="toast" class="toast">OK</div>
 
   <script>
-    /* ===== Réglages iOS (stabilité) ===== */
-    fabric.Object.prototype.objectCaching = false;
-    fabric.Image.prototype.objectCaching  = false;
-    const IS_MOBILE = /iPhone|iPad|Android/i.test(navigator.userAgent);
+  /* ====== Base ====== */
+  const IS_MOBILE=/iPhone|iPad|Android/i.test(navigator.userAgent);
+  fabric.Object.prototype.objectCaching=false;
+  fabric.Image.prototype.objectCaching=false;
 
-    /* ===== Inventaire + overrides ===== */
-    let INVENTAIRE = {
-      "filtre_air":   {nom:"Filtre à air", role:"Filtrer l’air entrant", desc:"Retient les impuretés de l’air avant admission.", circuit:"LP"},
-      "cylindre_lp":  {nom:"Cylindre basse pression", role:"Compression initiale", desc:"Première étape de compression.", circuit:"LP"},
-      "cylindre_hp":  {nom:"Cylindre haute pression", role:"Compression finale", desc:"Monte l’air à la pression de service.", circuit:"HP"},
-      "intercooler":  {nom:"Intercooler", role:"Refroidir l’air entre étages", desc:"Abaisse la température et augmente le rendement global.", circuit:"HP"},
-      "carter":       {nom:"Carter", role:"Réservoir d’huile", desc:"Contient l’huile de lubrification.", circuit:"LUB"},
-      "pressostat":   {nom:"Pressostat", role:"Commande moteur", desc:"Arrêt/démarrage (cut-in / cut-out).", circuit:"CTRL"},
-      "volant":       {nom:"Volant", role:"Inertie et ventilation", desc:"Stabilise la rotation et ventile les cylindres.", circuit:"TR"}
-    };
-    const INV_LS_KEY = "q310_inventory_overrides_v1";
-    let INV_OVR = {};
-    function loadInvOverrides(){ try{ INV_OVR = JSON.parse(localStorage.getItem(INV_LS_KEY)||"{}"); for(const id in INV_OVR){ if(!INVENTAIRE[id]) INVENTAIRE[id]={}; Object.assign(INVENTAIRE[id], INV_OVR[id]); } }catch(e){ INV_OVR={}; } }
-    function saveInvOverrides(){ localStorage.setItem(INV_LS_KEY, JSON.stringify(INV_OVR)); }
-    function getPartView(id){ const base=INVENTAIRE[id]||{}, o=INV_OVR[id]||{}; return {nom:o.nom??base.nom||"", role:o.role??base.role||"", desc:o.desc??base.desc||"", circuit:o.circuit??base.circuit||null}; }
-    function guessCircuitFromIdName(id, item){ const s=(id+" "+(item?.nom||"")+" "+(item?.role||"")).toLowerCase();
-      if(/(lp|admission|aspiration|filtre|entrée)/.test(s)) return "LP";
-      if(/(hp|haute|refoulement|intercooler|aftercooler|réservoir)/.test(s)) return "HP";
-      if(/(huile|lubrifi|graiss|carter|pompe)/.test(s)) return "LUB";
-      if(/(pressostat|pilote|décharge|unloader|sécurit|valve|commande|manomètre|purge)/.test(s)) return "CTRL";
-      if(/(courroie|poulie|volant|moteur|tendeur)/.test(s)) return "TR";
-      return "DEF";
-    }
-    const COULEURS = {
-      LP:{fill:"rgba(0,160,255,0.18)",stroke:"#00a0ff"},
-      HP:{fill:"rgba(255,60,60,0.18)",stroke:"#ff3c3c"},
-      LUB:{fill:"rgba(255,150,0,0.18)",stroke:"#ff9500"},
-      CTRL:{fill:"rgba(160,100,255,0.18)",stroke:"#a060ff"},
-      TR:{fill:"rgba(60,220,100,0.18)",stroke:"#3cdc64"},
-      DEF:{fill:"rgba(200,200,200,0.12)",stroke:"#aaa"}
-    };
+  const BG_DIR = "./actif/";            // ← dossier GitHub Pages
+  const BG_DEFAULT = "compresseur_bg.png"; // ← fichier de fond par défaut
+  let currentFile = localStorage.getItem("q310_bg_file") || BG_DEFAULT;
 
-    /* ===== IMAGES (ton dossier /actif) ===== */
-    const BG_IMAGES = {
-      compresseur:"actif/compresseur_bg.png",
-      tete:"actif/TETE.jpeg",
-      tete2:"actif/TETE_2.jpeg",
-      vueGenerale:"actif/VUE_GENERAL.jpeg",
-      vueGenerale2:"actif/VUE_GENARAL_2.jpeg",  // selon ta capture
-      versRes:"actif/VERS_RESERVOIR.jpeg",
-      versRes2:"actif/VERS_RESERVOIR_2.jpeg",
-      pompe:"actif/VUE_POMPE.jpeg",
-      charge:"actif/LOAD_SIDE.jpeg",
-      soupape:"actif/SOUPAPE_UNLOADER.jpeg",
-      poulie:"actif/POULIE.jpeg",
-      couvercle:"actif/FILTRE_AIR_COUVERCLE.jpeg",
-      top:"actif/TOP.jpeg"
-    };
-    let currentBgKey = localStorage.getItem("q310_bg_key") || "compresseur";
-    let currentBgURL = localStorage.getItem("q310_bg_url") || BG_IMAGES[currentBgKey] || "actif/compresseur_bg.png";
-    function zonesKeyFor(url){ return `q310_zones_${url}`; }
+  function zonesKey(file){ return "q310_zones_"+file; }
+  function invKey(){ return "q310_inventory_overrides_v1"; }
 
-    /* ===== Canvas avec image de FOND (stable iOS) ===== */
-    const canvas = new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536",enableRetinaScaling:false});
-    let FIT_MODE = IS_MOBILE ? "cover" : "contain";
-    function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
-    function resizeCanvas(){
-      const stage=document.querySelector(".stage");
-      const w=stage.clientWidth, h=Math.max(600, IS_MOBILE?window.innerHeight*0.85:window.innerHeight*0.70);
-      canvas.setWidth(w); canvas.setHeight(h); setBackgroundScale(); canvas.calcOffset(); canvas.requestRenderAll();
-    }
-    window.addEventListener("resize", resizeCanvas, {passive:true});
+  const INVENTAIRE_BASE={
+    "filtre_air":{nom:"Filtre à air",role:"Filtrer l’air entrant",desc:"Retient les impuretés.",circuit:"LP"},
+    "cylindre_lp":{nom:"Cylindre basse pression",role:"Compression initiale",desc:"1re étape.",circuit:"LP"},
+    "cylindre_hp":{nom:"Cylindre haute pression",role:"Compression finale",desc:"Pression de service.",circuit:"HP"},
+    "intercooler":{nom:"Intercooler",role:"Refroidit entre étages",desc:"↑ rendement.",circuit:"HP"},
+    "carter":{nom:"Carter",role:"Réservoir d’huile",desc:"Lubrification.",circuit:"LUB"},
+    "pressostat":{nom:"Pressostat",role:"Commande moteur",desc:"Cut-in / cut-out.",circuit:"CTRL"},
+    "volant":{nom:"Volant",role:"Inertie & ventilation",desc:"Stabilise la rotation.",circuit:"TR"}
+  };
+  let INV_OVR={};
+  try{ INV_OVR=JSON.parse(localStorage.getItem(invKey())||"{}"); }catch(e){ INV_OVR={}; }
+  function getPart(id){ const b=INVENTAIRE_BASE[id]||{}, o=INV_OVR[id]||{}; return { nom:o.nom??b.nom||"", role:o.role??b.role||"", desc:o.desc??b.desc||"", circuit:o.circuit??b.circuit||null }; }
+  function saveInv(){ localStorage.setItem(invKey(), JSON.stringify(INV_OVR)); }
 
-    let bgImageObj=null;
-    function setBackground(url){
-      // Sauvegarder les zones liées à l’ancienne image
-      saveZonesForCurrent();
-      fabric.Image.fromURL(url+`?t=${Date.now()}`, img=>{
-        img.set({ originX:"left", originY:"top" });
-        img.objectCaching=false;
-        bgImageObj = img;
-        canvas.setBackgroundImage(img, ()=>{ setBackgroundScale(); loadZonesFor(url); adjustToFit(); canvas.requestRenderAll(); }, { crossOrigin:"anonymous" });
-        currentBgURL=url; localStorage.setItem("q310_bg_url", currentBgURL);
-      }, { crossOrigin:"anonymous" });
-    }
-    function setBackgroundScale(){
-      if(!bgImageObj) return;
-      const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=bgImageObj.width, ih=bgImageObj.height;
-      const scale = (FIT_MODE==="contain") ? Math.min(cw/iw, ch/ih) : Math.max(cw/iw, ch/ih);
-      const left = (cw - iw*scale)/2, top = (ch - ih*scale)/2;
-      bgImageObj.scale(scale);
-      bgImageObj.set({ left, top });
-      canvas.backgroundImage=bgImageObj;
-    }
+  const COULEURS={
+    LP:{fill:"rgba(0,160,255,.18)",stroke:"#00a0ff"},
+    HP:{fill:"rgba(255,60,60,.18)",stroke:"#ff3c3c"},
+    LUB:{fill:"rgba(255,150,0,.18)",stroke:"#ff9500"},
+    CTRL:{fill:"rgba(160,100,255,.18)",stroke:"#a060ff"},
+    TR:{fill:"rgba(60,220,100,.18)",stroke:"#3cdc64"},
+    DEF:{fill:"rgba(200,200,200,.12)",stroke:"#aaa"}
+  };
+  function guessCircuit(id,item){ const s=(id+" "+(item?.nom||"")+" "+(item?.role||"")).toLowerCase();
+    if(/(lp|admission|aspiration|filtre|entrée)/.test(s))return"LP";
+    if(/(hp|haute|refoulement|intercooler|aftercooler|réservoir)/.test(s))return"HP";
+    if(/(huile|lubrifi|graiss|carter|pompe)/.test(s))return"LUB";
+    if(/(pressostat|décharge|unloader|sécur|valve|commande|manomètre|purge)/.test(s))return"CTRL";
+    if(/(courroie|poulie|volant|moteur|tendeur)/.test(s))return"TR";
+    return"DEF";
+  }
+  function toRGBA(fill,a){ const m=String(fill||"").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i); if(m)return`rgba(${m[1]},${m[2]},${m[3]},${a})`; return`rgba(0,0,0,${a})`; }
 
-    /* ===== Sauvegarde des zones (PAR image) ===== */
-    function toNorm(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height}; }
-    function fromNorm(z){
-      const item=INVENTAIRE[z.id]||{}, circ=item.circuit||guessCircuitFromIdName(z.id,item), col=COULEURS[circ]||COULEURS.DEF;
-      const rect=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,fill:col.fill,stroke:col.stroke,strokeWidth:2,rx:6,ry:6,selectable:true,hasControls:true,lockScalingFlip:true,evented:true});
-      rect.objectCaching=false; rect.pieceId=z.id||""; rect.__style={fill:rect.fill,stroke:rect.stroke,opacity:rect.opacity,sw:rect.strokeWidth};
-      canvas.add(rect); canvas.bringToFront(rect);
-      if (isReading){ hideZone(rect); rect.hasControls=false; rect.hasBorders=false; }
-      else { showZone(rect); rect.lockMovementX=rect.lockMovementY=rect.lockScalingX=rect.lockScalingY=rect.lockRotation=false; }
-      return rect;
-    }
-    function saveZonesForCurrent(){ const zones=canvas.getObjects().map(toNorm); localStorage.setItem(zonesKeyFor(currentBgURL), JSON.stringify({fit:FIT_MODE,zones})); }
-    function loadZonesFor(url){
-      canvas.getObjects().forEach(o=>canvas.remove(o));
-      const raw=localStorage.getItem(zonesKeyFor(url)); if(!raw){ refreshFitLabel(); return; }
-      try{ const d=JSON.parse(raw); FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm); refreshFitLabel(); }catch(e){ console.warn("Zones invalides:",e); }
-    }
-    function save(){ saveZonesForCurrent(); }
+  /* ====== UI refs ====== */
+  const modeLabel=document.getElementById("modeLabel");
+  const toggleMode=document.getElementById("toggleMode");
+  const bgSelect=document.getElementById("bgSelect");
+  const bgFile=document.getElementById("bgFile");
+  const zoomSlider=document.getElementById("zoom");
+  const toggleFit=document.getElementById("toggle-fit");
+  const btnFit=document.getElementById("btn-fit");
+  const editorToolbar=document.getElementById("editorToolbar");
+  const invSelect=document.getElementById("inventorySelect");
+  const partName=document.getElementById("partName");
+  const partRole=document.getElementById("partRole");
+  const partDesc=document.getElementById("partDesc");
+  const errBox=document.getElementById("err");
+  const toastEl=document.getElementById("toast");
 
-    /* ===== Invisibilité & refresh ===== */
-    function toTransparent(fill,a){
-      if(!fill) return `rgba(0,0,0,${a})`;
-      const m=String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
-      if(m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
-      const hex=String(fill).replace('#','');
-      if(hex.length===3){const r=parseInt(hex[0]+hex[0],16),g=parseInt(hex[1]+hex[1],16),b=parseInt(hex[2]+hex[2],16);return `rgba(${r},${g},${b},${a})`;}
-      if(hex.length===6){const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return `rgba(${r},${g},${b},${a})`;}
-      return `rgba(0,0,0,${a})`;
-    }
-    function hideZone(o){ if(!o.__style) o.__style={fill:o.fill,stroke:o.stroke,opacity:o.opacity,sw:o.strokeWidth}; o.opacity=1; o.fill=toTransparent(o.__style.fill||o.fill,0.01); o.stroke=toTransparent(o.__style.stroke||o.stroke,0.01); o.strokeWidth=.5; o.hasBorders=false; o.hasControls=false; o.hoverCursor="pointer"; }
-    function showZone(o){ const s=o.__style; if(s){o.fill=s.fill;o.stroke=s.stroke;o.opacity=(typeof s.opacity==="number")?s.opacity:1;o.strokeWidth=(typeof s.sw==="number")?s.sw:2;} o.hasBorders=true;o.hasControls=true;o.hoverCursor="move"; }
-    function setZonesVisibility(invisible){ canvas.getObjects().forEach(o=>{ if(invisible) hideZone(o); else showZone(o); }); canvas.requestRenderAll(); }
-    function flashHighlight(o){ const prev={fill:o.fill,stroke:o.stroke,sw:o.strokeWidth}; o.fill=toTransparent(prev.fill,.20); o.stroke=toTransparent(prev.stroke,.90); o.strokeWidth=2; canvas.requestRenderAll(); setTimeout(()=>{ hideZone(o); canvas.requestRenderAll(); },500); }
+  /* ====== Canvas ====== */
+  const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536"});
+  let FIT_MODE = IS_MOBILE ? "cover" : "contain";
+  function fitLabel(){ toggleFit.innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
+  function resize(){ const stage=document.querySelector(".stage"); const w=stage.clientWidth; const h=Math.max(600, IS_MOBILE?window.innerHeight*0.85:window.innerHeight*0.70); canvas.setWidth(w); canvas.setHeight(h); setBgScale(); canvas.calcOffset(); canvas.requestRenderAll(); }
+  window.addEventListener("resize", resize, {passive:true});
 
-    function hardRefresh(){ canvas.getObjects().forEach(o=>{o.dirty=true; if(o.cacheCanvas) o.clearCache();}); if(canvas.backgroundImage){canvas.backgroundImage.dirty=true;} canvas.discardActiveObject(); canvas.requestRenderAll(); }
-
-    /* ===== Modes / UI ===== */
-    let isReading=true, mode="move", drawingRect=null, startPoint=null, pendingNewRect=null;
-    function setEditableFields(on){ const role=document.getElementById("partRole"), desc=document.getElementById("partDesc"); role.readOnly=!on; desc.readOnly=!on; role.classList.toggle("editable",on); desc.classList.toggle("editable",on); }
-    function setMode(m){
-      mode=m;
-      document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
-      ({move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"}[m] && document.getElementById({move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"}[m]).classList.add("active"));
-      canvas.selection = (!isReading && m==="move");
-      canvas.getObjects().forEach(o=>{
-        if(isReading){ o.selectable=true; o.hasControls=false; o.hasBorders=false; o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=true; o.hoverCursor="pointer"; }
-        else { const editing=(m==="move"); o.selectable=editing; o.hasControls=editing; o.hasBorders=editing; o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=!editing; o.hoverCursor=editing?"move":(m==="select"?"pointer":"default"); o.transparentCorners=false; o.cornerStyle="rect"; o.cornerSize=9; }
+  let bgImg=null; // fabric.Image
+  function loadImageToBackground(src){
+    // Précharge sans CORS; marche sur GitHub Pages (même origine)
+    return new Promise((resolve,reject)=>{
+      const im=new Image(); im.onload=()=>resolve(im); im.onerror=reject; im.src=src+(src.startsWith("blob:")?"":`?t=${Date.now()}`);
+    }).then((im)=>{
+      return new Promise((resolve)=>{
+        const fimg=new fabric.Image(im,{originX:"left",originY:"top"}); fimg.objectCaching=false;
+        canvas.setBackgroundImage(fimg, ()=>{ bgImg=fimg; setBgScale(); resolve(true); });
       });
-      hardRefresh();
+    });
+  }
+  function setBgScale(){
+    if(!bgImg) return;
+    const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=bgImg.width, ih=bgImg.height;
+    const s=(FIT_MODE==="contain")?Math.min(cw/iw,ch/ih):Math.max(cw/iw,ch/ih);
+    const left=(cw-iw*s)/2, top=(ch-ih*s)/2;
+    bgImg.scale(s); bgImg.set({left,top}); canvas.backgroundImage=bgImg;
+  }
+  async function setBackgroundFromFile(fileNameOrBlobURL){
+    showError(""); // reset
+    saveZones(); // sauve l'ancienne
+    try{
+      const src = fileNameOrBlobURL.startsWith("blob:") ? fileNameOrBlobURL : (BG_DIR + fileNameOrBlobURL);
+      await loadImageToBackground(src);
+      currentFile = fileNameOrBlobURL.startsWith("blob:") ? currentFile : fileNameOrBlobURL;
+      localStorage.setItem("q310_bg_file", currentFile);
+      loadZones(); // charge zones liées à cette image
+      ensureSampleZone(); // pour tester la sélection la 1re fois
+      adjustToFit();
+    }catch(e){
+      showError(`❌ Image introuvable : ${fileNameOrBlobURL}. Vérifie le nom dans /actif/ (casse exacte).`);
+      canvas.setBackgroundImage(null, ()=>{ bgImg=null; canvas.requestRenderAll(); });
     }
-    function applyLectureUI(on){
-      isReading=!!on;
-      document.getElementById("modeLabel").textContent = on?"Lecture":"Éditeur";
-      document.getElementById("toggleMode").textContent = on?"Passer en Éditeur":"Passer en Lecture";
-      document.getElementById("editorToolbar").classList.toggle("hidden", on);
-      document.getElementById("inventorySelect").disabled = on;
-      document.getElementById("editorActions").classList.toggle("hidden", on);
-      setEditableFields(!on);
-      setMode(on?"select":"move");
-      setZonesVisibility(on);
+  }
+
+  /* ====== Zones save/load ====== */
+  function norm(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height}; }
+  function fromNorm(z){
+    const p=getPart(z.id), circ=p.circuit||guessCircuit(z.id,p), col=COULEURS[circ]||COULEURS.DEF;
+    const r=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,fill:col.fill,stroke:col.stroke,strokeWidth:2,rx:6,ry:6,selectable:true,hasControls:true,lockScalingFlip:true,evented:true});
+    r.pieceId=z.id||""; r.__style={fill:r.fill,stroke:r.stroke,opacity:r.opacity,sw:r.strokeWidth}; canvas.add(r); canvas.bringToFront(r);
+    if(isReading) hide(r); else show(r);
+    return r;
+  }
+  function saveZones(){ const zones=canvas.getObjects().map(norm); localStorage.setItem(zonesKey(currentFile), JSON.stringify({fit:FIT_MODE,zones})); }
+  function loadZones(){
+    canvas.getObjects().forEach(o=>canvas.remove(o));
+    const raw=localStorage.getItem(zonesKey(currentFile)); if(!raw){ fitLabel(); return; }
+    try{ const d=JSON.parse(raw); FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm); fitLabel(); }catch{}
+  }
+  function ensureSampleZone(){
+    if(canvas.getObjects().length===0){
+      const sample=fromNorm({id:"filtre_air",x:40,y:40,w:120,h:80}); if(isReading) hide(sample);
     }
+  }
 
-    /* ===== Mot de passe Éditeur (PROF) ===== */
-    document.getElementById("toggleMode").addEventListener("click",()=>{
-      if(isReading){
-        const pwd = prompt("Mot de passe pour passer en Éditeur :");
-        if(pwd!=="PROF"){ alert("Mot de passe invalide."); return; }
-      }
-      applyLectureUI(!isReading);
-    });
+  /* ====== Invisibilité ====== */
+  function hide(o){ if(!o.__style) o.__style={fill:o.fill,stroke:o.stroke,opacity:o.opacity,sw:o.strokeWidth}; o.opacity=1; o.fill=toRGBA(o.__style.fill,.01); o.stroke=toRGBA(o.__style.stroke,.01); o.strokeWidth=.5; o.hasBorders=false; o.hasControls=false; o.hoverCursor="pointer"; }
+  function show(o){ const s=o.__style; if(s){o.fill=s.fill;o.stroke=s.stroke;o.opacity=(typeof s.opacity==="number")?s.opacity:1;o.strokeWidth=(typeof s.sw==="number")?s.sw:2;} o.hasBorders=true;o.hasControls=true;o.hoverCursor="move"; }
+  function setVis(invisible){ canvas.getObjects().forEach(o=>{ invisible?hide(o):show(o); }); canvas.requestRenderAll(); }
+  function flash(o){ const prev={fill:o.fill,stroke:o.stroke,sw:o.strokeWidth}; o.fill=toRGBA(prev.fill,.20); o.stroke=toRGBA(prev.stroke,.90); o.strokeWidth=2; canvas.requestRenderAll(); setTimeout(()=>{ hide(o); canvas.requestRenderAll(); },450); }
 
-    /* ===== Zoom molette (desktop) ===== */
-    canvas.on("mouse:wheel",(opt)=>{
-      const delta=-opt.e.deltaY, cur=canvas.getZoom(), next=Math.max(.25, Math.min(3, cur*(1+delta/1000)));
-      const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-      const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-      canvas.zoomToPoint(c,next);
-      const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-      const d=new fabric.Point(now.x-prev.x, now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1));
-      document.getElementById("zoom").value=Math.round(next*100); opt.e.preventDefault(); opt.e.stopPropagation(); hardRefresh();
+  /* ====== Modes ====== */
+  let isReading=true, mode="move", drawingRect=null, startPt=null, pending=null;
+  function setEditable(on){ partRole.readOnly=!on; partDesc.readOnly=!on; partRole.classList.toggle("editable",on); partDesc.classList.toggle("editable",on); }
+  function setMode(m){
+    mode=m;
+    document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("active"));
+    const id={move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"}[m]; if(id) document.getElementById(id).classList.add("active");
+    canvas.selection=(!isReading && m==="move");
+    canvas.getObjects().forEach(o=>{
+      if(isReading){ o.selectable=true;o.hasControls=false;o.hasBorders=false;o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=true;o.hoverCursor="pointer"; }
+      else{ const edit=(m==="move"); o.selectable=edit;o.hasControls=edit;o.hasBorders=edit;o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=!edit;o.hoverCursor=edit?"move":(m==="select"?"pointer":"default"); o.transparentCorners=false;o.cornerStyle="rect";o.cornerSize=9; }
     });
-    document.getElementById("zoom").addEventListener("input",(e)=>{
-      const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
-      const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-      const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-      canvas.zoomToPoint(c,z);
-      const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
-      const d=new fabric.Point(now.x-prev.x, now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1)); hardRefresh();
-    });
+    canvas.requestRenderAll();
+  }
+  function applyLectureUI(on){
+    isReading=!!on;
+    modeLabel.textContent = on?"Lecture":"Éditeur";
+    toggleMode.textContent = on?"Passer en Éditeur":"Passer en Lecture";
+    editorToolbar.classList.toggle("hidden", on);
+    invSelect.disabled = on;
+    document.getElementById("editorActions").classList.toggle("hidden", on);
+    setEditable(!on);
+    setMode(on?"select":"move");
+    setVis(on);
+  }
 
-    /* ===== Souris : pan/draw/select ===== */
-    canvas.on("mouse:down",(opt)=>{
-      if(isReading){
-        const t=opt.target; if(!t){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
-      }
-      if(mode==="pan"){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
-      if(mode!=="draw"||isReading) return;
-      const p=canvas.getPointer(opt.e); startPoint=p;
-      drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
-      drawingRect.objectCaching=false; canvas.add(drawingRect);
-    });
-    canvas.on("mouse:move",(opt)=>{
-      if(canvas.isDragging){ const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY; canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; hardRefresh(); return; }
-      if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
-      const p=canvas.getPointer(opt.e); drawingRect.set({left:Math.min(p.x,startPoint.x),top:Math.min(p.y,startPoint.y),width:Math.abs(p.x-startPoint.x),height:Math.abs(p.y-startPoint.y)}); canvas.requestRenderAll();
-    });
-    canvas.on("mouse:up",(e)=>{
-      if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
-      if ((mode==="select") || (!isReading && mode==="move")) {
-        const t=e.target; if(t){ fillPanelFromZone(t); if(isReading) flashHighlight(t); else { canvas.setActiveObject(t); hardRefresh(); } }
-        return;
-      }
-      if(mode!=="draw"||!drawingRect||isReading) return;
-      drawingRect.selectable=true; pendingNewRect=drawingRect;
-      if(!isReading){ canvas.setActiveObject(pendingNewRect); pendingNewRect.selectable=true; pendingNewRect.hasControls=true; pendingNewRect.hasBorders=true; pendingNewRect.lockMovementX=pendingNewRect.lockMovementY=pendingNewRect.lockScalingX=pendingNewRect.lockScalingY=pendingNewRect.lockRotation=false; hardRefresh(); }
-      drawingRect=null; startPoint=null; openAssignModal();
-    });
+  toggleMode.addEventListener("click",()=>{
+    if(isReading){
+      const pwd=prompt("Mot de passe :"); if(pwd!=="PROF"){ alert("Mot de passe invalide."); return; }
+    }
+    applyLectureUI(!isReading);
+  });
 
-    /* ===== iOS gestures (touch) ===== */
-    const upper = canvas.upperCanvasEl;
-    upper.addEventListener('gesturestart', e=>e.preventDefault());
-    upper.addEventListener('gesturechange', e=>e.preventDefault());
-    upper.addEventListener('gestureend', e=>e.preventDefault());
+  /* ====== Souris ====== */
+  canvas.on("mouse:wheel",(opt)=>{
+    const delta=-opt.e.deltaY, cur=canvas.getZoom(), next=Math.max(.25, Math.min(3, cur*(1+delta/1000)));
+    const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+    const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
+    canvas.zoomToPoint(c,next);
+    const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
+    const d=new fabric.Point(now.x-prev.x,now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1));
+    zoomSlider.value=Math.round(next*100); opt.e.preventDefault(); opt.e.stopPropagation(); canvas.requestRenderAll();
+  });
+  zoomSlider.addEventListener("input",(e)=>{
+    const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
+    const c=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+    const prev=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
+    canvas.zoomToPoint(c,z);
+    const now=fabric.util.transformPoint(c, fabric.util.invertTransform(canvas.viewportTransform));
+    const d=new fabric.Point(now.x-prev.x,now.y-prev.y); canvas.relativePan(d.multiplyScalar(-1)); canvas.requestRenderAll();
+  });
 
-    let pinchLastDist=0, touchStartXY=null, touchStartTime=0;
-    function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
-    function clientToCanvasPoint(x,y){ const r=upper.getBoundingClientRect(); return new fabric.Point(x-r.left,y-r.top); }
-    function dist2(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+  canvas.on("mouse:down",(opt)=>{
+    if(isReading){
+      const t=opt.target;
+      if(!t){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
+    }
+    if(mode==="pan"){ canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return; }
+    if(mode!=="draw"||isReading) return;
+    const p=canvas.getPointer(opt.e); startPt=p;
+    drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
+    canvas.add(drawingRect);
+  });
+  canvas.on("mouse:move",(opt)=>{
+    if(canvas.isDragging){ const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY; canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return; }
+    if(mode!=="draw"||!drawingRect||!startPt||isReading) return;
+    const p=canvas.getPointer(opt.e); drawingRect.set({left:Math.min(p.x,startPt.x),top:Math.min(p.y,startPt.y),width:Math.abs(p.x-startPt.x),height:Math.abs(p.y-startPt.y)}); canvas.requestRenderAll();
+  });
+  canvas.on("mouse:up",(e)=>{
+    if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
+    if(mode==="select" || (!isReading && mode==="move")){
+      const t=e.target; if(t){ fillPanelFromZone(t); if(isReading) flash(t); else canvas.setActiveObject(t); }
+      return;
+    }
+    if(mode!=="draw"||!drawingRect||isReading) return;
+    drawingRect.selectable=true; pending=drawingRect; canvas.setActiveObject(pending);
+    pending.hasControls=pending.hasBorders=true; pending.lockMovementX=pending.lockMovementY=pending.lockScalingX=pending.lockScalingY=pending.lockRotation=false;
+    drawingRect=null; startPt=null; openAssignModal();
+  });
 
-    upper.addEventListener("touchstart",(e)=>{
-      if(e.touches.length===2){
-        pinchLastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-        canvas.isDragging=false; e.preventDefault();
-      }else if(e.touches.length===1){
-        touchStartTime=Date.now(); touchStartXY={x:e.touches[0].clientX, y:e.touches[0].clientY};
-        // Déterminer s’il y a une zone à cet endroit
-        const ev={clientX:e.touches[0].clientX, clientY:e.touches[0].clientY, target:upper};
+  /* ====== Touch iOS ====== */
+  const upper=canvas.upperCanvasEl;
+  upper.addEventListener('gesturestart',e=>e.preventDefault()); upper.addEventListener('gesturechange',e=>e.preventDefault()); upper.addEventListener('gestureend',e=>e.preventDefault());
+  let pinchLast=0, touchStart=null, t0=0;
+  function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2}; }
+  function clientToCanvas(x,y){ const r=upper.getBoundingClientRect(); return new fabric.Point(x-r.left,y-r.top); }
+  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+
+  upper.addEventListener("touchstart",(e)=>{
+    if(e.touches.length===2){ pinchLast=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); canvas.isDragging=false; e.preventDefault(); }
+    else if(e.touches.length===1){
+      t0=Date.now(); touchStart={x:e.touches[0].clientX,y:e.touches[0].clientY};
+      // ne pan que si on ne touche pas une zone
+      const ev={clientX:e.touches[0].clientX, clientY:e.touches[0].clientY, target:upper};
+      const target=canvas.findTarget(ev,false);
+      if(!target && (isReading || mode==="pan")){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
+    }
+  }, {passive:false});
+  upper.addEventListener("touchmove",(e)=>{
+    if(e.touches.length===2){
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+      if(pinchLast===0){ pinchLast=d; return; }
+      const factor=d/pinchLast; pinchLast=d;
+      let z=canvas.getZoom()*factor; z=Math.max(.25,Math.min(3,z));
+      const m=midpoint(e.touches[0],e.touches[1]), p=clientToCanvas(m.x,m.y);
+      canvas.zoomToPoint(p,z); zoomSlider.value=Math.round(z*100);
+      setBgScale(); canvas.requestRenderAll(); e.preventDefault();
+    } else if(e.touches.length===1 && canvas.isDragging){
+      const dx=e.touches[0].clientX-canvas.lastX, dy=e.touches[0].clientY-canvas.lastY;
+      canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+      setBgScale(); canvas.requestRenderAll(); e.preventDefault();
+    }
+  }, {passive:false});
+  upper.addEventListener("touchend",(e)=>{
+    if(e.touches && e.touches.length===0) canvas.isDragging=false;
+    if(!e.touches || e.touches.length<2) pinchLast=0;
+    // TAP rapide -> sélection zone
+    if(e.changedTouches && e.changedTouches.length===1){
+      const dt=Date.now()-t0; const end={x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY};
+      if(dt<300 && touchStart && dist(end,touchStart)<10){
+        const ev={clientX:end.x, clientY:end.y, target:upper};
         const target=canvas.findTarget(ev,false);
-        const canPan = (!target && (isReading || mode==="pan"));
-        if(canPan){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
+        if(target){ if(isReading){ fillPanelFromZone(target); flash(target); } else { canvas.setActiveObject(target); } }
       }
-    }, {passive:false});
-
-    upper.addEventListener("touchmove",(e)=>{
-      if(e.touches.length===2){
-        const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-        if(pinchLastDist===0){ pinchLastDist=d; return; }
-        const factor=d/pinchLastDist; pinchLastDist=d;
-        let z=canvas.getZoom()*factor; z=Math.max(.25, Math.min(3,z));
-        const m=midpoint(e.touches[0],e.touches[1]), p=clientToCanvasPoint(m.x,m.y);
-        canvas.zoomToPoint(p,z);
-        document.getElementById("zoom").value=Math.round(z*100);
-        setBackgroundScale(); hardRefresh(); e.preventDefault();
-      }else if(e.touches.length===1 && canvas.isDragging){
-        const dx=e.touches[0].clientX-canvas.lastX, dy=e.touches[0].clientY-canvas.lastY;
-        canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; setBackgroundScale(); hardRefresh(); e.preventDefault();
-      }
-    }, {passive:false});
-
-    upper.addEventListener("touchend",(e)=>{
-      if(e.touches && e.touches.length===0){ canvas.isDragging=false; }
-      if(!e.touches || e.touches.length<2){ pinchLastDist=0; }
-      // TAP rapide = sélection de zone
-      if (e.changedTouches && e.changedTouches.length===1){
-        const dt=Date.now()-touchStartTime; const end={x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY};
-        if(dt<300 && touchStartXY && dist2(end,touchStartXY)<10){
-          const ev={clientX:end.x, clientY:end.y, target:upper};
-          const target=canvas.findTarget(ev,false);
-          if(target){ if(isReading){ fillPanelFromZone(target); flashHighlight(target); } else { canvas.setActiveObject(target); hardRefresh(); } }
-        }
-      }
-    }, {passive:false});
-
-    /* ===== Panneau / inventaire ===== */
-    function refreshInventorySelect(){
-      const sel=document.getElementById("inventorySelect");
-      const opts = Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom||""}</option>`).join("");
-      sel.innerHTML = `<option value="">— Choisir —</option>${opts}<option value="__new__">➕ Nouvelle pièce…</option>`;
     }
-    function showPart(id){ if(!id){partName.value="";partRole.value="";partDesc.value="";return;} const p=getPartView(id); partName.value=p.nom||""; partRole.value=p.role||""; partDesc.value=p.desc||""; }
-    function fillPanelFromZone(z){ const id=z?.pieceId||""; inventorySelect.value=id||""; showPart(id); }
+  }, {passive:false});
 
-    const inventorySelect=document.getElementById("inventorySelect");
-    const partName=document.getElementById("partName");
-    const partRole=document.getElementById("partRole");
-    const partDesc=document.getElementById("partDesc");
+  /* ====== Panneau / inventaire ====== */
+  function refreshInv(){
+    const opts=Object.keys({...INVENTAIRE_BASE,...INV_OVR}).map(id=>`<option value="${id}">${id} — ${getPart(id).nom||""}</option>`).join("");
+    invSelect.innerHTML=`<option value="">— Choisir —</option>${opts}<option value="__new__">➕ Nouvelle pièce…</option>`;
+  }
+  function showPart(id){ if(!id){ partName.value=partRole.value=partDesc.value=""; return; } const p=getPart(id); partName.value=p.nom||""; partRole.value=p.role||""; partDesc.value=p.desc||""; }
+  function fillPanelFromZone(z){ const id=z?.pieceId||""; invSelect.value=id||""; showPart(id); }
 
-    inventorySelect.addEventListener("change",()=>{
-      const v=inventorySelect.value;
-      if(v==="__new__"){ openNewPartModal(); inventorySelect.value=""; return; }
-      showPart(v);
-    });
+  invSelect.addEventListener("change",()=>{
+    const v=invSelect.value;
+    if(v==="__new__"){ openNewPartModal(); invSelect.value=""; return; }
+    showPart(v);
+  });
 
-    function persistPanelEdits(){
-      if (isReading) return;
-      const id = inventorySelect.value; if (!id) return;
-      const active = canvas.getActiveObject(); if (!active || active.pieceId !== id) return;
-      const role = partRole.value, desc = partDesc.value;
-      if(!INV_OVR[id]) INV_OVR[id]={};
-      INV_OVR[id].role=role; INV_OVR[id].desc=desc;
-      if(!INVENTAIRE[id]) INVENTAIRE[id]={nom:"",role:"",desc:"",circuit:null};
-      INVENTAIRE[id].role=role; INVENTAIRE[id].desc=desc; saveInvOverrides();
-    }
-    partRole.addEventListener("change", persistPanelEdits);
-    partDesc.addEventListener("change", persistPanelEdits);
-    partRole.addEventListener("blur", persistPanelEdits);
-    partDesc.addEventListener("blur", persistPanelEdits);
+  function persistEdits(){
+    if(isReading) return;
+    const id=invSelect.value; if(!id) return;
+    const role=partRole.value, desc=partDesc.value;
+    if(!INV_OVR[id]) INV_OVR[id]={};
+    INV_OVR[id].role=role; INV_OVR[id].desc=desc; saveInv(); // applique pour l’avenir
+  }
+  partRole.addEventListener("change",persistEdits);
+  partDesc.addEventListener("change",persistEdits);
+  partRole.addEventListener("blur",persistEdits);
+  partDesc.addEventListener("blur",persistEdits);
 
-    document.getElementById("btn-apply").addEventListener("click",()=>{
-      if(isReading) return;
-      const o=canvas.getActiveObject(); if(!o){ alert("Sélectionne une zone."); return; }
-      const id=inventorySelect.value; if(!id){ alert("Choisis une pièce."); return; }
-      persistPanelEdits(); applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
-    });
-    document.getElementById("btn-show-all").addEventListener("click",()=>{ if(isReading) return; canvas.getObjects().forEach(o=>o.opacity=1); canvas.requestRenderAll(); });
+  document.getElementById("btn-apply").addEventListener("click",()=>{
+    if(isReading) return;
+    const o=canvas.getActiveObject(); if(!o){ alert("Sélectionne une zone."); return; }
+    const id=invSelect.value; if(!id){ alert("Choisis une pièce."); return; }
+    persistEdits(); applyPiece(o,id); toast("✅ Pièce associée");
+  });
+  document.getElementById("btn-show-all").addEventListener("click",()=>{ if(isReading) return; canvas.getObjects().forEach(o=>o.opacity=1); canvas.requestRenderAll(); });
 
-    /* ===== Import/Export ===== */
-    document.getElementById("btn-export").addEventListener("click",()=>{
-      const zones=canvas.getObjects().map(toNorm);
-      const payload={fit:FIT_MODE,zones,inventory_overrides:INV_OVR,image_url:currentBgURL};
-      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
-      const a=document.createElement("a"), url=URL.createObjectURL(blob); a.href=url; a.download="quincy310L_zones.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),0);
-    });
-    document.getElementById("fileImport").addEventListener("change",(e)=>{
-      const f=e.target.files[0]; e.target.value=""; if(!f) return;
-      const r=new FileReader();
-      r.onload=()=>{
-        try{
-          const d=JSON.parse(r.result);
-          if(d.image_url){ currentBgURL=d.image_url; localStorage.setItem("q310_bg_url", currentBgURL); setBackground(currentBgURL); }
-          canvas.getObjects().forEach(o=>canvas.remove(o));
-          FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm);
-          if(d.inventory_overrides && typeof d.inventory_overrides==="object"){
-            INV_OVR=d.inventory_overrides; for(const id in INV_OVR){ if(!INVENTAIRE[id]) INVENTAIRE[id]={}; Object.assign(INVENTAIRE[id], INV_OVR[id]); }
-            saveInvOverrides(); refreshInventorySelect();
-          }
-          refreshFitLabel(); setBackgroundScale(); hardRefresh(); save();
-        }catch(e){ alert("JSON invalide."); }
-      };
-      r.readAsText(f);
-    });
+  /* ====== Import/Export ====== */
+  document.getElementById("btn-export").addEventListener("click",()=>{
+    const zones=canvas.getObjects().map(norm);
+    const blob=new Blob([JSON.stringify({fit:FIT_MODE,zones,inventory_overrides:INV_OVR,image_file:currentFile},null,2)],{type:"application/json"});
+    const a=document.createElement("a"); const url=URL.createObjectURL(blob); a.href=url; a.download="quincy310L_zones.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),0);
+  });
+  document.getElementById("fileImport").addEventListener("change",(e)=>{
+    const f=e.target.files[0]; e.target.value=""; if(!f) return;
+    const r=new FileReader(); r.onload=()=>{
+      try{ const d=JSON.parse(r.result);
+        if(d.image_file){ currentFile=d.image_file; localStorage.setItem("q310_bg_file", currentFile); }
+        canvas.getObjects().forEach(o=>canvas.remove(o));
+        FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNorm);
+        if(d.inventory_overrides && typeof d.inventory_overrides==="object"){ INV_OVR=d.inventory_overrides; saveInv(); refreshInv(); }
+        fitLabel(); setBgScale(); canvas.requestRenderAll(); saveZones();
+      }catch{ alert("JSON invalide."); }
+    }; r.readAsText(f);
+  });
 
-    /* ===== Boutons topbar ===== */
-    function adjustToFit(){ setBackgroundScale(); canvas.setViewportTransform([1,0,0,1,0,0]); document.getElementById("zoom").value=100; hardRefresh(); save(); }
-    document.getElementById("btn-fit").addEventListener("click", adjustToFit);
-    document.getElementById("toggle-fit").addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; refreshFitLabel(); adjustToFit(); });
+  /* ====== Topbar ====== */
+  function adjustToFit(){ setBgScale(); canvas.setViewportTransform([1,0,0,1,0,0]); zoomSlider.value=100; canvas.requestRenderAll(); saveZones(); }
+  btnFit.addEventListener("click",adjustToFit);
+  toggleFit.addEventListener("click",()=>{ FIT_MODE=(FIT_MODE==="contain")?"cover":"contain"; fitLabel(); adjustToFit(); });
 
-    /* ===== Assignation zone ===== */
-    const assignModal=document.getElementById("assignModal");
-    const assignSelect=document.getElementById("assignSelect");
-    const assignName=document.getElementById("assignName");
-    const assignRole=document.getElementById("assignRole");
-    const assignDesc=document.getElementById("assignDesc");
-    function openAssignModal(){
-      assignSelect.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom||""}</option>`).join("")+'<option value="__new__">➕ Nouvelle pièce…</option>';
-      assignName.value=""; assignRole.value=""; assignDesc.value=""; assignModal.style.display="flex"; assignSelect.focus();
-    }
-    function closeAssignModal(){ assignModal.style.display="none"; }
-    assignSelect.addEventListener("change",()=>{
-      const v=assignSelect.value;
-      if(v==="__new__"){ closeAssignModal(); openNewPartModal(true); return; }
-      const p=INVENTAIRE[v]; assignName.value=p?.nom||""; assignRole.value=p?.role||""; assignDesc.value=p?.desc||"";
-    });
-    document.getElementById("assignCancel").addEventListener("click",()=>{ closeAssignModal(); if(pendingNewRect){ save(); pendingNewRect=null; } });
-    document.getElementById("assignOk").addEventListener("click",()=>{
-      const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
-      if(!pendingNewRect){ closeAssignModal(); return; }
-      applyPieceToObject(pendingNewRect,id); closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
-    });
+  bgSelect.addEventListener("change",()=>{
+    const v=bgSelect.value;
+    if(v==="__file__"){ bgFile.click(); return; }
+    setBackgroundFromFile(v);
+  });
+  bgFile.addEventListener("change",(e)=>{
+    const file=e.target.files[0]; e.target.value=""; if(!file) return;
+    const url=URL.createObjectURL(file);
+    setBackgroundFromFile(url); // blob: URL
+  });
 
-    function applyPieceToObject(obj,id){
-      obj.pieceId=id;
-      const item=INVENTAIRE[id]||{}, circ=item.circuit||guessCircuitFromIdName(id,item), col=COULEURS[circ]||COULEURS.DEF;
-      obj.set({fill:col.fill,stroke:col.stroke});
-      obj.__style={fill:obj.fill,stroke:obj.stroke,opacity:obj.opacity,sw:obj.strokeWidth};
-      inventorySelect.value=id; showPart(id); canvas.setActiveObject(obj);
-      if(isReading){ hideZone(obj); obj.hasControls=false; obj.hasBorders=false; }
-      else{ obj.selectable=true; obj.hasControls=true; obj.hasBorders=true; obj.lockMovementX=obj.lockMovementY=obj.lockScalingX=obj.lockScalingY=obj.lockRotation=false; }
-      hardRefresh(); save();
-    }
+  /* ====== Assignation ====== */
+  const assignModal=document.getElementById("assignModal");
+  const assignSelect=document.getElementById("assignSelect");
+  const assignName=document.getElementById("assignName");
+  const assignRole=document.getElementById("assignRole");
+  const assignDesc=document.getElementById("assignDesc");
 
-    /* ===== Nouvelle pièce ===== */
-    const newPartModal=document.getElementById("newPartModal");
-    function openNewPartModal(applyToPending=false){ newPartModal.dataset.apply = applyToPending ? "1":"0"; newPartModal.style.display="flex"; document.getElementById("np_id").focus(); }
-    function closeNewPartModal(){ newPartModal.style.display="none"; }
-    document.getElementById("np_cancel").addEventListener("click", closeNewPartModal);
-    document.getElementById("np_ok").addEventListener("click",()=>{
-      const id=(document.getElementById("np_id").value||"").trim();
-      const nom=(document.getElementById("np_nom").value||"").trim();
-      const role=(document.getElementById("np_role").value||"").trim();
-      const desc=(document.getElementById("np_desc").value||"").trim();
-      const circ=(document.getElementById("np_circ").value||"").trim() || null;
-      if(!id || /\s/.test(id)){ alert("ID requis, sans espace."); return; }
-      INVENTAIRE[id] = { nom, role, desc, circuit:circ };
-      if(!INV_OVR[id]) INV_OVR[id]={}; Object.assign(INV_OVR[id], {nom,role,desc,circuit:circ}); saveInvOverrides();
-      refreshInventorySelect();
-      // appliquer à la zone si demandé
-      if(newPartModal.dataset.apply==="1" && pendingNewRect){ applyPieceToObject(pendingNewRect, id); pendingNewRect=null; }
-      inventorySelect.value=id; showPart(id);
-      closeNewPartModal(); toast("✅ Pièce créée");
-    });
+  function openAssignModal(){
+    assignSelect.innerHTML='<option value="">— Choisir —</option>'+
+      Object.keys({...INVENTAIRE_BASE,...INV_OVR}).map(id=>`<option value="${id}">${id} — ${getPart(id).nom||""}</option>`).join("")+
+      '<option value="__new__">➕ Nouvelle pièce…</option>';
+    assignName.value=assignRole.value=assignDesc.value=""; assignModal.style.display="flex"; assignSelect.focus();
+  }
+  function closeAssignModal(){ assignModal.style.display="none"; }
+  assignSelect.addEventListener("change",()=>{
+    const v=assignSelect.value;
+    if(v==="__new__"){ closeAssignModal(); openNewPartModal(true); return; }
+    const p=getPart(v); assignName.value=p.nom||""; assignRole.value=p.role||""; assignDesc.value=p.desc||"";
+  });
+  document.getElementById("assignCancel").addEventListener("click",()=>{ closeAssignModal(); if(pending){ saveZones(); pending=null; } });
+  document.getElementById("assignOk").addEventListener("click",()=>{
+    const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
+    if(!pending){ closeAssignModal(); return; }
+    applyPiece(pending,id); closeAssignModal(); pending=null; toast("✅ Pièce associée");
+  });
 
-    /* ===== Sélection / highlight ===== */
-    canvas.on('selection:created', e=>{ const o=e.selected&&e.selected[0]; if(o) fillPanelFromZone(o); });
-    canvas.on('selection:updated', e=>{ const o=e.selected&&e.selected[0]; if(o) fillPanelFromZone(o); });
-    canvas.on('selection:cleared', ()=>{ inventorySelect.value=""; showPart(""); });
+  function applyPiece(obj,id){
+    obj.pieceId=id;
+    const p=getPart(id), circ=p.circuit||guessCircuit(id,p), col=COULEURS[circ]||COULEURS.DEF;
+    obj.set({fill:col.fill,stroke:col.stroke}); obj.__style={fill:obj.fill,stroke:obj.stroke,opacity:obj.opacity,sw:obj.strokeWidth};
+    invSelect.value=id; showPart(id); canvas.setActiveObject(obj);
+    if(isReading){ hide(obj); obj.hasControls=false; obj.hasBorders=false; } else { obj.selectable=true; obj.hasControls=true; obj.hasBorders=true; obj.lockMovementX=obj.lockMovementY=obj.lockScalingX=obj.lockScalingY=obj.lockRotation=false; }
+    canvas.requestRenderAll(); saveZones();
+  }
 
-    /* ===== Toast ===== */
-    const toastEl=document.getElementById("toast"); let toastTimer=null;
-    function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
+  /* ====== Nouvelle pièce ====== */
+  const newPartModal=document.getElementById("newPartModal");
+  function openNewPartModal(apply=false){ newPartModal.dataset.apply=apply?"1":"0"; newPartModal.style.display="flex"; document.getElementById("np_id").focus(); }
+  function closeNewPartModal(){ newPartModal.style.display="none"; }
+  document.getElementById("np_cancel").addEventListener("click", closeNewPartModal);
+  document.getElementById("np_ok").addEventListener("click",()=>{
+    const id=(document.getElementById("np_id").value||"").trim();
+    const nom=(document.getElementById("np_nom").value||"").trim();
+    const role=(document.getElementById("np_role").value||"").trim();
+    const desc=(document.getElementById("np_desc").value||"").trim();
+    const circ=(document.getElementById("np_circ").value||"").trim()||null;
+    if(!id || /\s/.test(id)){ alert("ID requis, sans espace."); return; }
+    if(!INV_OVR[id]) INV_OVR[id]={};
+    Object.assign(INV_OVR[id], {nom,role,desc,circuit:circ});
+    saveInv(); refreshInv();
+    if(newPartModal.dataset.apply==="1" && pending){ applyPiece(pending,id); pending=null; }
+    invSelect.value=id; showPart(id); closeNewPartModal(); toast("✅ Pièce créée");
+  });
 
-    /* ===== Menu images ===== */
-    const bgSelect=document.getElementById("bgSelect");
-    const bgFile=document.getElementById("bgFile");
-    if (BG_IMAGES[currentBgKey]) bgSelect.value=currentBgKey; else bgSelect.value="custom";
-    function switchBackgroundByKey(key){
-      if(key==="custom"){ bgFile.click(); return; }
-      const url=BG_IMAGES[key]; if(!url) return;
-      currentBgKey=key; localStorage.setItem("q310_bg_key", currentBgKey); setBackground(url);
-    }
-    bgSelect.addEventListener("change",()=>switchBackgroundByKey(bgSelect.value));
-    bgFile.addEventListener("change",e=>{
-      const file=e.target.files[0]; e.target.value=""; if(!file) return;
-      const url=URL.createObjectURL(file); currentBgKey="custom"; currentBgURL=url;
-      localStorage.setItem("q310_bg_key","custom"); localStorage.setItem("q310_bg_url",url);
-      setBackground(url);
-    });
+  /* ====== Utilitaires ====== */
+  let toastTimer=null;
+  function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
+  function showError(msg){ errBox.textContent=msg||""; errBox.classList.toggle("hidden", !msg); }
 
-    /* ===== Init ===== */
-    async function tryLoadInventory(){
-      try{
-        const res=await fetch("quincy_310L_parts.json",{cache:"no-store"});
-        if(res.ok){ const data=await res.json(); let map={};
-          if(Array.isArray(data)){ for(const it of data){ if(!it||!it.id) continue; map[it.id]={nom:it.nom||it.name||"",role:it.role||"",desc:it.desc||it.description||"",circuit:it.circuit||null}; } }
-          else { for(const [id,it] of Object.entries(data)){ map[id]={nom:it.nom||it.name||"",role:it.role||"",desc:it.desc||it.description||"",circuit:it.circuit||null}; } }
-          if(Object.keys(map).length) INVENTAIRE=map;
-        }
-      }catch(e){}
-      loadInvOverrides();
-    }
-    async function init(){
-      await tryLoadInventory();
-      refreshInventorySelect();
-      refreshFitLabel();
-      resizeCanvas();
-      setBackground(currentBgURL);
-      applyLectureUI(true); // start lecture
-    }
-    init();
+  /* ====== Init ====== */
+  function refreshInvAndUI(){ refreshInv(); fitLabel(); resize(); }
+  async function init(){
+    refreshInvAndUI();
+    await setBackgroundFromFile(currentFile); // charge l’image + zones liées
+    applyLectureUI(true); // démarrer en Lecture
+  }
+  init();
   </script>
 </body>
 </html>
+
 
 
 
