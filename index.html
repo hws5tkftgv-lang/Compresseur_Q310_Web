@@ -2,14 +2,16 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone: on gère le zoom dans Fabric -->
+  <!-- iPhone/iPad: empêcher le zoom navigateur, on gère le zoom dans Fabric -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L – Éditeur / Lecture</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+    html, body { margin:0; height:100%; overscroll-behavior: none; }
+    body { background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+
     .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);}
     .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px;}
     .mode-pill b{color:#91c9ff}
@@ -19,14 +21,20 @@
     .chip{padding:6px 8px;background:#192247;border:1px solid rgba(255,255,255,.12);border-radius:8px}
     .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;background:#0f1a3f}
     .toolbar.hidden{display:none}
+
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
+
     .stage{
       background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;
       min-height:65vh;
+      will-change:transform; transform:translateZ(0); /* iOS anti-blank */
     }
-    .stage, .stage canvas { touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-    html, body { overscroll-behavior: none; }
+    .stage canvas{
+      touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+      will-change:transform; transform:translateZ(0);
+    }
+
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
     .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
@@ -35,13 +43,14 @@
     textarea{min-height:120px;resize:vertical}
     .hint{font-size:.85rem;opacity:.8}
     .hidden{display:none!important}
+
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
     .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .modal h4{margin:0 0 10px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
 
-    /* Indice visuel quand un champ est éditable en Éditeur */
     .editable { border-color:#4aa3ff !important; box-shadow:0 0 0 2px rgba(74,163,255,.25) inset; }
   </style>
 </head>
@@ -49,11 +58,22 @@
   <div class="topbar">
     <span class="mode-pill">Mode : <b id="modeLabel">Lecture</b></span>
     <button id="toggleMode" class="btn">Passer en Éditeur</button>
+
+    <label class="chip" style="margin-left:8px">Image
+      <select id="bgSelect" style="margin-left:6px">
+        <option value="compresseur">Compresseur</option>
+        <option value="schema">Schéma</option>
+        <option value="atelier">Atelier</option>
+        <option value="custom">— Fichier… —</option>
+      </select>
+    </label>
+    <input id="bgFile" type="file" accept="image/*" style="display:none">
+
     <span style="flex:1;"></span>
     <span class="chip">Zoom
       <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
     </span>
-    <span id="toggle-fit" class="btn chip">Affichage : <strong>Remplir</strong></span>
+    <span id="toggle-fit" class="btn chip">Affichage : <strong>—</strong></span>
     <button id="btn-fit" class="btn">🖼️ Ajuster</button>
   </div>
 
@@ -96,7 +116,7 @@
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-      <p class="hint">💾 Inventaire modifié enregistré localement. Export/Import pour partager.</p>
+      <p class="hint">💾 Zones & préférences sauvegardées localement <b>par image</b>. Export/Import pour partager.</p>
     </aside>
   </div>
 
@@ -121,9 +141,11 @@
   <div id="toast" class="toast">✅ Pièce associée à la zone</div>
 
   <script>
-    /* ===== iOS anti-blank: désactiver le cache bitmap Fabric global ===== */
+    /* ====== iOS anti-blank / anti-scintillement ====== */
     fabric.Object.prototype.objectCaching = false;
     fabric.Image.prototype.objectCaching  = false;
+
+    const IS_MOBILE = /iPhone|iPad|Android/i.test(navigator.userAgent);
 
     /* ===================== Inventaire & overrides ===================== */
     let INVENTAIRE = {
@@ -147,6 +169,16 @@
       }catch(e){ INV_OVR = {}; }
     }
     function saveInvOverrides(){ localStorage.setItem(INV_LS_KEY, JSON.stringify(INV_OVR)); }
+    function getPartView(id){
+      const base = INVENTAIRE[id] || {};
+      const ovr  = INV_OVR[id] || {};
+      return {
+        nom:  (ovr.nom  ?? base.nom)  || "",
+        role: (ovr.role ?? base.role) || "",
+        desc: (ovr.desc ?? base.desc) || "",
+        circuit: (ovr.circuit ?? base.circuit) || null
+      };
+    }
 
     function guessCircuitFromIdName(id, item){
       const s = (id + " " + (item?.nom||"") + " " + (item?.role||"")).toLowerCase();
@@ -166,27 +198,46 @@
       "DEF": { fill:"rgba(200,200,200,0.12)", stroke:"#aaaaaa" }
     };
 
+    /* ===================== Images disponibles & état courant ===================== */
+    const BG_IMAGES = {
+      compresseur: "actif/compresseur_bg.png",
+      schema:      "actif/schema_bg.png",
+      atelier:     "actif/atelier_bg.png"
+    };
+    let currentBgKey = localStorage.getItem("q310_bg_key") || "compresseur";
+    let currentBgURL = localStorage.getItem("q310_bg_url") || BG_IMAGES[currentBgKey] || "actif/compresseur_bg.png";
+    function zonesKeyFor(bgUrl){ return `q310_zones_${bgUrl}`; }
+
     /* ===================== Canvas & background ===================== */
     const canvas = new fabric.Canvas("c", {
       selection:false,
       preserveObjectStacking:true,
       backgroundColor:"#0b1536",
-      enableRetinaScaling:false
+      enableRetinaScaling:false // ✅ clé iOS
     });
     let bgImg = null;
-    let FIT_MODE = "cover"; // "cover" par défaut pour image pleine, "contain" = tout voir
+
+    // Mode auto: Mobile = cover, PC = contain
+    let FIT_MODE = IS_MOBILE ? "cover" : "contain";
+    function refreshFitLabel(){
+      document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
+    }
 
     function resizeCanvas(){
       const stage=document.querySelector(".stage");
-      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
       const w = stage.clientWidth;
-      const h = Math.max(600, isMobile ? window.innerHeight * 0.85 : window.innerHeight * 0.70);
+      const h = Math.max(600, IS_MOBILE ? window.innerHeight * 0.85 : window.innerHeight * 0.70);
       canvas.setWidth(w);
       canvas.setHeight(h);
+      const targetFit = IS_MOBILE ? "cover" : "contain";
+      if (FIT_MODE !== targetFit) { FIT_MODE = targetFit; refreshFitLabel(); }
+
       fitBackgroundImage(bgImg);
+      canvas.calcOffset();              // ✅ fiabilise le hit-test
       canvas.requestRenderAll();
+      setTimeout(()=>canvas.requestRenderAll(), 16);
     }
-    window.addEventListener("resize", ()=>{ resizeCanvas(); }, { passive:true });
+    window.addEventListener("resize", resizeCanvas, { passive:true });
 
     function fitBackgroundImage(img){
       if(!img) return;
@@ -201,20 +252,32 @@
         id:"__BG__"
       });
       canvas.sendToBack(img);
+      canvas.calcOffset();
       canvas.requestRenderAll();
+      setTimeout(()=>canvas.requestRenderAll(), 0);
     }
-    function loadBackground(){
-      fabric.Image.fromURL("actif/compresseur_bg.png", (img)=>{
-        bgImg=img;
-        bgImg.objectCaching = false;
+
+    function loadBackground(fromUrl){
+      const url = fromUrl || currentBgURL;
+      // Si on change d’image, sauvegarde d’abord les zones de l’ancienne
+      if (bgImg && fromUrl) saveZonesForCurrent();
+
+      fabric.Image.fromURL(url + `?t=${Date.now()}`, (img)=>{
+        if (bgImg) canvas.remove(bgImg);
+        bgImg=img; bgImg.objectCaching=false;
         canvas.add(bgImg);
         fitBackgroundImage(bgImg);
-        requestAnimationFrame(()=>{ loadSaved(); canvas.requestRenderAll(); });
+        canvas.sendToBack(bgImg);
+        loadZonesFor(url);
+        adjustToFit();
+        canvas.calcOffset();
+        hardRefresh();
+        currentBgURL = url;
+        localStorage.setItem("q310_bg_url", currentBgURL);
       }, { crossOrigin:"anonymous" });
     }
 
-    /* ===================== Sauvegarde zones ===================== */
-    const LS_KEY="q310_editor_reader_invisiblezones_v3";
+    /* ===================== Sauvegarde zones (par image) ===================== */
     function toNormalized(o){
       const r=o.getBoundingRect(true,true);
       return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height};
@@ -230,6 +293,7 @@
       });
       rect.objectCaching = false;
       rect.pieceId=z.id||"";
+      rect.__style = { fill: rect.fill, stroke: rect.stroke, opacity: rect.opacity, sw: rect.strokeWidth }; // pour hide/show
       canvas.add(rect); canvas.bringToFront(rect);
       if (isReading) { hideZone(rect); rect.hasControls=false; rect.hasBorders=false; }
       else {
@@ -239,18 +303,25 @@
       }
       return rect;
     }
-    function save(){
-      const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-      localStorage.setItem(LS_KEY, JSON.stringify({fit:FIT_MODE, zones}));
+    function saveZonesForCurrent(){
+      const zones = canvas.getObjects().filter(o => o !== bgImg).map(toNormalized);
+      localStorage.setItem(zonesKeyFor(currentBgURL), JSON.stringify({ fit: FIT_MODE, zones }));
     }
-    function loadSaved(){
-      const raw=localStorage.getItem(LS_KEY); if(!raw) return;
+    function loadZonesFor(url){
+      canvas.getObjects().slice().forEach(o => { if (o !== bgImg) canvas.remove(o); });
+      const raw = localStorage.getItem(zonesKeyFor(url));
+      if(!raw){ refreshFitLabel(); canvas.requestRenderAll(); return; }
       try{
-        const d=JSON.parse(raw); FIT_MODE=d.fit||"cover";
-        (d.zones||[]).forEach(fromNormalized);
+        const d = JSON.parse(raw);
+        FIT_MODE = d.fit || FIT_MODE;
+        (d.zones || []).forEach(fromNormalized);
         refreshFitLabel();
-      }catch(e){ console.warn("Aucune sauvegarde valide", e); }
+        canvas.requestRenderAll();
+      }catch(e){ console.warn("Zones invalides pour", url, e); }
     }
+    // Compat ancienne API
+    function save(){ saveZonesForCurrent(); }
+    function loadSaved(){ loadZonesFor(currentBgURL); }
 
     /* ===================== Invisibilité & refresh ===================== */
     function toTransparent(fill, a){
@@ -273,7 +344,7 @@
       o.opacity     = 1;
       o.fill        = toTransparent(o.__style.fill || o.fill, 0.01);
       o.stroke      = toTransparent(o.__style.stroke || o.stroke, 0.01);
-      o.strokeWidth = 0.01;
+      o.strokeWidth = 0.5; // hit-test fiable
       o.hasBorders  = false;
       o.hasControls = false;
       o.evented     = true;
@@ -299,6 +370,7 @@
         if (invisible) hideZone(o); else showZone(o);
       });
       canvas.requestRenderAll();
+      setTimeout(()=>canvas.requestRenderAll(), 0);
     }
     function flashHighlightReading(o){
       if(!isReading || !o || o===bgImg) return;
@@ -314,7 +386,7 @@
       if (bgImg) { bgImg.dirty = true; bgImg.objectCaching = false; }
       canvas.discardActiveObject();
       canvas.requestRenderAll();
-      setTimeout(()=>canvas.requestRenderAll(), 0);
+      setTimeout(()=>canvas.requestRenderAll(), 16);
     }
 
     /* ===================== Modes & interactions ===================== */
@@ -370,7 +442,7 @@
         }
       });
 
-      canvas.requestRenderAll();
+      hardRefresh();
     }
 
     function applyLectureUI(on){
@@ -380,10 +452,9 @@
       document.getElementById("editorToolbar").classList.toggle("hidden", on);
       document.getElementById("inventorySelect").disabled = on;
       document.getElementById("editorActions").classList.toggle("hidden", on);
-      setEditableFields(!on); // champs éditables en Éditeur
+      setEditableFields(!on);
       setMode(on ? "select" : "move");
       setZonesVisibility(on);
-      hardRefresh();
     }
 
     // Zoom molette (desktop) centré
@@ -400,6 +471,7 @@
       canvas.relativePan(dpt.multiplyScalar(-1));
       document.getElementById("zoom").value=Math.round(next*100);
       opt.e.preventDefault(); opt.e.stopPropagation();
+      hardRefresh();
     });
     document.getElementById("zoom").addEventListener("input",(e)=>{
       const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
@@ -410,7 +482,7 @@
       const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
       const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
       canvas.relativePan(dpt.multiplyScalar(-1));
-      canvas.requestRenderAll();
+      hardRefresh();
     });
 
     // Pan & draw (souris/desktop)
@@ -435,7 +507,6 @@
       if(canvas.isDragging){
         const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
         canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
-        if (bgImg) bgImg.dirty = true;
         hardRefresh();
         return;
       }
@@ -447,13 +518,12 @@
     canvas.on("mouse:up",(e)=>{
       if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
 
-      // En lecture OU en éditeur (move/select), on remplit le panneau si on a cliqué une zone
       if ((mode==="select") || (!isReading && (mode==="move"))) {
         const t=e.target;
         if(t && t!==bgImg){
           fillPanelFromZone(t);
           if (isReading) flashHighlightReading(t);
-          else { canvas.setActiveObject(t); canvas.requestRenderAll(); }
+          else { canvas.setActiveObject(t); hardRefresh(); }
         }
         return;
       }
@@ -471,7 +541,7 @@
         pendingNewRect.lockMovementX = pendingNewRect.lockMovementY =
         pendingNewRect.lockScalingX  = pendingNewRect.lockScalingY =
         pendingNewRect.lockRotation  = false;
-        canvas.requestRenderAll();
+        hardRefresh();
       }
 
       drawingRect=null; startPoint=null;
@@ -504,22 +574,23 @@
       sel.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
     }
     function showPart(id){
-      const p=INVENTAIRE[id];
-      document.getElementById("partName").value=p?p.nom:"";
-      document.getElementById("partRole").value=p?p.role:"";
-      document.getElementById("partDesc").value=p?p.desc:"";
+      if (!id) { document.getElementById("partName").value=""; document.getElementById("partRole").value=""; document.getElementById("partDesc").value=""; return; }
+      const p=getPartView(id);
+      document.getElementById("partName").value=p.nom;
+      document.getElementById("partRole").value=p.role;
+      document.getElementById("partDesc").value=p.desc;
     }
     function fillPanelFromZone(zone){
-      const id=zone.pieceId||"";
+      const id=zone?.pieceId||"";
       document.getElementById("inventorySelect").value=id;
       showPart(id);
     }
-
-    // Persister Rôle/Description (overrides locaux)
     function persistPanelEdits(){
       if (isReading) return;
       const id = document.getElementById("inventorySelect").value;
       if (!id) return;
+      const active = canvas.getActiveObject();
+      if (!active || !active.pieceId || active.pieceId !== id) return; // éviter écrasement sur mauvaise pièce
       const role = document.getElementById("partRole").value;
       const desc = document.getElementById("partDesc").value;
       if (!INV_OVR[id]) INV_OVR[id] = {};
@@ -539,7 +610,6 @@
       if(isReading) return;
       const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
       const id=document.getElementById("inventorySelect").value; if(!id){ alert("Choisis une pièce."); return; }
-      // Sauver textes modifiés avant d’appliquer
       persistPanelEdits();
       applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
     });
@@ -552,9 +622,10 @@
     /* ===================== Import/Export + outils ===================== */
     document.getElementById("btn-export").addEventListener("click", ()=>{
       const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-      const payload = { fit:FIT_MODE, zones, inventory_overrides: INV_OVR };
+      const payload = { fit:FIT_MODE, zones, inventory_overrides: INV_OVR, image_url: currentBgURL };
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
-      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="quincy310L_zones.json"; a.click();
+      const a=document.createElement("a"); const url=URL.createObjectURL(blob);
+      a.href=url; a.download="quincy310L_zones.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),0);
     });
     document.getElementById("fileImport").addEventListener("change",(e)=>{
       const file = e.target.files[0]; e.target.value="";
@@ -563,9 +634,15 @@
       r.onload=()=>{
         try{
           const d=JSON.parse(r.result);
+          // si le JSON contient une image, la charger avant les zones
+          if (d.image_url) {
+            currentBgURL = d.image_url;
+            localStorage.setItem("q310_bg_url", currentBgURL);
+            loadBackground(currentBgURL);
+          }
           // Zones
           canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
-          FIT_MODE=d.fit||"cover"; (d.zones||[]).forEach(fromNormalized);
+          FIT_MODE=d.fit||FIT_MODE; (d.zones||[]).forEach(fromNormalized);
           // Overrides inventaire
           if (d.inventory_overrides && typeof d.inventory_overrides === "object") {
             INV_OVR = d.inventory_overrides || {};
@@ -576,7 +653,7 @@
             saveInvOverrides();
             refreshInventorySelect();
           }
-          refreshFitLabel(); fitBackgroundImage(bgImg); canvas.requestRenderAll(); save();
+          refreshFitLabel(); fitBackgroundImage(bgImg); hardRefresh(); save();
         }catch(e){ alert("JSON invalide."); }
       };
       r.readAsText(file);
@@ -588,30 +665,24 @@
     document.getElementById("btn-pan").onclick =()=>setMode("pan");
     document.getElementById("btn-select").onclick=()=>setMode("select");
     document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
-    document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
+    document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); hardRefresh(); } };
 
     function adjustToFit() {
       if (!bgImg) return;
-      // On recadre avec le mode courant, mais on remet la vue au centre
       fitBackgroundImage(bgImg);
       canvas.setViewportTransform([1,0,0,1,0,0]);
       document.getElementById("zoom").value = 100;
-      if (bgImg) bgImg.dirty = true;
       hardRefresh();
       save();
     }
     document.getElementById("btn-fit").addEventListener("click", adjustToFit);
 
-    function refreshFitLabel(){
-      document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`;
-    }
     document.getElementById("toggle-fit").addEventListener("click",()=>{
       FIT_MODE=(FIT_MODE==="contain")?"cover":"contain";
       refreshFitLabel();
       fitBackgroundImage(bgImg);
       canvas.setViewportTransform([1,0,0,1,0,0]);
       document.getElementById("zoom").value = 100;
-      if (bgImg) bgImg.dirty = true;
       hardRefresh();
       save();
     });
@@ -643,6 +714,8 @@
       const circ=item.circuit || guessCircuitFromIdName(id,item);
       const col=COULEURS[circ]||COULEURS.DEF;
       obj.set({fill:col.fill, stroke:col.stroke});
+      obj.__style = { fill: obj.fill, stroke: obj.stroke, opacity: obj.opacity, sw: obj.strokeWidth }; // maj style
+
       document.getElementById("inventorySelect").value=id; showPart(id);
       canvas.setActiveObject(obj);
 
@@ -653,7 +726,7 @@
       if (isReading) { hideZone(obj); obj.hasControls = false; obj.hasBorders = false; }
       else { highlight(obj); }
 
-      canvas.requestRenderAll();
+      hardRefresh();
       save();
     }
 
@@ -690,8 +763,7 @@
       } else if (e.touches.length===1) {
         touchStartTime = Date.now();
         touchStartXY   = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        const fakeEvt = e;
-        const target = canvas.findTarget(fakeEvt, false);
+        const target = canvas.findTarget(e, false);
         const isZone = !!(target && target !== bgImg);
         const canPan = (!isZone && (isReading || mode==="pan"));
         if (canPan) {
@@ -728,6 +800,8 @@
         canvas.relativePan(new fabric.Point(dx,dy));
         canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
         e.preventDefault();
+        canvas.requestRenderAll();
+        setTimeout(()=>canvas.requestRenderAll(), 0);
       }
     }, {passive:false});
 
@@ -748,12 +822,40 @@
               flashHighlightReading(target);
             } else {
               canvas.setActiveObject(target);
-              canvas.requestRenderAll();
+              hardRefresh();
             }
           }
         }
       }
     }, {passive:false});
+
+    /* ===================== Changement d'image (menu + fichier) ===================== */
+    const bgSelect = document.getElementById("bgSelect");
+    const bgFile   = document.getElementById("bgFile");
+    if (BG_IMAGES[currentBgKey]) bgSelect.value = currentBgKey; else bgSelect.value = "custom";
+
+    function switchBackgroundByKey(key){
+      if (key === "custom") {
+        bgFile.click();
+        return;
+      }
+      const url = BG_IMAGES[key];
+      if (!url) return;
+      currentBgKey = key;
+      localStorage.setItem("q310_bg_key", currentBgKey);
+      loadBackground(url);
+    }
+    bgSelect.addEventListener("change", () => { switchBackgroundByKey(bgSelect.value); });
+    bgFile.addEventListener("change", e => {
+      const file = e.target.files[0]; e.target.value = "";
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      currentBgKey = "custom";
+      currentBgURL = url;
+      localStorage.setItem("q310_bg_key", currentBgKey);
+      localStorage.setItem("q310_bg_url", currentBgURL);
+      loadBackground(url);
+    });
 
     /* ===================== Inventaire JSON externe ===================== */
     async function tryLoadInventory(){
@@ -783,10 +885,9 @@
           }
         }
         if (Object.keys(map).length) INVENTAIRE = map;
-        // réappliquer les overrides locaux après fetch
         loadInvOverrides();
       } catch (e) {
-        loadInvOverrides(); // si pas de JSON externe, on garde l’inventaire local
+        loadInvOverrides();
         console.warn("Inventaire externe introuvable ou invalide:", e);
       }
     }
@@ -795,7 +896,7 @@
       resizeCanvas();
       await tryLoadInventory();
       refreshInventorySelect();
-      loadBackground();
+      loadBackground(currentBgURL);
       applyLectureUI(true); // démarre en LECTURE
       refreshFitLabel();
     }
@@ -803,3 +904,4 @@
   </script>
 </body>
 </html>
+
