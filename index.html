@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone: on gère le zoom avec Fabric, pas le navigateur -->
+  <!-- iPhone: on gère le zoom au pinch 2 doigts; laisser le scroll page -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L — Lecture / Éditeur</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -22,8 +22,15 @@
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
     .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
-    canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-    html, body { overscroll-behavior: none; }
+    /* ✅ Laisse le scroll vertical & pinch-zoom natif passer sur mobile */
+    canvas{
+      touch-action: pan-y pinch-zoom;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
+    }
+    /* ✅ Autorise le rubber-band iOS pour scroller la page */
+    html, body { overscroll-behavior: auto; }
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
     .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
@@ -53,8 +60,6 @@
     <span class="chip">Zoom
       <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
     </span>
-
-    <!-- Boutons d'affichage supprimés (Ajuster / Tout voir/Remplir) -->
 
     <label class="btn">📥 Import projet
       <input id="fileImportProject" type="file" accept=".json,application/json" style="display:none">
@@ -96,11 +101,11 @@
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
-      <p class="hint">💾 Sauvegarde locale auto par image. Utilise Export/Import pour partager (zones + inventaire + vue).</p>
+      <p class="hint">💾 Sauvegarde locale automatique par image. Utilise Export/Import pour partager tout (zones + inventaire + vue).</p>
     </aside>
   </div>
 
-  <!-- Modal auto-assignation -->
+  <!-- Modal auto-assignation (quand on dessine une nouvelle zone) -->
   <div id="assignModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal">
       <h4>Associer cette zone à une pièce</h4>
@@ -178,11 +183,13 @@ const COULEURS={
 /* ===================== Canvas, images, fit ===================== */
 const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536"});
 let bgImg=null;
+let FIT_MODE="contain"; // contain|cover
 
-// Auto-fit: mobile=cover, desktop=contain
-const IS_MOBILE = matchMedia("(pointer: coarse)").matches;
-let FIT_MODE = IS_MOBILE ? "cover" : "contain"; // contain|cover
-let hasRestoredView = false; // devient vrai si viewport/zoom restaurés depuis sauvegarde
+/* 👉 Meilleure “prise en main” des zones (souris + doigt) */
+canvas.targetFindTolerance = 14;
+canvas.perPixelTargetFind = false;
+fabric.Object.prototype.cornerSize = 20;
+fabric.Object.prototype.transparentCorners = false;
 
 const IMAGES=[
   "compresseur_bg.png",
@@ -206,23 +213,15 @@ function resizeCanvas(){
   canvas.setHeight(Math.max(520, window.innerHeight*0.70));
   canvas.requestRenderAll();
 }
-window.addEventListener("resize",()=>{
-  resizeCanvas();
-  fitBackgroundImage(bgImg, /*forceFit*/ !hasRestoredView);
-},{passive:true});
+window.addEventListener("resize",()=>{resizeCanvas();fitBackgroundImage(bgImg);},{passive:true});
 
-function fitBackgroundImage(img, forceFit=true){
+function fitBackgroundImage(img){
   if(!img) return;
   const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=img.width, ih=img.height;
   const s=(FIT_MODE==="contain")?Math.min(cw/iw, ch/ih):Math.max(cw/iw, ch/ih);
   img.scale(s);
   img.set({left:(cw-iw*s)/2, top:(ch-ih*s)/2, selectable:false, evented:false, id:"__BG__"});
   canvas.sendToBack(img);
-  if(forceFit){
-    // seulement si on ne restaure pas un viewport/zoom existant
-    canvas.setViewportTransform([s,0,0,s,(cw-iw*s)/2,(ch-ih*s)/2]);
-    document.getElementById("zoom").value=Math.round(s*100);
-  }
   canvas.requestRenderAll();
 }
 
@@ -233,9 +232,8 @@ function loadBackgroundByName(name){
     bgImg=img;
     bgImg.objectCaching=false; // iOS: éviter disparition
     canvas.add(bgImg);
-    fitBackgroundImage(bgImg); // premier fit
-    // puis on charge l'état (peut restaurer viewport/zoom)
-    setTimeout(()=>{ loadSavedForImage(name); canvas.requestRenderAll(); },0);
+    fitBackgroundImage(bgImg);
+    setTimeout(()=>{loadSavedForImage(name);canvas.requestRenderAll();},0);
   },{crossOrigin:"anonymous"});
 }
 
@@ -246,7 +244,15 @@ function fromNormalized(z){
   const item=INVENTAIRE[z.id]||{};
   const circ=item.circuit||guessCircuitFromIdName(z.id,item);
   const col=COULEURS[circ]||COULEURS.DEF;
-  const rect=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,rx:z.rx||6,ry:z.ry||6,fill:col.fill,stroke:col.stroke,strokeWidth:2,selectable:!isReading,hasControls:!isReading,evented:true,lockScalingFlip:true});
+  const rect=new fabric.Rect({
+    left:z.x,top:z.y,width:z.w,height:z.h,
+    rx:z.rx||6,ry:z.ry||6,
+    fill:col.fill,stroke:col.stroke,strokeWidth:2,
+    selectable:!isReading,hasControls:!isReading,evented:true,
+    lockScalingFlip:true,
+    /* 👉 zones plus faciles à attraper */
+    padding:8, cornerSize:20, transparentCorners:false
+  });
   rect.objectCaching=false;
   rect.pieceId=z.id||"";
   canvas.add(rect); canvas.bringToFront(rect);
@@ -256,36 +262,20 @@ function fromNormalized(z){
 function save(){
   const imageName=getCurrentImageName();
   const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-  // on ne sauvegarde plus FIT_MODE (il est auto) ; on garde zoom+viewport
-  const data={fit:null, zoom:canvas.getZoom(), viewport:canvas.viewportTransform, zones};
+  const data={fit:FIT_MODE,zones, zoom:canvas.getZoom(), viewport:canvas.viewportTransform};
   localStorage.setItem(storageKeyForImage(imageName), JSON.stringify(data));
 }
 function loadSavedForImage(imageName){
-  hasRestoredView = false;
-  const raw=localStorage.getItem(storageKeyForImage(imageName)); if(!raw){ fitBackgroundImage(bgImg,true); return; }
+  const raw=localStorage.getItem(storageKeyForImage(imageName)); if(!raw) return;
   try{
-    const d=JSON.parse(raw);
-    // restaurer zones
+    const d=JSON.parse(raw); FIT_MODE=d.fit||"contain";
     (d.zones||[]).forEach(fromNormalized);
-    // restaurer viewport/zoom si présents
-    if(Array.isArray(d.viewport) && d.viewport.length===6){
-      canvas.setViewportTransform(d.viewport);
-      hasRestoredView = true;
-    }else if(typeof d.zoom==="number"){
-      const z=Math.max(0.25, Math.min(3, d.zoom));
-      const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-      canvas.zoomToPoint(center,z);
-      hasRestoredView = true;
-    }
-    // si rien restauré, forcer fit une fois
-    if(!hasRestoredView) fitBackgroundImage(bgImg,true);
-  }catch(e){
-    console.warn("Aucune sauvegarde valide",e);
-    fitBackgroundImage(bgImg,true);
-  }
+    if(Array.isArray(d.viewport) && d.viewport.length===6){ canvas.setViewportTransform(d.viewport); }
+    else if(typeof d.zoom==="number"){ canvas.setZoom(Math.max(0.25, Math.min(3, d.zoom))); }
+  }catch(e){ console.warn("Aucune sauvegarde valide",e); }
 }
 
-/* ===================== Invisibilité & refresh ===================== */
+/* ===================== Helpers invisibilité, clamp & refresh ===================== */
 function toTransparent(fill,a){
   if(!fill) return `rgba(0,0,0,${a})`;
   const m=String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
@@ -328,6 +318,29 @@ function hardRefresh(){
   canvas.requestRenderAll();
   setTimeout(()=>canvas.requestRenderAll(),0);
 }
+/* ✅ Empêche l’image de “disparaître” (clamp doux du viewport) */
+function clampViewportToImage(){
+  if(!bgImg) return;
+  const v = canvas.viewportTransform || [1,0,0,1,0,0];
+  const zoom = canvas.getZoom() || 1;
+  const cw = canvas.getWidth(), ch = canvas.getHeight();
+  const iw = (bgImg.width  * (bgImg.scaleX || 1));
+  const ih = (bgImg.height * (bgImg.scaleY || 1));
+  const w = iw * zoom, h = ih * zoom;
+
+  const minX = Math.min(0, cw - w);
+  const minY = Math.min(0, ch - h);
+  const maxX = 0, maxY = 0;
+
+  let tx = Math.max(minX, Math.min(maxX, v[4]));
+  let ty = Math.max(minY, Math.min(maxY, v[5]));
+
+  if (tx!==v[4] || ty!==v[5]) {
+    v[4]=tx; v[5]=ty;
+    canvas.setViewportTransform(v);
+    canvas.requestRenderAll();
+  }
+}
 
 /* ===================== Modes & interactions ===================== */
 let mode="move"; // move|draw|pan|select
@@ -352,7 +365,7 @@ function setMode(m){
       o.selectable=editing; o.evented=true; o.hasControls=editing; o.hasBorders=editing;
       o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=!editing;
       o.hoverCursor=editing?"move":(m==="select"?"pointer":"default");
-      o.transparentCorners=false; o.cornerStyle="rect"; o.cornerSize=9;
+      o.transparentCorners=false; o.cornerStyle="rect"; o.cornerSize=20;
     }
   });
   canvas.requestRenderAll();
@@ -385,8 +398,10 @@ canvas.on("mouse:wheel",(opt)=>{
   const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
   const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
   canvas.relativePan(new fabric.Point(-dpt.x,-dpt.y));
+  clampViewportToImage();
   document.getElementById("zoom").value=Math.round(next*100);
   opt.e.preventDefault(); opt.e.stopPropagation();
+  save();
 });
 document.getElementById("zoom").addEventListener("input",(e)=>{
   const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
@@ -397,15 +412,17 @@ document.getElementById("zoom").addEventListener("input",(e)=>{
   const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
   const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
   canvas.relativePan(new fabric.Point(-dpt.x,-dpt.y));
+  clampViewportToImage();
   canvas.requestRenderAll();
-  save(); // on persiste le zoom manuel
+  save();
 });
 
-/* Pan & dessin */
+/* Pan & dessin (desktop) */
 canvas.on("mouse:down",(opt)=>{
   if(isReading){
     const t=opt.target;
     if(!t || t===bgImg){
+      // en lecture, on autorise pan au drag background
       canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
     }
   }
@@ -415,14 +432,20 @@ canvas.on("mouse:down",(opt)=>{
   if(mode!=="draw"||isReading) return;
   const p=canvas.getPointer(opt.e);
   startPoint=p;
-  drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
+  drawingRect=new fabric.Rect({
+    left:p.x,top:p.y,width:1,height:1,
+    fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,
+    selectable:false,evented:true, padding:8, cornerSize:20, transparentCorners:false
+  });
   drawingRect.objectCaching=false;
   canvas.add(drawingRect);
 });
 canvas.on("mouse:move",(opt)=>{
   if(canvas.isDragging){
     const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-    canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
+    canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
+    clampViewportToImage();
+    return;
   }
   if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
   const p=canvas.getPointer(opt.e);
@@ -430,7 +453,7 @@ canvas.on("mouse:move",(opt)=>{
   canvas.requestRenderAll();
 });
 canvas.on("mouse:up",(e)=>{
-  if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
+  if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); save(); return; }
 
   if(mode==="select"){
     const t=e.target;
@@ -458,12 +481,7 @@ canvas.on("mouse:up",(e)=>{
   openAssignModal();
 });
 
-/* Autosave solide : */
-canvas.on("object:modified", save);
-canvas.on("object:removed", save);
-canvas.on("object:added", (e)=>{ if(e.target && e.target!==bgImg) save(); });
-
-/* ===================== Panneau & inventaire ===================== */
+/* ===================== Panneau & inventaire (localStorage + JSON) ===================== */
 const INV_LS_KEY="q310_inventory_v1";
 function loadInventoryLocal(){ try{return JSON.parse(localStorage.getItem(INV_LS_KEY)||"{}");}catch(_){return{}} }
 function saveInventoryLocal(map){ localStorage.setItem(INV_LS_KEY, JSON.stringify(map||{})); }
@@ -546,7 +564,7 @@ const assignName=document.getElementById("assignName");
 const assignRole=document.getElementById("assignRole");
 const assignDesc=document.getElementById("assignDesc");
 function openAssignModal(){
-  assignSelect.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).sort().map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom||""}</option>`).join("");
+  assignSelect.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).sort().map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom}</option>`).join("");
   assignName.value=""; assignRole.value=""; assignDesc.value="";
   assignModal.style.display="flex"; assignSelect.focus();
 }
@@ -609,7 +627,7 @@ function zoneToJSON(o){ const r=o.getBoundingRect(true,true); return {id:o.piece
 function jsonToZone(z){ return fromNormalized(z); }
 function buildProjectObject(){
   const zones=canvas.getObjects().filter(o=>o!==bgImg).map(zoneToJSON);
-  return {version:"q310-projet-v1", image:getCurrentImageName(), fit:null, zoom:canvas.getZoom(), viewport:canvas.viewportTransform, zones, inventory:INVENTAIRE};
+  return {version:"q310-projet-v1", image:getCurrentImageName(), fit:FIT_MODE, zoom:canvas.getZoom(), viewport:canvas.viewportTransform, zones, inventory:INVENTAIRE};
 }
 function exportProject(){
   try{
@@ -636,42 +654,109 @@ async function importProjectFile(file){
   canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
   (data.zones||[]).forEach(jsonToZone);
 
-  // viewport/zoom : on restaure
-  hasRestoredView=false;
-  if(Array.isArray(data.viewport) && data.viewport.length===6){
-    canvas.setViewportTransform(data.viewport); hasRestoredView=true;
-  }else if(typeof data.zoom==="number"){
-    const z=Math.max(0.25, Math.min(3, data.zoom));
-    const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-    canvas.zoomToPoint(center,z); hasRestoredView=true;
-  }
-  // fit si rien à restaurer
-  if(!hasRestoredView) fitBackgroundImage(bgImg,true);
-
+  if(Array.isArray(data.viewport) && data.viewport.length===6){ canvas.setViewportTransform(data.viewport); }
+  else if(typeof data.zoom==="number"){ canvas.setZoom(Math.max(0.25, Math.min(3, data.zoom))); }
   canvas.requestRenderAll(); save(); toast("📥 Projet importé");
 }
-document.getElementById("btnExportProject")?.addEventListener("click",exportProject);
-document.getElementById("fileImportProject")?.addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
+const btnExportProject=document.getElementById("btnExportProject"); if(btnExportProject) btnExportProject.addEventListener("click",exportProject);
+const fileImportProject=document.getElementById("fileImportProject"); if(fileImportProject) fileImportProject.addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
 
-/* ===================== UI divers ===================== */
-document.getElementById("btn-move").onclick=()=>setMode("move");
-document.getElementById("btn-draw").onclick=()=>setMode("draw");
-document.getElementById("btn-pan").onclick =()=>setMode("pan");
-document.getElementById("btn-select").onclick=()=>setMode("select");
-document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
-document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
+/* ===================== Gestes iOS: pinch capturé, pan seulement en mode Pan ===================== */
+const upper=canvas.upperCanvasEl;
+/* On ne bloque les gestures que quand c'est nécessaire */
+upper.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+upper.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
+upper.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
 
-/* Sélecteur d’images */
-const imageSelect=document.getElementById("imageSelect");
-imageSelect.innerHTML = IMAGES.map(f=>`<option value="${f}">${f}</option>`).join("");
-imageSelect.addEventListener("change",()=>{
-  // avant de changer d'image, on sauvegarde l'état courant
-  save();
-  // on vide les zones de l’ancienne vue
-  canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
-  hasRestoredView=false;
-  loadBackgroundByName(imageSelect.value);
-});
+let pinchLastDist=0;
+function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
+function clientToCanvasPoint(clientX,clientY){ const rect=upper.getBoundingClientRect(); return new fabric.Point(clientX-rect.left, clientY-rect.top); }
+
+upper.addEventListener("touchstart",(e)=>{
+  if(e.touches.length===2){
+    // Pinch → on capture
+    pinchLastDist=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+    canvas.isDragging=false;
+    e.preventDefault(); // bloque pinch navigateur
+  }else if(e.touches.length===1){
+    const target=canvas.findTarget(e,false);
+    const isZone=!!(target && target!==bgImg);
+    const wantPan = (mode==="pan"); // 👉 pan seulement si bouton Pan actif
+
+    if(wantPan && !isZone){
+      canvas.isDragging=true;
+      canvas.lastX=e.touches[0].clientX;
+      canvas.lastY=e.touches[0].clientY;
+      e.preventDefault(); // capture UNIQUEMENT en mode Pan
+    } else {
+      canvas.isDragging=false; // laisse le scroll page
+    }
+  }
+},{passive:false});
+
+upper.addEventListener("touchmove",(e)=>{
+  if(e.touches.length===2){
+    // Pinch zoom maîtrisé
+    const dist=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+    if(pinchLastDist===0){ pinchLastDist=dist; return; }
+    const factor=dist/pinchLastDist; pinchLastDist=dist;
+
+    let zoom=canvas.getZoom()*factor;
+    zoom=Math.max(0.25, Math.min(3, zoom));
+
+    const mid=midpoint(e.touches[0],e.touches[1]);
+    const p=clientToCanvasPoint(mid.x,mid.y);
+    canvas.zoomToPoint(p,zoom);
+
+    if(bgImg) bgImg.dirty=true;
+    document.getElementById("zoom").value=Math.round(zoom*100);
+    clampViewportToImage();
+    e.preventDefault();
+    save(); // persiste le zoom mobile
+  } else if(e.touches.length===1 && canvas.isDragging && mode==="pan"){
+    // Pan seulement quand on est en mode Pan
+    const dx=e.touches[0].clientX-canvas.lastX;
+    const dy=e.touches[0].clientY-canvas.lastY;
+    canvas.relativePan(new fabric.Point(dx,dy));
+    canvas.lastX=e.touches[0].clientX;
+    canvas.lastY=e.touches[0].clientY;
+    clampViewportToImage();
+    e.preventDefault();
+  }
+},{passive:false});
+
+upper.addEventListener("touchend",(e)=>{
+  if(e.touches && e.touches.length===0){
+    canvas.isDragging=false;
+    clampViewportToImage(); // recentrage doux si besoin
+    save();
+  }
+  if(!e.touches || e.touches.length<2){ pinchLastDist=0; }
+},{passive:false});
+
+/* ===================== INIT ===================== */
+async function init(){
+  resizeCanvas();
+  await tryLoadInventory();
+  refreshInventorySelect();
+  const imageSelect=document.getElementById("imageSelect");
+  imageSelect.innerHTML = IMAGES.map(f=>`<option value="${f}">${f}</option>`).join("");
+  imageSelect.addEventListener("change",()=>{
+    canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
+    loadBackgroundByName(imageSelect.value);
+    save();
+  });
+  imageSelect.value=IMAGES[0];
+  loadBackgroundByName(IMAGES[0]);
+  applyLectureUI(true);
+}
+init();
 
 /* Bouton mode avec mot de passe */
 document.getElementById("toggleMode").addEventListener("click",()=>{
@@ -687,65 +772,6 @@ document.getElementById("toggleMode").addEventListener("click",()=>{
 /* Toast */
 const toastEl=document.getElementById("toast"); let toastTimer=null;
 function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
-
-/* ===================== iOS gestures: neutraliser & pinch zoom = point médian ===================== */
-const upper=canvas.upperCanvasEl;
-upper.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
-upper.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
-upper.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
-
-let pinchLastDist=0;
-function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
-function clientToCanvasPoint(clientX,clientY){ const rect=upper.getBoundingClientRect(); return new fabric.Point(clientX-rect.left, clientY-rect.top); }
-
-upper.addEventListener("touchstart",(e)=>{
-  if(e.touches.length===2){
-    pinchLastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    canvas.isDragging=false; e.preventDefault();
-  }else if(e.touches.length===1){
-    const target=canvas.findTarget(e,false);
-    const isZone=!!(target && target!==bgImg);
-    const canPan=(!isZone && (isReading || mode==="pan"));
-    if(canPan){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
-  }
-},{passive:false});
-
-upper.addEventListener("touchmove",(e)=>{
-  if(e.touches.length===2){
-    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    if(pinchLastDist===0){ pinchLastDist=dist; return; }
-    const factor=dist/pinchLastDist; pinchLastDist=dist;
-    let zoom=canvas.getZoom()*factor; zoom=Math.max(0.25, Math.min(3, zoom));
-    const mid=midpoint(e.touches[0],e.touches[1]); const p=clientToCanvasPoint(mid.x,mid.y);
-    canvas.zoomToPoint(p,zoom);
-    if(bgImg) bgImg.dirty=true;
-    hardRefresh();
-    document.getElementById("zoom").value=Math.round(zoom*100);
-    e.preventDefault();
-    save(); // on persiste le zoom mobile
-  }else if(e.touches.length===1 && canvas.isDragging){
-    const dx=e.touches[0].clientX-canvas.lastX; const dy=e.touches[0].clientY-canvas.lastY;
-    canvas.relativePan(new fabric.Point(dx,dy));
-    canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
-    e.preventDefault();
-  }
-},{passive:false});
-upper.addEventListener("touchend",(e)=>{ if(e.touches && e.touches.length===0){ canvas.isDragging=false; } if(!e.touches||e.touches.length<2){ pinchLastDist=0; } },{passive:false});
-
-/* ===================== INIT ===================== */
-function getPreferredFit(){ return IS_MOBILE ? "cover" : "contain"; }
-async function init(){
-  // sécurité : sauver avant de quitter la page
-  window.addEventListener("beforeunload", save);
-  resizeCanvas();
-  await tryLoadInventory();
-  refreshInventorySelect();
-  imageSelect.value=IMAGES[0];
-  FIT_MODE = getPreferredFit();
-  loadBackgroundByName(IMAGES[0]);
-  applyLectureUI(true);
-}
-init();
   </script>
 </body>
 </html>
