@@ -665,36 +665,33 @@ document.getElementById("toggleMode").addEventListener("click",()=>{
 const toastEl=document.getElementById("toast"); let toastTimer=null;
 function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-/* ===================== iOS gestures ===================== */
+/* ===================== Gestes mobiles (iOS/Android) – Pointer Events unifiés ===================== */
 const upper = canvas.upperCanvasEl;
+upper.style.touchAction = 'none'; // on gère tout nous-mêmes (évite le scroll/zoom navigateur)
 
-// Empêcher les gestes navigateur (zoom double-tap / pinch Safari)
-upper.addEventListener('gesturestart', e=>e.preventDefault(), {passive:false});
-upper.addEventListener('gesturechange',e=>e.preventDefault(), {passive:false});
-upper.addEventListener('gestureend',  e=>e.preventDefault(), {passive:false});
+const activePointers = new Map(); // pointerId -> {x,y}
+let isPointerPanning = false;
+let lastPX = 0, lastPY = 0;
+let pinchBaseDist = 0;
 
-let pinchLastDist=0;
-let touchPanning=false;
-let lastTouchX=0, lastTouchY=0;
-
-function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
-function clientToCanvasPoint(clientX,clientY){
-  const rect=upper.getBoundingClientRect();
-  return new fabric.Point(clientX-rect.left, clientY-rect.top);
+/* Utilitaires */
+function clampZoom(z){ return Math.max(0.25, Math.min(3, z)); }
+function clientToCanvasPoint(clientX, clientY){
+  const rect = upper.getBoundingClientRect();
+  return new fabric.Point(clientX - rect.left, clientY - rect.top);
 }
-
 function ensureBgVisible(){
   if(!bgImg) return;
   const vpt = canvas.viewportTransform; // [a,b,c,d,e,f]
   const z   = canvas.getZoom();
-  const r   = bgImg.getBoundingRect(true,true);
+  const r   = bgImg.getBoundingRect(true, true);
   const leftS   = r.left * z + vpt[4];
   const topS    = r.top  * z + vpt[5];
-  const rightS  = (r.left+r.width)  * z + vpt[4];
-  const bottomS = (r.top +r.height) * z + vpt[5];
+  const rightS  = (r.left + r.width)  * z + vpt[4];
+  const bottomS = (r.top  + r.height) * z + vpt[5];
   const cw = canvas.getWidth(), ch = canvas.getHeight();
 
-  // Si on est vraiment parti loin, on recentre sur l'image
+  // Si trop loin, on recentre sur l'image
   const off = (rightS < -cw*0.6) || (bottomS < -ch*0.6) || (leftS > cw*1.6) || (topS > ch*1.6);
   if(off){
     const c = bgImg.getCenterPoint();
@@ -703,77 +700,90 @@ function ensureBgVisible(){
   }
 }
 
-upper.addEventListener("touchstart",(e)=>{
-  if(e.touches.length===2){
-    // Début pinch
-    pinchLastDist=Math.hypot(
-      e.touches[0].clientX-e.touches[1].clientX,
-      e.touches[0].clientY-e.touches[1].clientY
-    );
-    touchPanning=false;
-    e.preventDefault();
-    return;
-  }
+/* Pointer Events */
+upper.addEventListener('pointerdown', (e) => {
+  if(e.pointerType !== 'touch') return; // On ne gère ici que le tactile
+  upper.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-  if(e.touches.length===1){
-    // Autoriser pan si:
-    //  - mode "pan"
-    //  - OU on est en Lecture et on ne démarre pas sur une zone (pour faire glisser le fond)
-    const target=canvas.findTarget(e,false);
-    const isZone = !!(target && target!==bgImg);
-    const canPan = (mode==="pan") || (isReading && !isZone);
+  if(activePointers.size === 1){
+    // 1 doigt : pan autorisé si Mode Pan OU si Lecture (pour glisser le fond)
+    const canPan = (mode === "pan") || (isReading === true);
     if(canPan){
-      touchPanning=true;
-      lastTouchX=e.touches[0].clientX;
-      lastTouchY=e.touches[0].clientY;
+      isPointerPanning = true;
+      lastPX = e.clientX;
+      lastPY = e.clientY;
+      // e.preventDefault() évite le scroll de page ; on laisse la propagation pour que Fabric voie le “tap” (sélection zone)
       e.preventDefault();
     }
+  } else if(activePointers.size === 2){
+    // 2 doigts : on initialise le pinch
+    const pts = Array.from(activePointers.values());
+    const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+    pinchBaseDist = Math.hypot(dx, dy);
+    isPointerPanning = false;
+    e.preventDefault();
   }
-},{passive:false});
+}, { passive: false });
 
-upper.addEventListener("touchmove",(e)=>{
-  if(e.touches.length===2){
-    // Pinch-zoom au point médian (z limité 0.25 → 3)
-    const dist=Math.hypot(
-      e.touches[0].clientX-e.touches[1].clientX,
-      e.touches[0].clientY-e.touches[1].clientY
-    );
-    if(pinchLastDist===0){ pinchLastDist=dist; return; }
-    const factor=dist/pinchLastDist;
-    pinchLastDist=dist;
+upper.addEventListener('pointermove', (e) => {
+  if(e.pointerType !== 'touch') return;
+  if(!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    let z=canvas.getZoom()*factor;
-    z=Math.max(0.25, Math.min(3, z));
+  // Pinch (2 doigts)
+  if(activePointers.size === 2){
+    const pts = Array.from(activePointers.values());
+    const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+    const dist = Math.hypot(dx, dy);
+    if(pinchBaseDist === 0) { pinchBaseDist = dist; return; }
+    const factor = dist / pinchBaseDist;
+    pinchBaseDist = dist;
 
-    const mid=midpoint(e.touches[0],e.touches[1]);
-    const p  = clientToCanvasPoint(mid.x, mid.y);
+    let z = clampZoom(canvas.getZoom() * factor);
+
+    // Point médian (dans le repère du canvas)
+    const midX = (pts[0].x + pts[1].x) / 2;
+    const midY = (pts[0].y + pts[1].y) / 2;
+    const p = clientToCanvasPoint(midX, midY);
+
     canvas.zoomToPoint(p, z);
-    document.getElementById("zoom").value=Math.round(z*100);
-
+    document.getElementById("zoom").value = Math.round(z * 100);
     canvas.requestRenderAll();
     ensureBgVisible();
     e.preventDefault();
     return;
   }
 
-  if(touchPanning && e.touches.length===1){
-    // ⚠️ IMPORTANT : on **ne** divise plus par le zoom.
-    const curX=e.touches[0].clientX, curY=e.touches[0].clientY;
-    const dx = (curX - lastTouchX);
-    const dy = (curY - lastTouchY);
-    canvas.relativePan(new fabric.Point(dx,dy));
-    lastTouchX=curX; lastTouchY=curY;
-
+  // Pan (1 doigt)
+  if(isPointerPanning && activePointers.size === 1){
+    const cur = activePointers.get(e.pointerId);
+    const dx = cur.x - lastPX;
+    const dy = cur.y - lastPY;
+    // IMPORTANT : on passe dx/dy bruts (pas de division par le zoom)
+    canvas.relativePan(new fabric.Point(dx, dy));
+    lastPX = cur.x; lastPY = cur.y;
     canvas.requestRenderAll();
     ensureBgVisible();
     e.preventDefault();
   }
-},{passive:false});
+}, { passive: false });
 
-upper.addEventListener("touchend",(e)=>{
-  if(e.touches.length===0) touchPanning=false;
-  if(e.touches.length<2)   pinchLastDist=0;
-},{passive:false});
+upper.addEventListener('pointerup', (e) => {
+  if(e.pointerType !== 'touch') return;
+  activePointers.delete(e.pointerId);
+  if(activePointers.size < 2) pinchBaseDist = 0;
+  if(activePointers.size === 0) isPointerPanning = false;
+  // Ne pas preventDefault ici pour laisser Fabric gérer les clics/taps finaux
+}, { passive: false });
+
+upper.addEventListener('pointercancel', (e) => {
+  if(e.pointerType !== 'touch') return;
+  activePointers.delete(e.pointerId);
+  if(activePointers.size < 2) pinchBaseDist = 0;
+  if(activePointers.size === 0) isPointerPanning = false;
+}, { passive: false });
+
 
 /* ===================== INIT ===================== */
 function refreshInventorySelectSafe(){ try{refreshInventorySelect();}catch(_){} }
