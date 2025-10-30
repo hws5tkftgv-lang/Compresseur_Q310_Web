@@ -279,6 +279,12 @@ function save(){
   localStorage.setItem(storageKeyForImage(imageName), JSON.stringify(data));
 }
 
+/* ===== AUTOSAVE (debounce) ===== */
+function debounce(fn, delay=250){
+  let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), delay); };
+}
+const autosave = debounce(()=>{ try{ save(); }catch(_){ } }, 250);
+
 function loadSavedForImage(imageName){
   const raw=localStorage.getItem(storageKeyForImage(imageName)); if(!raw) return;
   try{
@@ -397,6 +403,7 @@ canvas.on("mouse:wheel",(opt)=>{
   const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
   canvas.relativePan(new fabric.Point(-dpt.x,-dpt.y)); // évite .multiplyScalar
   document.getElementById("zoom").value=Math.round(next*100);
+  autosave();
   opt.e.preventDefault(); opt.e.stopPropagation();
 });
 document.getElementById("zoom").addEventListener("input",(e)=>{
@@ -409,6 +416,7 @@ document.getElementById("zoom").addEventListener("input",(e)=>{
   const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
   canvas.relativePan(new fabric.Point(-dpt.x,-dpt.y));
   canvas.requestRenderAll();
+  autosave(); // ✅ sauvegarde après changement slider
 });
 
 /* Pan & dessin */
@@ -440,7 +448,7 @@ canvas.on("mouse:move",(opt)=>{
   canvas.requestRenderAll();
 });
 canvas.on("mouse:up",(e)=>{
-  if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
+  if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); autosave(); return; }
 
   if(mode==="select"){
     const t=e.target;
@@ -448,6 +456,7 @@ canvas.on("mouse:up",(e)=>{
       fillPanelFromZone(t);
       flashHighlightReading(t);
     }
+    autosave(); // si on a déplacé en select/move
     return;
   }
 
@@ -467,6 +476,10 @@ canvas.on("mouse:up",(e)=>{
   drawingRect=null; startPoint=null;
   openAssignModal();
 });
+
+/* Auto-save sur modifs d'objets */
+canvas.on("object:modified", autosave);
+canvas.on("object:removed",  autosave);
 
 /* ===================== Panneau & inventaire (localStorage + JSON) ===================== */
 const INV_LS_KEY="q310_inventory_v1";
@@ -659,14 +672,14 @@ document.getElementById("btn-select").onclick=()=>setMode("select");
 document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
 document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
 
-/* Sélecteur d’images */
+/* Sélecteur d’images — ne pas sauvegarder ici pour éviter d'écraser à vide */
 const imageSelect=document.getElementById("imageSelect");
 imageSelect.innerHTML = IMAGES.map(f=>`<option value="${f}">${f}</option>`).join("");
 imageSelect.addEventListener("change",()=>{
   localStorage.setItem(LAST_IMAGE_KEY, imageSelect.value);
   canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
   loadBackgroundByName(imageSelect.value);
-  save();
+  // ❌ pas de save() ici
 });
 
 /* Bouton mode avec mot de passe */
@@ -717,6 +730,7 @@ upper.addEventListener("touchmove",(e)=>{
     if(bgImg) bgImg.dirty=true;
     hardRefresh();
     document.getElementById("zoom").value=Math.round(zoom*100);
+    autosave();
     e.preventDefault();
   }else if(e.touches.length===1 && canvas.isDragging){
     const dx=e.touches[0].clientX-canvas.lastX; const dy=e.touches[0].clientY-canvas.lastY;
