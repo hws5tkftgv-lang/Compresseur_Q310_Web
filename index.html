@@ -445,27 +445,96 @@ canvas.on("mouse:up",(e)=>{
   openAssignModal();
 });
 
-/* ===================== iOS gestures: pinch au point médian + pan ===================== */
-const upper=canvas.upperCanvasEl;
-upper.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
-upper.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
-upper.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
+/* ===================== iOS gestures: pinch au point médian + pan fiable ===================== */
+const upper = canvas.upperCanvasEl;
+upper.addEventListener('gesturestart', e => e.preventDefault(), {passive:false});
+upper.addEventListener('gesturechange', e => e.preventDefault(), {passive:false});
+upper.addEventListener('gestureend',   e => e.preventDefault(), {passive:false});
 
-let pinchLastDist=0;
+let pinchLastDist = 0;
+let touchPanning  = false;
+let lastTouchX = 0, lastTouchY = 0;
+
 function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
-function clientToCanvasPoint(clientX,clientY){ const rect=upper.getBoundingClientRect(); return new fabric.Point(clientX-rect.left, clientY-rect.top); }
 
 upper.addEventListener("touchstart",(e)=>{
   if(e.touches.length===2){
-    pinchLastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    canvas.isDragging=false; e.preventDefault();
-  }else if(e.touches.length===1){
-    const target=canvas.findTarget(e,false);
-    const isZone=!!(target && target!==bgImg);
-    const canPan=(!isZone && (isReading || mode==="pan"));
-    if(canPan){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
+    pinchLastDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    touchPanning = false;
+    e.preventDefault();
+    return;
+  }
+
+  if(e.touches.length===1){
+    const target = canvas.findTarget(e, false);
+    const isZone = !!(target && target !== bgImg);
+
+    // On peut panner si : on est en Lecture et on touche le fond, ou si le mode = Pan
+    const canPan = (!isReading && mode==="pan") || (isReading && !isZone);
+    if(canPan){
+      touchPanning = true;
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+      e.preventDefault();
+    }
   }
 },{passive:false});
+
+upper.addEventListener("touchmove",(e)=>{
+  if(e.touches.length===2){
+    // PINCH (zoom au point médian)
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    if(pinchLastDist===0){ pinchLastDist = dist; return; }
+    const factor = dist / pinchLastDist;
+    pinchLastDist = dist;
+
+    let zoom = canvas.getZoom() * factor;
+    zoom = Math.max(0.25, Math.min(3, zoom));
+    const mid = midpoint(e.touches[0], e.touches[1]);
+    const rect = upper.getBoundingClientRect();
+    const p = new fabric.Point(mid.x - rect.left, mid.y - rect.top);
+    canvas.zoomToPoint(p, zoom);
+
+    if(bgImg) bgImg.dirty = true;
+    canvas.requestRenderAll();
+    document.getElementById("zoom").value = Math.round(zoom * 100);
+    e.preventDefault();
+    return;
+  }
+
+  if(touchPanning && e.touches.length===1){
+    // PAN (corrigé) : delta en pixels écran → convertir en unités canvas
+    const curX = e.touches[0].clientX;
+    const curY = e.touches[0].clientY;
+    const invZ = 1 / canvas.getZoom();
+
+    const dx = (curX - lastTouchX) * invZ;
+    const dy = (curY - lastTouchY) * invZ;
+
+    canvas.relativePan(new fabric.Point(dx, dy));
+    lastTouchX = curX;
+    lastTouchY = curY;
+
+    canvas.requestRenderAll();
+    e.preventDefault();
+  }
+},{passive:false});
+
+upper.addEventListener("touchend",(e)=>{
+  if(e.touches.length===0){
+    touchPanning = false;
+  }
+  if(e.touches.length<2){
+    pinchLastDist = 0;
+  }
+},{passive:false});
+
 
 upper.addEventListener("touchmove",(e)=>{
   if(e.touches.length===2){
