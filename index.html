@@ -2,14 +2,13 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <!-- iPhone: on gère le zoom avec Fabric, pas le navigateur -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Quincy 310L — Lecture / Éditeur</title>
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    html,body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+    html,body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; overscroll-behavior:none; }
     .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;z-index:5}
     .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px;}
     .mode-pill b{color:#91c9ff}
@@ -23,7 +22,6 @@
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
     .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
     canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-    html, body { overscroll-behavior: none; }
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
     .panel h3{margin:6px 0 10px;font-size:1.05rem}
     .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
@@ -146,7 +144,7 @@
   <div id="toast" class="toast">OK</div>
 
   <script>
-/* ===================== Inventaire (fallback minimal) ===================== */
+/* ===================== Inventaire (fallback) ===================== */
 let INVENTAIRE = {
   "filtre_air":{nom:"Filtre à air",role:"Filtrer l’air entrant",desc:"Retient les impuretés avant admission.",circuit:"LP"},
   "cylindre_lp":{nom:"Cylindre basse pression",role:"Compression initiale",desc:"Première étape de compression.",circuit:"LP"},
@@ -175,42 +173,48 @@ const COULEURS={
 };
 
 /* ===================== Canvas, images, fit ===================== */
-const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536"});
+const canvas=new fabric.Canvas("c",{
+  selection:false,
+  preserveObjectStacking:true,
+  backgroundColor:"#0b1536",
+  enableRetinaScaling:false   // 🔒 iPhone/Safari: évite les crash de viewport
+});
 let bgImg=null;
 let FIT_MODE="contain"; // contain|cover
 
 const IMAGES=[
-  "compresseur_bg.png",
-  "TOP.jpeg",
-  "TETE.jpeg",
-  "TETE_2.jpeg",
-  "LOAD_SIDE.jpeg",
-  "POULIE.jpeg",
-  "SOUPAPE_UNLOADER.jpeg",
-  "FILTRE_AIR_COUVERCLE.jpeg",
-  "VERS_RESERVOIR.jpeg",
-  "VUE_GENERAL.jpeg",
-  "VUE_1.jpeg",
-  "VUE_GENARAL_2.jpeg",
-  "VUE_POMPE.jpeg"
+  "compresseur_bg.png","TOP.jpeg","TETE.jpeg","TETE_2.jpeg","LOAD_SIDE.jpeg","POULIE.jpeg",
+  "SOUPAPE_UNLOADER.jpeg","FILTRE_AIR_COUVERCLE.jpeg","VERS_RESERVOIR.jpeg","VUE_GENERAL.jpeg",
+  "VUE_1.jpeg","VUE_GENARAL_2.jpeg","VUE_POMPE.jpeg"
 ];
+
+let LAST_VALID_VPT = [1,0,0,1,0,0];
+
+function ensureFiniteVPT(orRecenter=true){
+  const vpt = canvas.viewportTransform;
+  if(!vpt || vpt.some(n=>!isFinite(n))){
+    canvas.setViewportTransform(LAST_VALID_VPT.slice());
+    if(orRecenter && bgImg) recenterToImage();
+  } else {
+    LAST_VALID_VPT = vpt.slice();
+  }
+}
+function recenterToImage(){
+  if(!bgImg) return;
+  const cw=canvas.getWidth(), ch=canvas.getHeight();
+  const z=canvas.getZoom()||1;
+  const c=bgImg.getCenterPoint();
+  canvas.absolutePan(new fabric.Point(c.x - (cw/(2*z)), c.y - (ch/(2*z))));
+  canvas.requestRenderAll();
+  ensureFiniteVPT(false);
+}
 
 function resizeCanvas(){
   const stage=document.querySelector(".stage");
   canvas.setWidth(stage.clientWidth);
   canvas.setHeight(Math.max(520, window.innerHeight*0.70));
   canvas.requestRenderAll();
-  // Après resize, recentrer et clamper
-  setTimeout(()=>{
-    if(bgImg){
-      const cw = canvas.getWidth(), ch = canvas.getHeight();
-      const z = canvas.getZoom() || 1;
-      const c = bgImg.getCenterPoint();
-      canvas.absolutePan(new fabric.Point(c.x - (cw/(2*z)), c.y - (ch/(2*z))));
-      clampViewportToBg(0);
-      canvas.requestRenderAll();
-    }
-  }, 0);
+  setTimeout(()=>{ recenterToImage(); clampViewportToBg(0); }, 0);
 }
 window.addEventListener("resize",()=>{resizeCanvas();fitBackgroundImage(bgImg);},{passive:true});
 
@@ -221,14 +225,8 @@ function fitBackgroundImage(img){
   img.scale(s);
   img.set({left:(cw-iw*s)/2, top:(ch-ih*s)/2, selectable:false, evented:false, id:"__BG__"});
   canvas.sendToBack(img);
-  canvas.requestRenderAll();
-
-  // Centre l'image dans le viewport courant
-  const z = canvas.getZoom() || 1;
-  const c = img.getCenterPoint();
-  canvas.absolutePan(new fabric.Point(c.x - (cw/(2*z)), c.y - (ch/(2*z))));
+  recenterToImage();
   clampViewportToBg(0);
-  canvas.requestRenderAll();
 }
 
 function loadBackgroundByName(name){
@@ -236,7 +234,7 @@ function loadBackgroundByName(name){
   fabric.Image.fromURL(url,(img)=>{
     if(bgImg) canvas.remove(bgImg);
     bgImg=img;
-    bgImg.objectCaching=false; // iOS: éviter disparition
+    bgImg.objectCaching=false;
     canvas.add(bgImg);
     fitBackgroundImage(bgImg);
     setTimeout(()=>{loadSavedForImage(name);canvas.requestRenderAll();},0);
@@ -272,7 +270,7 @@ function loadSavedForImage(imageName){
   }catch(e){ console.warn("Aucune sauvegarde valide",e); }
 }
 
-/* ===================== Helpers invisibilité & refresh ===================== */
+/* ===================== Invisibilité & refresh ===================== */
 function toTransparent(fill,a){
   if(!fill) return `rgba(0,0,0,${a})`;
   const m=String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
@@ -347,6 +345,7 @@ function clampViewportToBg(padding = 40) {
     canvas.relativePan(new fabric.Point(dx, dy));
     canvas.requestRenderAll();
   }
+  ensureFiniteVPT(false);
 }
 
 /* ===================== Modes & interactions ===================== */
@@ -378,22 +377,7 @@ function setMode(m){
   canvas.requestRenderAll();
 }
 
-function applyLectureUI(on){
-  isReading=!!on;
-  document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
-  document.getElementById("toggleMode").textContent=on?"Passer en Éditeur":"Passer en Lecture";
-  document.getElementById("editorToolbar").classList.toggle("hidden",on);
-  document.getElementById("editorActions").classList.toggle("hidden",on);
-
-  const invSel=document.getElementById("inventorySelect");
-  invSel.disabled=on;
-
-  setMode(on?"select":"move");
-  setZonesVisibility(on);
-  hardRefresh();
-}
-
-/* Zoom molette (desktop) centré */
+/* ===================== Zoom desktop ===================== */
 canvas.on("mouse:wheel",(opt)=>{
   const delta=-opt.e.deltaY;
   const cur=canvas.getZoom();
@@ -401,6 +385,7 @@ canvas.on("mouse:wheel",(opt)=>{
   const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
   canvas.zoomToPoint(center,next);
   clampViewportToBg();
+  ensureFiniteVPT();
   document.getElementById("zoom").value=Math.round(next*100);
   save();
   opt.e.preventDefault(); opt.e.stopPropagation();
@@ -411,22 +396,17 @@ document.getElementById("zoom").addEventListener("input",(e)=>{
   const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
   canvas.zoomToPoint(center,z);
   clampViewportToBg();
+  ensureFiniteVPT();
   canvas.requestRenderAll();
   save();
 });
 
-/* Pan & dessin */
+/* ===================== Pan & dessin (souris) ===================== */
 canvas.on("mouse:down",(opt)=>{
-  if(isReading){
-    const t=opt.target;
-    if(!t || t===bgImg){
-      canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
-    }
-  }
-  if(mode==="pan"){
+  if(isReading || mode==="pan"){
     canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
   }
-  if(mode!=="draw"||isReading) return;
+  if(mode!=="draw") return;
   const p=canvas.getPointer(opt.e);
   startPoint=p;
   drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
@@ -436,37 +416,30 @@ canvas.on("mouse:down",(opt)=>{
 canvas.on("mouse:move",(opt)=>{
   if(canvas.isDragging){
     const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-    canvas.relativePan(new fabric.Point(dx,dy)); canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
+    canvas.relativePan(new fabric.Point(dx,dy));
+    canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY;
     clampViewportToBg();
+    ensureFiniteVPT();
     return;
   }
-  if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
+  if(mode!=="draw"||!drawingRect||!startPoint) return;
   const p=canvas.getPointer(opt.e);
   drawingRect.set({left:Math.min(p.x,startPoint.x),top:Math.min(p.y,startPoint.y),width:Math.abs(p.x-startPoint.x),height:Math.abs(p.y-startPoint.y)});
   canvas.requestRenderAll();
 });
 canvas.on("mouse:up",(e)=>{
   if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); return; }
-
   if(mode==="select"){
     const t=e.target;
-    if(t && t!==bgImg){
-      fillPanelFromZone(t);
-      flashHighlightReading(t);
-    }
+    if(t && t!==bgImg){ fillPanelFromZone(t); flashHighlightReading(t); }
     return;
   }
-
-  if(mode!=="draw"||!drawingRect||isReading) return;
-
+  if(mode!=="draw"||!drawingRect) return;
   drawingRect.selectable=true;
   pendingNewRect=drawingRect;
-
   if(!isReading){
     canvas.setActiveObject(pendingNewRect);
-    pendingNewRect.selectable=true;
-    pendingNewRect.hasControls=true;
-    pendingNewRect.hasBorders=true;
+    pendingNewRect.selectable=true; pendingNewRect.hasControls=true; pendingNewRect.hasBorders=true;
     pendingNewRect.lockMovementX=pendingNewRect.lockMovementY=pendingNewRect.lockScalingX=pendingNewRect.lockScalingY=pendingNewRect.lockRotation=false;
     canvas.requestRenderAll();
   }
@@ -474,7 +447,7 @@ canvas.on("mouse:up",(e)=>{
   openAssignModal();
 });
 
-/* ===================== Panneau & inventaire (localStorage + JSON) ===================== */
+/* ===================== Panneau & inventaire ===================== */
 const INV_LS_KEY="q310_inventory_v1";
 function loadInventoryLocal(){ try{return JSON.parse(localStorage.getItem(INV_LS_KEY)||"{}");}catch(_){return{}} }
 function saveInventoryLocal(map){ localStorage.setItem(INV_LS_KEY, JSON.stringify(map||{})); }
@@ -483,7 +456,7 @@ function mergeInventory(base,extra){ const out={...base}; for(const [k,v] of Obj
 async function tryLoadInventory(){
   let map=loadInventoryLocal();
   try{
-    const res=await fetch("./quincy_310L_parts.json",{cache:"no-store"}); // place-le à côté de index.html
+    const res=await fetch("./quincy_310L_parts.json",{cache:"no-store"});
     if(res.ok){
       const data=await res.json(); let ext={};
       if(Array.isArray(data)){
@@ -517,8 +490,6 @@ function fillPanelFromZone(zone){
   sel.value=id;
   showPart(id);
 }
-
-/* changement dans le select Pièce (inclut +Nouvelle pièce) */
 document.getElementById("inventorySelect").addEventListener("change",(e)=>{
   const v=e.target.value;
   if(v==="__ADD__"){
@@ -535,7 +506,6 @@ document.getElementById("btn-apply").addEventListener("click",()=>{
   const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
   const id=document.getElementById("inventorySelect").value || "";
   if(!id){ alert("Choisis une pièce."); return; }
-  // maj éventuelle des champs (édition côté panneau)
   if(INVENTAIRE[id]){
     INVENTAIRE[id].nom=document.getElementById("partName").value||INVENTAIRE[id].nom;
     INVENTAIRE[id].role=document.getElementById("partRole").value||INVENTAIRE[id].role;
@@ -550,7 +520,7 @@ document.getElementById("btn-show-all").addEventListener("click",()=>{
   canvas.requestRenderAll();
 });
 
-/* Modal assignation à la création */
+/* ===================== Assignation / Nouvelle pièce ===================== */
 const assignModal=document.getElementById("assignModal");
 const assignSelect=document.getElementById("assignSelect");
 const assignName=document.getElementById("assignName");
@@ -587,7 +557,7 @@ function applyPieceToObject(obj,id){
 }
 function highlight(o){ if(isReading) return; canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; }); canvas.requestRenderAll(); }
 
-/* Modal nouvelle pièce */
+/* Nouvelle pièce */
 const newPartModal=document.getElementById("newPartModal");
 const npId=document.getElementById("npId");
 const npNom=document.getElementById("npNom");
@@ -606,7 +576,7 @@ document.getElementById("npSave").addEventListener("click",()=>{
   document.getElementById("inventorySelect").value=id; showPart(id); closeNewPartModal(); toast("✅ Pièce ajoutée");
 });
 
-/* ===================== Export / Import PROJET COMPLET ===================== */
+/* ===================== Export / Import ===================== */
 function getCurrentImageName(){
   const sel=document.getElementById("imageSelect");
   if(sel && sel.value) return sel.value;
@@ -650,10 +620,11 @@ async function importProjectFile(file){
   if(data.fit){ FIT_MODE=data.fit; refreshFitLabel(); fitBackgroundImage(bgImg); }
   if(Array.isArray(data.viewport) && data.viewport.length===6){ canvas.setViewportTransform(data.viewport); }
   else if(typeof data.zoom==="number"){ canvas.setZoom(Math.max(0.25, Math.min(3, data.zoom))); }
+  ensureFiniteVPT();
   canvas.requestRenderAll(); save(); toast("📥 Projet importé");
 }
-const btnExportProject=document.getElementById("btnExportProject"); if(btnExportProject) btnExportProject.addEventListener("click",exportProject);
-const fileImportProject=document.getElementById("fileImportProject"); if(fileImportProject) fileImportProject.addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
+document.getElementById("btnExportProject").addEventListener("click",exportProject);
+document.getElementById("fileImportProject").addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
 
 /* ===================== UI divers ===================== */
 function refreshFitLabel(){ document.getElementById("toggle-fit").innerHTML=`Affichage : <strong>${FIT_MODE==='contain'?'Tout voir':'Remplir'}</strong>`; }
@@ -666,27 +637,17 @@ document.getElementById("btn-select").onclick=()=>setMode("select");
 document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
 document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
 
-/* Sélecteur d’images */
+/* ===================== Sélecteur d’images ===================== */
 const imageSelect=document.getElementById("imageSelect");
 imageSelect.innerHTML = IMAGES.map(f=>`<option value="${f}">${f}</option>`).join("");
 imageSelect.addEventListener("change",()=>{ 
   canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);}); 
   loadBackgroundByName(imageSelect.value); 
   save(); 
-  setTimeout(()=>{ 
-    if(bgImg){ 
-      const cw = canvas.getWidth(), ch = canvas.getHeight();
-      const z = canvas.getZoom() || 1;
-      const c = bgImg.getCenterPoint();
-      canvas.absolutePan(new fabric.Point(c.x - (cw/(2*z)), c.y - (ch/(2*z))));
-      clampViewportToBg(0);
-      canvas.requestRenderAll();
-      save();
-    }
-  }, 30);
+  setTimeout(()=>{ recenterToImage(); clampViewportToBg(0); save(); }, 30);
 });
 
-/* Bouton mode avec mot de passe */
+/* ===================== Mode avec mot de passe ===================== */
 document.getElementById("toggleMode").addEventListener("click",()=>{
   if(isReading){
     const pw = prompt("Mot de passe requis pour l’Éditeur :");
@@ -696,14 +657,25 @@ document.getElementById("toggleMode").addEventListener("click",()=>{
     applyLectureUI(true);
   }
 });
+function applyLectureUI(on){
+  isReading=!!on;
+  document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
+  document.getElementById("toggleMode").textContent=on?"Passer en Éditeur":"Passer en Lecture";
+  document.getElementById("editorToolbar").classList.toggle("hidden",on);
+  document.getElementById("editorActions").classList.toggle("hidden",on);
+  document.getElementById("inventorySelect").disabled=on;
+  setMode(on?"select":"move");
+  setZonesVisibility(on);
+  hardRefresh();
+}
 
-/* Toast */
+/* ===================== Toast ===================== */
 const toastEl=document.getElementById("toast"); let toastTimer=null;
 function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
 
-/* ===================== iOS gestures ===================== */
+/* ===================== iOS gestures (SAFE) ===================== */
 const upper=canvas.upperCanvasEl;
-upper.style.touchAction = 'none'; // capture totale des gestes
+upper.style.touchAction = 'none';
 upper.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
 upper.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
 upper.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
@@ -712,15 +684,17 @@ let pinchLastDist=0;
 function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
 function clientToCanvasPoint(clientX,clientY){ const rect=upper.getBoundingClientRect(); return new fabric.Point(clientX-rect.left, clientY-rect.top); }
 
+/* 👉 Pan forcé (1 doigt) partout en Lecture ou en mode Pan
+      Empêche la “disparition” quand on effleure une zone */
 upper.addEventListener("touchstart",(e)=>{
   if(e.touches.length===2){
     pinchLastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
     canvas.isDragging=false; e.preventDefault();
   }else if(e.touches.length===1){
-    const target=canvas.findTarget(e,false);
-    const isZone=!!(target && target!==bgImg);
-    const canPan=(!isZone && (isReading || mode==="pan"));
-    if(canPan){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
+    if(isReading || mode==="pan"){
+      canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
+      e.preventDefault();
+    }
   }
 },{passive:false});
 
@@ -732,8 +706,8 @@ upper.addEventListener("touchmove",(e)=>{
     let zoom=canvas.getZoom()*factor; zoom=Math.max(0.25, Math.min(3, zoom));
     const mid=midpoint(e.touches[0],e.touches[1]); const p=clientToCanvasPoint(mid.x,mid.y);
     canvas.zoomToPoint(p,zoom);
-    if(bgImg) bgImg.dirty=true;
     clampViewportToBg();
+    ensureFiniteVPT();
     document.getElementById("zoom").value=Math.round(zoom*100);
     e.preventDefault();
   }else if(e.touches.length===1 && canvas.isDragging){
@@ -741,6 +715,7 @@ upper.addEventListener("touchmove",(e)=>{
     canvas.relativePan(new fabric.Point(dx,dy));
     canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
     clampViewportToBg();
+    ensureFiniteVPT();
     e.preventDefault();
   }
 },{passive:false});
@@ -748,6 +723,7 @@ upper.addEventListener("touchmove",(e)=>{
 upper.addEventListener("touchend",(e)=>{ 
   if(e.touches && e.touches.length===0){ canvas.isDragging=false; } 
   if(!e.touches||e.touches.length<2){ pinchLastDist=0; } 
+  ensureFiniteVPT();
 },{passive:false});
 
 /* ===================== INIT ===================== */
