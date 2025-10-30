@@ -179,6 +179,7 @@ const COULEURS={
 const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536"});
 let bgImg=null;
 let FIT_MODE="contain"; // contain|cover
+const LAST_IMAGE_KEY = "q310_last_image";
 
 const IMAGES=[
   "compresseur_bg.png",
@@ -202,7 +203,11 @@ function resizeCanvas(){
   canvas.setHeight(Math.max(520, window.innerHeight*0.70));
   canvas.requestRenderAll();
 }
-window.addEventListener("resize",()=>{resizeCanvas();fitBackgroundImage(bgImg);},{passive:true});
+window.addEventListener("resize",()=>{
+  resizeCanvas();
+  fitBackgroundImage(bgImg);
+  try{ save(); }catch(_){}
+},{passive:true});
 
 function fitBackgroundImage(img){
   if(!img) return;
@@ -226,32 +231,68 @@ function loadBackgroundByName(name){
   },{crossOrigin:"anonymous"});
 }
 
-/* ===================== Sauvegarde par image ===================== */
+/* ===================== Sauvegarde par image (robuste) ===================== */
 function storageKeyForImage(imgName){ return `q310_state_${imgName}`; }
-function toNormalized(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height,rx:o.rx||6,ry:o.ry||6}; }
+
+function toNormalized(o){
+  const effW = (o.width || 0) * (o.scaleX || 1);
+  const effH = (o.height || 0) * (o.scaleY || 1);
+  return {
+    id: o.pieceId || "",
+    x: o.left || 0,
+    y: o.top || 0,
+    w: effW,
+    h: effH,
+    rx: o.rx || 6,
+    ry: o.ry || 6
+  };
+}
+function zoneToJSON(o){ return toNormalized(o); }
+
 function fromNormalized(z){
   const item=INVENTAIRE[z.id]||{};
   const circ=item.circuit||guessCircuitFromIdName(z.id,item);
   const col=COULEURS[circ]||COULEURS.DEF;
-  const rect=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,rx:z.rx||6,ry:z.ry||6,fill:col.fill,stroke:col.stroke,strokeWidth:2,selectable:!isReading,hasControls:!isReading,evented:true,lockScalingFlip:true});
+  const rect=new fabric.Rect({
+    left:z.x, top:z.y, width:z.w, height:z.h,
+    rx:z.rx||6, ry:z.ry||6,
+    scaleX:1, scaleY:1,
+    fill:col.fill, stroke:col.stroke, strokeWidth:2,
+    selectable:!isReading, hasControls:!isReading, evented:true, lockScalingFlip:true
+  });
   rect.objectCaching=false;
   rect.pieceId=z.id||"";
   canvas.add(rect); canvas.bringToFront(rect);
   if(isReading){ hideZone(rect); rect.hasBorders=false; rect.hasControls=false; }
   return rect;
 }
+
 function save(){
   const imageName=getCurrentImageName();
   const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-  const data={fit:FIT_MODE,zones};
+  const data={
+    fit:FIT_MODE,
+    zoom:canvas.getZoom(),
+    viewport:canvas.viewportTransform, // [a,b,c,d,e,f]
+    zones
+  };
   localStorage.setItem(storageKeyForImage(imageName), JSON.stringify(data));
 }
+
 function loadSavedForImage(imageName){
   const raw=localStorage.getItem(storageKeyForImage(imageName)); if(!raw) return;
   try{
-    const d=JSON.parse(raw); FIT_MODE=d.fit||"contain";
+    const d=JSON.parse(raw);
+    FIT_MODE=d.fit||"contain";
     (d.zones||[]).forEach(fromNormalized);
+    if (Array.isArray(d.viewport) && d.viewport.length===6){
+      canvas.setViewportTransform(d.viewport);
+    } else if (typeof d.zoom==="number"){
+      canvas.setZoom(Math.max(0.25, Math.min(3, d.zoom)));
+    }
+    document.getElementById("zoom").value=Math.round(canvas.getZoom()*100);
     refreshFitLabel();
+    canvas.requestRenderAll();
   }catch(e){ console.warn("Aucune sauvegarde valide",e); }
 }
 
@@ -488,7 +529,6 @@ document.getElementById("btn-apply").addEventListener("click",()=>{
   const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
   const id=document.getElementById("inventorySelect").value || "";
   if(!id){ alert("Choisis une pièce."); return; }
-  // maj éventuelle des champs (édition côté panneau)
   if(INVENTAIRE[id]){
     INVENTAIRE[id].nom=document.getElementById("partName").value||INVENTAIRE[id].nom;
     INVENTAIRE[id].role=document.getElementById("partRole").value||INVENTAIRE[id].role;
@@ -569,8 +609,6 @@ function getCurrentImageName(){
   }
   return "inconnu";
 }
-function zoneToJSON(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height,rx:o.rx||6,ry:o.ry||6}; }
-function jsonToZone(z){ return fromNormalized(z); }
 function buildProjectObject(){
   const zones=canvas.getObjects().filter(o=>o!==bgImg).map(zoneToJSON);
   return {version:"q310-projet-v1", image:getCurrentImageName(), fit:FIT_MODE, zoom:canvas.getZoom(), viewport:canvas.viewportTransform, zones, inventory:INVENTAIRE};
@@ -598,11 +636,12 @@ async function importProjectFile(file){
   INVENTAIRE={...INVENTAIRE, ...(data.inventory||{})}; saveInventoryLocal(INVENTAIRE); refreshInventorySelect();
 
   canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
-  (data.zones||[]).forEach(jsonToZone);
+  (data.zones||[]).forEach(fromNormalized);
 
   if(data.fit){ FIT_MODE=data.fit; refreshFitLabel(); fitBackgroundImage(bgImg); }
   if(Array.isArray(data.viewport) && data.viewport.length===6){ canvas.setViewportTransform(data.viewport); }
   else if(typeof data.zoom==="number"){ canvas.setZoom(Math.max(0.25, Math.min(3, data.zoom))); }
+  document.getElementById("zoom").value=Math.round(canvas.getZoom()*100);
   canvas.requestRenderAll(); save(); toast("📥 Projet importé");
 }
 const btnExportProject=document.getElementById("btnExportProject"); if(btnExportProject) btnExportProject.addEventListener("click",exportProject);
@@ -623,7 +662,12 @@ document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(conf
 /* Sélecteur d’images */
 const imageSelect=document.getElementById("imageSelect");
 imageSelect.innerHTML = IMAGES.map(f=>`<option value="${f}">${f}</option>`).join("");
-imageSelect.addEventListener("change",()=>{ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);}); loadBackgroundByName(imageSelect.value); save(); });
+imageSelect.addEventListener("change",()=>{
+  localStorage.setItem(LAST_IMAGE_KEY, imageSelect.value);
+  canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);});
+  loadBackgroundByName(imageSelect.value);
+  save();
+});
 
 /* Bouton mode avec mot de passe */
 document.getElementById("toggleMode").addEventListener("click",()=>{
@@ -689,14 +733,18 @@ async function init(){
   resizeCanvas();
   await tryLoadInventory();
   refreshInventorySelect();
-  imageSelect.value=IMAGES[0];
-  loadBackgroundByName(IMAGES[0]);
+
+  const last = localStorage.getItem(LAST_IMAGE_KEY);
+  imageSelect.value = (last && IMAGES.includes(last)) ? last : IMAGES[0];
+
+  loadBackgroundByName(imageSelect.value);
   applyLectureUI(true);
   refreshFitLabelPublic();
 }
 init();
+
+/* Sauvegarde de secours à la fermeture */
+window.addEventListener("beforeunload", ()=>{ try{ save(); }catch(_){ } });
   </script>
 </body>
 </html>
-
-
