@@ -283,15 +283,33 @@ function resizeCanvas(refitBg = true){
 }
 window.addEventListener("resize",()=>{resizeCanvas(!isFullscreen);},{passive:true});
 
-function fitBackgroundImage(img){
-  if(!img) return;
-  const cw=canvas.getWidth(), ch=canvas.getHeight(), iw=img.width, ih=img.height;
-  const s=(FIT_MODE==="contain")?Math.min(cw/iw, ch/ih):Math.max(cw/iw, ch/ih);
-  img.scale(s);
-  img.set({left:(cw-iw*s)/2, top:(ch-ih*s)/2, selectable:false, evented:false, id:"__BG__"});
+function fitBackgroundImage(img) {
+  if (!img) return;
+
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+
+  const iw = img.width;
+  const ih = img.height;
+
+  // --- Calcul "contain" mais optimisé pour remplir au maximum ---
+  const scale = Math.min(cw / iw, ch / ih) * 1.05; // ← ajoute 5% pour réduire les marges
+
+  img.scale(scale);
+  
+  // --- Centre parfait ---
+  img.set({
+    left: (cw - iw * scale) / 2,
+    top: (ch - ih * scale) / 2,
+    selectable: false,
+    evented: false,
+    id: "__BG__",
+  });
+
   canvas.sendToBack(img);
   canvas.requestRenderAll();
 }
+
 
 function loadBackgroundByName(name){
   const url=`actif/${name}`;
