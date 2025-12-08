@@ -270,15 +270,18 @@ const IMAGES=[
   "VUE_POMPE.jpeg"
 ];
 
-function resizeCanvas(){
+let isFullscreen = false;
+
+function resizeCanvas(refitBg = true){
   const stage=document.querySelector(".stage");
   if(!stage) return;
   canvas.setWidth(stage.clientWidth);
-  canvas.setHeight(Math.max(520, window.innerHeight*0.70));
+  const targetH = isFullscreen ? window.innerHeight : window.innerHeight*0.70;
+  canvas.setHeight(Math.max(520, targetH));
   canvas.requestRenderAll();
-  fitBackgroundImage(bgImg);
+  if(refitBg) fitBackgroundImage(bgImg);
 }
-window.addEventListener("resize",()=>{resizeCanvas();},{passive:true});
+window.addEventListener("resize",()=>{resizeCanvas(!isFullscreen);},{passive:true});
 
 function fitBackgroundImage(img){
   if(!img) return;
@@ -621,6 +624,7 @@ document.getElementById("btn-apply").addEventListener("click",()=>{
   const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
   const id=document.getElementById("inventorySelect").value || "";
   if(!id){ alert("Choisis une pièce."); return; }
+  // maj éventuelle des champs (édition côté panneau)
   if(INVENTAIRE[id]){
     INVENTAIRE[id].nom=document.getElementById("partName").value||INVENTAIRE[id].nom;
     INVENTAIRE[id].role=document.getElementById("partRole").value||INVENTAIRE[id].role;
@@ -742,6 +746,9 @@ const btnExportProject=document.getElementById("btnExportProject"); if(btnExport
 const fileImportProject=document.getElementById("fileImportProject"); if(fileImportProject) fileImportProject.addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
 
 /* ===================== UI divers ===================== */
+// (Boutons “Affichage/ Ajuster” retirés, donc plus de refreshFitLabel)
+
+/* Boutons d’outils */
 document.getElementById("btn-move").onclick=()=>setMode("move");
 document.getElementById("btn-draw").onclick=()=>setMode("draw");
 document.getElementById("btn-pan").onclick =()=>setMode("pan");
@@ -818,12 +825,14 @@ upper.addEventListener("touchend",(e)=>{
   if(!e.touches||e.touches.length<2){ pinchLastDist=0; }
 },{passive:false});
 
-/* ===================== MODE PLEIN ÉCRAN : LOGIQUE ===================== */
+/* ===================== MODE PLEIN ÉCRAN (YouTube-like) ===================== */
 const btnFsToggle = document.getElementById("btnFsToggle");
-let isFullscreen = false;
 
 function updateFullscreenUI(){
-  if(isFullscreen){
+  const on = !!document.fullscreenElement;
+  isFullscreen = on;
+
+  if(on){
     document.body.classList.add("fs-mode");
     if(btnFsToggle){
       btnFsToggle.querySelector(".icon").textContent = "⤡";
@@ -838,15 +847,29 @@ function updateFullscreenUI(){
       btnFsToggle.title = "Plein écran image + description";
     }
   }
-  resizeCanvas();
+  // on adapte la taille du canvas sans refitter l'image (on garde zoom + pan)
+  resizeCanvas(false);
 }
 
 if(btnFsToggle){
   btnFsToggle.addEventListener("click",()=>{
-    isFullscreen = !isFullscreen;
-    updateFullscreenUI();
+    if(!document.fullscreenElement){
+      const root = document.documentElement;
+      if(root.requestFullscreen){
+        root.requestFullscreen().catch(err=>{
+          console.warn("Fullscreen refusé :", err);
+        });
+      }
+    }else{
+      if(document.exitFullscreen) document.exitFullscreen();
+    }
   });
 }
+
+// synchro quand l’utilisateur sort du plein écran (Esc, geste système, etc.)
+document.addEventListener("fullscreenchange",()=>{
+  updateFullscreenUI();
+});
 
 /* ===================== INIT ===================== */
 async function init(){
