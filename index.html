@@ -21,7 +21,14 @@
     .toolbar.hidden{display:none}
     .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
     @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-    .stage{background:#0b1536;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;min-height:55vh}
+    .stage{
+      background:#0b1536;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      overflow:hidden;
+      min-height:55vh;
+      position:relative; /* pour le bouton plein écran */
+    }
     canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
     html, body { overscroll-behavior: none; }
     .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
@@ -37,6 +44,68 @@
     .modal h4{margin:0 0 10px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
+
+    /* === Bouton plein écran SUR l'image === */
+    .fs-btn{
+      position:absolute;
+      right:10px;
+      bottom:10px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.35);
+      background:rgba(10,15,40,.85);
+      color:#eaf1ff;
+      font-size:.85rem;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      cursor:pointer;
+      z-index:10;
+      backdrop-filter:blur(4px);
+    }
+    .fs-btn span.icon{font-size:1rem;line-height:1}
+
+    /* === MODE PLEIN ÉCRAN (image + description seulement) === */
+    body.fs-mode{
+      overflow:hidden;
+      background:#020618;
+    }
+    body.fs-mode .topbar{display:none;}
+    body.fs-mode .toolbar{display:none;}
+
+    body.fs-mode .wrap{
+      position:fixed;
+      inset:0;
+      padding:0;
+      margin:0;
+      gap:0;
+      grid-template-columns:minmax(0,70%) minmax(0,30%) !important;
+      z-index:9000;
+    }
+    body.fs-mode .stage{
+      border-radius:0;
+      border-right:1px solid rgba(255,255,255,.10);
+      min-height:100vh;
+    }
+    body.fs-mode .panel{
+      border-radius:0;
+      border-left:1px solid rgba(255,255,255,.10);
+      height:100vh;
+      overflow:auto;
+    }
+
+    /* On ne garde que Nom / Rôle / Description en plein écran */
+    body.fs-mode .panel h3,
+    body.fs-mode .panel p.hint,
+    body.fs-mode .row.row-piece,
+    body.fs-mode .row.row-actions{
+      display:none !important;
+    }
+
+    /* On ajuste la zone de description pour bien remplir la hauteur */
+    body.fs-mode .row.row-desc textarea{
+      min-height:40vh;
+    }
   </style>
 </head>
 <body>
@@ -53,10 +122,6 @@
     <span class="chip">Zoom
       <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
     </span>
-    <!-- Mode d’affichage supprimé à ta demande -->
-    <!-- <span id="toggle-fit" class="btn chip">Affichage : <strong>Tout voir</strong></span> -->
-    <!-- Bouton Ajuster supprimé à ta demande -->
-    <!-- <button id="btn-fit" class="btn">🖼️ Ajuster</button> -->
 
     <label class="btn">📥 Import projet
       <input id="fileImportProject" type="file" accept=".json,application/json" style="display:none">
@@ -74,27 +139,34 @@
   </div>
 
   <div class="wrap">
-    <div class="stage"><canvas id="c"></canvas></div>
+    <div class="stage">
+      <canvas id="c"></canvas>
+      <!-- Bouton plein écran sur l’image -->
+      <button id="btnFsToggle" class="fs-btn" title="Plein écran image + description">
+        <span class="icon">⤢</span>
+        <span>Plein écran</span>
+      </button>
+    </div>
     <aside class="panel">
       <h3>📘 Fiche de la zone</h3>
       <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables (flash). Éditeur : dessin / redim / déplacement + édition Rôle/Description.</p>
-      <div class="row">
+      <div class="row row-piece">
         <label for="inventorySelect">Pièce</label>
         <select id="inventorySelect"></select>
       </div>
-      <div class="row">
+      <div class="row row-name">
         <label for="partName">Nom</label>
         <input id="partName">
       </div>
-      <div class="row">
+      <div class="row row-role">
         <label for="partRole">Rôle</label>
         <input id="partRole">
       </div>
-      <div class="row">
+      <div class="row row-desc">
         <label for="partDesc">Description</label>
         <textarea id="partDesc"></textarea>
       </div>
-      <div class="row" id="editorActions" style="display:flex;gap:8px">
+      <div class="row row-actions" id="editorActions" style="display:flex;gap:8px">
         <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
         <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
       </div>
@@ -200,6 +272,7 @@ const IMAGES=[
 
 function resizeCanvas(){
   const stage=document.querySelector(".stage");
+  if(!stage) return;
   canvas.setWidth(stage.clientWidth);
   canvas.setHeight(Math.max(520, window.innerHeight*0.70));
   canvas.requestRenderAll();
@@ -264,7 +337,7 @@ function toTransparent(fill,a){
   if(m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
   const hex=String(fill).replace('#','');
   if(hex.length===3){const r=parseInt(hex[0]+hex[0],16),g=parseInt(hex[1]+hex[1],16),b=parseInt(hex[2]+hex[2],16);return `rgba(${r},${g},${b},${a})`;}
-  if(hex.length===6){const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return `rgba(${r},${g},${b},${a})`;}
+  if(hex.length===6){const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return `rgba(${r},${b},${b},${a})`;}
   return `rgba(0,0,0,${a})`;
 }
 function hideZone(o){
@@ -319,19 +392,16 @@ function ensureFiniteVPT(){
 function clampViewportToBg(){
   if(!bgImg) return;
   const v = canvas.viewportTransform; ensureFiniteVPT();
-  const zoom = canvas.getZoom();
   const cw = canvas.getWidth(), ch = canvas.getHeight();
-
   const iw = bgImg.getScaledWidth(), ih = bgImg.getScaledHeight();
   const leftMin = cw - iw; const topMin = ch - ih;
-  // v[4], v[5] = translation (canvas space)
   v[4] = Math.min(0, Math.max(leftMin, v[4]));
   v[5] = Math.min(0, Math.max(topMin,  v[5]));
   canvas.setViewportTransform(v);
 }
 function schedulePan(dx, dy){
   panDX += dx; panDY += dy;
-  panVX = dx; panVY = dy; // mesure instantanée pour l’inertie
+  panVX = dx; panVY = dy;
   if (panRAF) return;
   panRAF = requestAnimationFrame(()=>{
     canvas.relativePan(new fabric.Point(panDX, panDY));
@@ -551,7 +621,6 @@ document.getElementById("btn-apply").addEventListener("click",()=>{
   const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
   const id=document.getElementById("inventorySelect").value || "";
   if(!id){ alert("Choisis une pièce."); return; }
-  // maj éventuelle des champs (édition côté panneau)
   if(INVENTAIRE[id]){
     INVENTAIRE[id].nom=document.getElementById("partName").value||INVENTAIRE[id].nom;
     INVENTAIRE[id].role=document.getElementById("partRole").value||INVENTAIRE[id].role;
@@ -673,9 +742,6 @@ const btnExportProject=document.getElementById("btnExportProject"); if(btnExport
 const fileImportProject=document.getElementById("fileImportProject"); if(fileImportProject) fileImportProject.addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
 
 /* ===================== UI divers ===================== */
-// (Boutons “Affichage/ Ajuster” retirés, donc plus de refreshFitLabel)
-
-/* Boutons d’outils */
 document.getElementById("btn-move").onclick=()=>setMode("move");
 document.getElementById("btn-draw").onclick=()=>setMode("draw");
 document.getElementById("btn-pan").onclick =()=>setMode("pan");
@@ -751,6 +817,36 @@ upper.addEventListener("touchend",(e)=>{
   if(e.touches && e.touches.length===0){ if(canvas.isDragging){ canvas.isDragging=false; startInertia(); } }
   if(!e.touches||e.touches.length<2){ pinchLastDist=0; }
 },{passive:false});
+
+/* ===================== MODE PLEIN ÉCRAN : LOGIQUE ===================== */
+const btnFsToggle = document.getElementById("btnFsToggle");
+let isFullscreen = false;
+
+function updateFullscreenUI(){
+  if(isFullscreen){
+    document.body.classList.add("fs-mode");
+    if(btnFsToggle){
+      btnFsToggle.querySelector(".icon").textContent = "⤡";
+      btnFsToggle.lastElementChild.textContent = "Quitter";
+      btnFsToggle.title = "Quitter le plein écran";
+    }
+  }else{
+    document.body.classList.remove("fs-mode");
+    if(btnFsToggle){
+      btnFsToggle.querySelector(".icon").textContent = "⤢";
+      btnFsToggle.lastElementChild.textContent = "Plein écran";
+      btnFsToggle.title = "Plein écran image + description";
+    }
+  }
+  resizeCanvas();
+}
+
+if(btnFsToggle){
+  btnFsToggle.addEventListener("click",()=>{
+    isFullscreen = !isFullscreen;
+    updateFullscreenUI();
+  });
+}
 
 /* ===================== INIT ===================== */
 async function init(){
