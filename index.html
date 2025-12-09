@@ -872,12 +872,30 @@ function updateFullscreenUI(){
 if(btnFsToggle){
   btnFsToggle.addEventListener("click",()=>{
     if(!document.fullscreenElement){
-      const root = document.documentElement;
-      if(root.requestFullscreen){
-        root.requestFullscreen().catch(err=>{
-          console.warn("Fullscreen refusé :", err);
+  if (root.requestFullscreen) {
+    const fs = root.requestFullscreen();
+
+    // Certains navigateurs retournent une Promesse, d'autres non
+    if (fs && typeof fs.then === "function") {
+
+        fs.then(() => {
+            setTimeout(() => {
+                resizeCanvas(false);
+                forcePerfectFit(); // ajuste et centre l'image
+            }, 120);
+        }).catch(err => {
+            console.warn("Fullscreen refusé :", err);
         });
-      }
+
+    } else {
+        // Pas de promesse → on applique notre correctif directement
+        setTimeout(() => {
+            resizeCanvas(false);
+            forcePerfectFit();
+        }, 120);
+    }
+}
+
     }else{
       if(document.exitFullscreen) document.exitFullscreen();
     }
@@ -898,6 +916,27 @@ async function init(){
   loadBackgroundByName(IMAGES[0]);
   applyLectureUI(true);
 }
+    function forcePerfectFit() {
+  if (!bgImg) return;
+
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+
+  const iw = bgImg.width;
+  const ih = bgImg.height;
+
+  const scale = Math.min(cw / iw, ch / ih);
+
+  bgImg.scale(scale);
+
+  bgImg.set({
+    left: (cw - iw * scale) / 2,
+    top:  (ch - ih * scale) / 2
+  });
+
+  canvas.requestRenderAll();
+}
+
 init();
   </script>
 </body>
