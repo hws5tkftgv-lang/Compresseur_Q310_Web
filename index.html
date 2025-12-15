@@ -551,7 +551,6 @@ function applyLectureUI(on){
   document.getElementById("editorToolbar").classList.toggle("hidden", on);
   document.getElementById("editorActions").classList.toggle("hidden", on);
 
-  // 🔒 LECTURE = champs verrouillés
   document.getElementById("inventorySelect").disabled = on;
   document.getElementById("partName").readOnly = on;
   document.getElementById("partRole").readOnly = on;
@@ -995,6 +994,26 @@ if(btnFsToggle){
 
 init();
   
+const btnFsToggle = document.getElementById("btnFsToggle");
+
+btnFsToggle.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  console.log("PLEIN ÉCRAN CLICK"); // ← TU DOIS VOIR ÇA
+
+  document.body.classList.toggle("fs-mode");
+
+  setTimeout(() => {
+    resizeCanvas();
+    if (bgImg) {
+      canvas.setViewportTransform([1,0,0,1,0,0]);
+      canvas.setZoom(1);
+      fitBackgroundImage(bgImg);
+    }
+    canvas.requestRenderAll();
+  }, 80);
+});
 
   </script>
 </body>
