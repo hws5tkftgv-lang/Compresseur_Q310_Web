@@ -3,55 +3,117 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Quincy 310L — Vision interactive</title>
+<title>Quincy 310L — Lecture / Éditeur</title>
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
 <style>
-:root{color-scheme:dark}
-html,body{margin:0;background:#0c132e;color:#eaf1ff;font-family:system-ui}
-*{box-sizing:border-box}
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
 
-.topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.1)}
-.btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#1b2553;color:#fff;cursor:pointer}
-.btn:hover{filter:brightness(1.1)}
-.hidden{display:none!important}
+html,body{
+  margin:0;
+  background:#0c132e;
+  color:#eaf1ff;
+  font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
+}
 
-.wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
-.stage{position:relative;background:#0b1536;border-radius:12px;overflow:hidden;min-height:60vh}
-canvas{touch-action:none}
+/* ================= TOP BAR ================= */
+.topbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  background:#0f1a3f;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
 
-.panel{background:#0f1a44;border-radius:12px;padding:12px}
-.panel textarea,.panel input,.panel select{width:100%;background:#0b1638;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:8px}
-.panel textarea[readonly],.panel input[readonly]{opacity:.7}
+.btn{
+  padding:7px 11px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#1b2553;
+  color:#eaf1ff;
+  cursor:pointer;
+}
+.btn.primary{
+  background:#0078ff;
+  border-color:#0053ad;
+}
 
-/* Bouton plein écran */
+/* ================= LAYOUT ================= */
+.wrap{
+  display:grid;
+  grid-template-columns:1fr 360px;
+  gap:12px;
+  padding:12px;
+}
+.stage{
+  position:relative;
+  background:#0b1536;
+  border-radius:12px;
+  overflow:hidden;
+  min-height:60vh;
+}
+.panel{
+  background:#0f1a44;
+  border-radius:12px;
+  padding:12px;
+}
+
+/* ================= CANVAS ================= */
+canvas{
+  touch-action:none;
+  user-select:none;
+}
+
+/* ================= FULLSCREEN ================= */
 .fs-btn{
-  position:absolute;right:12px;bottom:12px;
-  padding:6px 12px;border-radius:999px;
-  background:rgba(10,15,40,.9);
-  border:1px solid rgba(255,255,255,.3);
-  color:#fff;cursor:pointer;z-index:10
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(10,15,40,.85);
+  border:1px solid rgba(255,255,255,.35);
+  color:#fff;
+  cursor:pointer;
+  z-index:10;
 }
 
-/* -------- FULLSCREEN YOUTUBE -------- */
-body.fs-mode{overflow:hidden}
-body.fs-mode .topbar{display:none}
-body.fs-mode .wrap{
-  position:fixed;inset:0;margin:0;padding:0;
-  grid-template-columns:70% 30%;
+/* Plein écran type YouTube */
+body.fs-mode{
+  background:#020618;
+  overflow:hidden;
 }
-body.fs-mode .stage{border-radius:0;min-height:100vh}
-body.fs-mode .panel{border-radius:0;height:100vh;overflow:auto}
+body.fs-mode .topbar{display:none;}
+body.fs-mode .wrap{
+  position:fixed;
+  inset:0;
+  margin:0;
+  padding:0;
+  grid-template-columns:80% 20%;
+}
+body.fs-mode .stage,
+body.fs-mode .panel{
+  border-radius:0;
+  height:100vh;
+}
+
+/* Lecture seule */
+.readonly{
+  background:#0a1433;
+  pointer-events:none;
+  opacity:.85;
+}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-  <b>Mode :</b> <span id="modeLabel">Lecture</span>
+  <b id="modeLabel">Lecture</b>
   <button id="toggleMode" class="btn">Passer en Éditeur</button>
-  <span style="flex:1"></span>
 </div>
 
 <div class="wrap">
@@ -61,97 +123,87 @@ body.fs-mode .panel{border-radius:0;height:100vh;overflow:auto}
   </div>
 
   <aside class="panel">
-    <label>Nom</label>
-    <input id="partName" readonly>
-    <label>Rôle</label>
-    <input id="partRole" readonly>
-    <label>Description</label>
-    <textarea id="partDesc" readonly></textarea>
+    <h3>Description</h3>
+    <textarea id="desc" rows="10"></textarea>
   </aside>
 </div>
 
 <script>
-/* ======================================================
-   VARIABLES
-====================================================== */
-const canvas = new fabric.Canvas("c",{selection:false,backgroundColor:"#0b1536"});
-let bgImg=null;
-let isReading=true;
-let isFullscreen=false;
+/* ================= CANVAS ================= */
+const canvas = new fabric.Canvas("c",{selection:false});
+let bgImg = null;
+let isReading = true;
 
-/* ======================================================
-   IMAGE
-====================================================== */
-function loadBackground(){
-  const IMAGE_NAME = "VUE_GENERAL.jpeg"; // 🔴 mets ici un nom qui existe à 100 %
-
-  fabric.Image.fromURL(
-    `./actif/${IMAGE_NAME}`,
-    (img)=>{
-      bgImg = img;
-      img.selectable = false;
-      img.evented = false;
-      img.objectCaching = false;
-
-      canvas.add(img);
-      canvas.sendToBack(img);
-
-      fitImage();
-    },
-    { crossOrigin: "anonymous" }
-  );
+/* ================= RESIZE ================= */
+function resizeCanvas(){
+  const stage = document.querySelector(".stage");
+  canvas.setWidth(stage.clientWidth);
+  canvas.setHeight(stage.clientHeight);
+  fitBackground();
 }
 
-function fitImage(){
-  if(!bgImg)return;
+/* ================= IMAGE ================= */
+function fitBackground(){
+  if(!bgImg) return;
+
   canvas.setViewportTransform([1,0,0,1,0,0]);
-  const cw=canvas.getWidth(), ch=canvas.getHeight();
-  const s=Math.min(cw/bgImg.width,ch/bgImg.height);
-  bgImg.scale(s);
+  canvas.setZoom(1);
+
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+  const iw = bgImg.width;
+  const ih = bgImg.height;
+
+  const scale = Math.min(cw/iw, ch/ih);
+  bgImg.scale(scale);
   bgImg.set({
-    left:(cw-bgImg.width*s)/2,
-    top:(ch-bgImg.height*s)/2
+    left:(cw - iw*scale)/2,
+    top:(ch - ih*scale)/2,
+    selectable:false,
+    evented:false
   });
+  canvas.sendToBack(bgImg);
   canvas.requestRenderAll();
 }
 
-/* ======================================================
-   RESIZE
-====================================================== */
-function resizeCanvas(){
-  const stage=document.querySelector(".stage");
-  canvas.setWidth(stage.clientWidth);
-  canvas.setHeight(isFullscreen?window.innerHeight:Math.max(520,window.innerHeight*0.7));
-  fitImage();
-}
-window.addEventListener("resize",resizeCanvas);
-
-/* ======================================================
-   MODE LECTURE / ÉDITEUR
-====================================================== */
-function applyMode(reading){
-  isReading=reading;
-  document.getElementById("modeLabel").textContent=reading?"Lecture":"Éditeur";
-  document.getElementById("partName").readOnly=reading;
-  document.getElementById("partRole").readOnly=reading;
-  document.getElementById("partDesc").readOnly=reading;
+function loadBackground(){
+  fabric.Image.fromURL(
+    "./actif/compresseur_bg.png",
+    img=>{
+      bgImg = img;
+      bgImg.objectCaching=false;
+      canvas.add(bgImg);
+      fitBackground();
+    },
+    {crossOrigin:"anonymous"}
+  );
 }
 
-document.getElementById("toggleMode").onclick=()=>{
+/* ================= MODE ================= */
+function applyLecture(on){
+  isReading = on;
+  document.getElementById("modeLabel").textContent = on?"Lecture":"Éditeur";
+  document.getElementById("toggleMode").textContent = on?"Passer en Éditeur":"Passer en Lecture";
+
+  const d = document.getElementById("desc");
+  d.readOnly = on;
+  d.classList.toggle("readonly", on);
+}
+
+document.getElementById("toggleMode").onclick = ()=>{
   if(isReading){
-    if(prompt("Mot de passe éditeur")!=="PROF")return;
-    applyMode(false);
+    const pw = prompt("Mot de passe Éditeur:");
+    if(pw!=="PROF") return;
+    applyLecture(false);
   }else{
-    applyMode(true);
+    applyLecture(true);
   }
 };
 
-/* ======================================================
-   FULLSCREEN RÉEL (YOUTUBE)
-====================================================== */
-const fsBtn=document.getElementById("btnFsToggle");
+/* ================= FULLSCREEN ================= */
+const fsBtn = document.getElementById("btnFsToggle");
 
-fsBtn.onclick=()=>{
+fsBtn.onclick = ()=>{
   if(!document.fullscreenElement){
     document.documentElement.requestFullscreen();
   }else{
@@ -160,17 +212,16 @@ fsBtn.onclick=()=>{
 };
 
 document.addEventListener("fullscreenchange",()=>{
-  isFullscreen=!!document.fullscreenElement;
-  document.body.classList.toggle("fs-mode",isFullscreen);
+  document.body.classList.toggle("fs-mode",!!document.fullscreenElement);
   setTimeout(resizeCanvas,80);
 });
 
-/* ======================================================
-   INIT
-====================================================== */
+/* ================= INIT ================= */
+window.addEventListener("resize",resizeCanvas);
+
 resizeCanvas();
-applyMode(true);
 loadBackground();
+applyLecture(true);
 </script>
 
 </body>
