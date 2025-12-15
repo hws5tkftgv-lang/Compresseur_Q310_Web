@@ -44,6 +44,47 @@
     .modal h4{margin:0 0 10px}
     .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
+/* ===================== PLEIN ÉCRAN CSS (YouTube-like) ===================== */
+body.fs-mode {
+  overflow: hidden;
+  background: #020618;
+}
+
+/* cacher interface */
+body.fs-mode .topbar,
+body.fs-mode .toolbar {
+  display: none !important;
+}
+
+/* layout plein écran */
+body.fs-mode .wrap {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 80% 20%;
+  gap: 0;
+  z-index: 9000;
+}
+
+body.fs-mode .stage {
+  border-radius: 0;
+  min-height: 100vh;
+}
+
+body.fs-mode .panel {
+  border-radius: 0;
+  height: 100vh;
+  overflow: auto;
+}
+
+/* verrouillage visuel des champs */
+.readonly {
+  background: #0a1433;
+  opacity: 0.85;
+  cursor: default;
+}
 
     /* === Bouton plein écran SUR l'image === */
     .fs-btn{
@@ -938,6 +979,13 @@ async function init(){
 }
 
 init();
+    const btnFsToggle = document.getElementById("btnFsToggle");
+
+btnFsToggle.addEventListener("click", () => {
+  document.body.classList.toggle("fs-mode");
+  resizeCanvas(false);
+});
+
   </script>
 </body>
 </html>
