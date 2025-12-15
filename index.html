@@ -83,12 +83,23 @@ let isFullscreen=false;
    IMAGE
 ====================================================== */
 function loadBackground(){
-  fabric.Image.fromURL("actif/VUE_GENERAL.jpeg",(img)=>{
-    bgImg=img;
-    img.selectable=false;
-    canvas.add(img);
-    fitImage();
-  });
+  const IMAGE_NAME = "VUE_GENERAL.jpeg"; // 🔴 mets ici un nom qui existe à 100 %
+
+  fabric.Image.fromURL(
+    `./actif/${IMAGE_NAME}`,
+    (img)=>{
+      bgImg = img;
+      img.selectable = false;
+      img.evented = false;
+      img.objectCaching = false;
+
+      canvas.add(img);
+      canvas.sendToBack(img);
+
+      fitImage();
+    },
+    { crossOrigin: "anonymous" }
+  );
 }
 
 function fitImage(){
