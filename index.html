@@ -912,66 +912,21 @@ upper.addEventListener("touchend",(e)=>{
 /* ===================== MODE PLEIN ÉCRAN (YouTube-like) ===================== */
 const btnFsToggle = document.getElementById("btnFsToggle");
 
-function updateFullscreenUI(){
-  const on = !!document.fullscreenElement;
-  isFullscreen = on;
-
-  if(on){
-    document.body.classList.add("fs-mode");
-    if(btnFsToggle){
-      btnFsToggle.querySelector(".icon").textContent = "⤡";
-      btnFsToggle.lastElementChild.textContent = "Quitter";
-      btnFsToggle.title = "Quitter le plein écran";
-    }
-  }else{
-    document.body.classList.remove("fs-mode");
-    if(btnFsToggle){
-      btnFsToggle.querySelector(".icon").textContent = "⤢";
-      btnFsToggle.lastElementChild.textContent = "Plein écran";
-      btnFsToggle.title = "Plein écran image + description";
-    }
-  }
-  // on adapte la taille du canvas sans refitter l'image (on garde zoom + pan)
-  resizeCanvas(false);
-}
-
 if(btnFsToggle){
-  btnFsToggle.addEventListener("click",()=>{
-    if(!document.fullscreenElement){
-  if (root.requestFullscreen) {
-    const fs = root.requestFullscreen();
+  btnFsToggle.addEventListener("click",(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
 
-    // Certains navigateurs retournent une Promesse, d'autres non
-    if (fs && typeof fs.then === "function") {
+    document.body.classList.toggle("fs-mode");
 
-        fs.then(() => {
-            setTimeout(() => {
-                resizeCanvas(false);
-                forcePerfectFit(); // ajuste et centre l'image
-            }, 120);
-        }).catch(err => {
-            console.warn("Fullscreen refusé :", err);
-        });
-
-    } else {
-        // Pas de promesse → on applique notre correctif directement
-        setTimeout(() => {
-            resizeCanvas(false);
-            forcePerfectFit();
-        }, 120);
-    }
-}
-
-    }else{
-      if(document.exitFullscreen) document.exitFullscreen();
-    }
+    // attendre que le layout CSS soit appliqué
+    setTimeout(()=>{
+      resizeCanvas();
+      forcePerfectFit();   // 🔑 SINON IMAGE INVISIBLE
+    }, 80);
   });
 }
 
-// synchro quand l’utilisateur sort du plein écran (Esc, geste système, etc.)
-document.addEventListener("fullscreenchange",()=>{
-  updateFullscreenUI();
-});
 
 /* ===================== INIT ===================== */
 async function init(){
