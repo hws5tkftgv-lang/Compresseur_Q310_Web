@@ -957,6 +957,27 @@ async function init(){
 
   canvas.requestRenderAll();
 }
+const btnFsToggle = document.getElementById("btnFsToggle");
+
+if(btnFsToggle){
+  btnFsToggle.addEventListener("click",(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+
+    document.body.classList.toggle("fs-mode");
+
+    // recalcul propre du canvas
+    setTimeout(()=>{
+      resizeCanvas();
+      if(bgImg){
+        canvas.setViewportTransform([1,0,0,1,0,0]);
+        canvas.setZoom(1);
+        fitBackgroundImage(bgImg);
+      }
+      canvas.requestRenderAll();
+    }, 60);
+  });
+}
 
 init();
   
