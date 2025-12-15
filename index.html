@@ -106,6 +106,43 @@ body.fs-mode .panel{
   pointer-events:none;
   opacity:.85;
 }
+  .fs-btn{
+  position:absolute;
+  right:12px;
+  bottom:12px;
+  z-index:20;
+  background:rgba(15,20,50,.85);
+  backdrop-filter:blur(6px);
+}
+body.fs-mode{
+  background:#020617;
+  overflow:hidden;
+}
+
+body.fs-mode .topbar,
+body.fs-mode .toolbar{
+  display:none !important;
+}
+
+body.fs-mode .wrap{
+  position:fixed;
+  inset:0;
+  padding:0;
+  margin:0;
+  grid-template-columns:70% 30%;
+}
+
+body.fs-mode .stage{
+  border-radius:0;
+  min-height:100vh;
+}
+
+body.fs-mode .panel{
+  border-radius:0;
+  height:100vh;
+  overflow:auto;
+}
+
 </style>
 </head>
 
@@ -117,10 +154,13 @@ body.fs-mode .panel{
 </div>
 
 <div class="wrap">
-  <div class="stage">
-    <canvas id="c"></canvas>
-    <button id="btnFsToggle" class="fs-btn">⤢ Plein écran</button>
-  </div>
+ <div class="stage">
+  <canvas id="c"></canvas>
+
+  <!-- Bouton plein écran -->
+  <button id="btnFullscreen" class="btn fs-btn">⤢ Plein écran</button>
+</div>
+
 
   <aside class="panel">
     <h3>Description</h3>
@@ -222,6 +262,27 @@ window.addEventListener("resize",resizeCanvas);
 resizeCanvas();
 loadBackground();
 applyLecture(true);
+  /* ===================== FULLSCREEN STYLE YOUTUBE ===================== */
+const btnFs = document.getElementById("btnFullscreen");
+
+btnFs.addEventListener("click",()=>{
+  const root = document.documentElement;
+
+  if(!document.fullscreenElement){
+    root.requestFullscreen().catch(err=>{
+      alert("Plein écran impossible");
+      console.error(err);
+    });
+  }else{
+    document.exitFullscreen();
+  }
+});
+
+document.addEventListener("fullscreenchange",()=>{
+  document.body.classList.toggle("fs-mode", !!document.fullscreenElement);
+  setTimeout(()=>resizeCanvas(),100);
+});
+
 </script>
 
 </body>
