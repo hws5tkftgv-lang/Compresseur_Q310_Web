@@ -1,1020 +1,200 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <!-- iPhone: on gère le zoom avec Fabric, pas le navigateur -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Quincy 310L — Lecture / Éditeur</title>
-  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
-  <style>
-    /* 🔧 FIX CRITIQUE : autoriser le clic sur le bouton plein écran */
-.stage {
-  position: relative;
-}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Quincy 310L — Lecture / Éditeur</title>
 
-.stage canvas {
-  pointer-events: auto;
-}
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
-.fs-btn {
-  pointer-events: auto;
-  z-index: 9999;
-}
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html,body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Arial; }
 
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    html,body { margin:0; background:#0c132e; color:#eaf1ff; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
-    .topbar{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;z-index:5}
-    .mode-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:#1b2553;border:1px solid rgba(255,255,255,.14);border-radius:999px;}
-    .mode-pill b{color:#91c9ff}
-    .btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#1b2553;color:#eaf1ff;cursor:pointer}
-    .btn:hover{filter:brightness(1.08)}
-    .btn.primary{background:#0078ff;border-color:#0053ad;box-shadow:0 0 8px rgba(0,120,255,.45)}
-    .chip{padding:6px 8px;background:#192247;border:1px solid rgba(255,255,255,.12);border-radius:8px}
-    .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;background:#0f1a3f}
-    .toolbar.hidden{display:none}
-    .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
-    @media(max-width:1000px){.wrap{grid-template-columns:1fr}}
-    .stage{
-      background:#0b1536;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:12px;
-      overflow:hidden;
-      min-height:55vh;
-      position:relative; /* pour le bouton plein écran */
-    }
-    canvas{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-    html, body { overscroll-behavior: none; }
-    .panel{padding:12px;background:#0f1a44;border:1px solid rgba(255,255,255,.10);border-radius:12px}
-    .panel h3{margin:6px 0 10px;font-size:1.05rem}
-    .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-    label{font-size:.9rem;opacity:.95}
-    select,input,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#0b1638;color:#eaf1ff}
-    textarea{min-height:118px;resize:vertical}
-    .hint{font-size:.85rem;opacity:.8}
-    .hidden{display:none!important}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
-    .modal{width:min(520px,92vw);background:#111a43;color:#eaf1ff;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .modal h4{margin:0 0 10px}
-    .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#0f8a2a;color:#fff;padding:9px 12px;border-radius:10px;display:none;box-shadow:0 8px 20px rgba(0,0,0,.35);z-index:10000}
-/* ===================== PLEIN ÉCRAN CSS (YouTube-like) ===================== */
-body.fs-mode {
-  overflow: hidden;
-  background: #020618;
+.topbar{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px; background:#0f1a3f;
+  border-bottom:1px solid rgba(255,255,255,.08);
 }
+.btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#1b2553;color:#fff;cursor:pointer}
+.btn.primary{background:#0078ff}
+.toolbar{display:flex;gap:6px;padding:10px 12px;background:#0f1a3f}
+.toolbar.hidden{display:none}
 
-/* cacher interface */
+.wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
+.stage{
+  background:#0b1536;border:1px solid rgba(255,255,255,.1);
+  border-radius:12px; position:relative; overflow:hidden;
+}
+canvas{touch-action:none}
+
+.panel{
+  background:#0f1a44;border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:12px
+}
+.panel h3{margin:0 0 10px}
+
+.row{margin-bottom:10px}
+input,textarea{
+  width:100%; padding:8px; border-radius:6px;
+  border:1px solid rgba(255,255,255,.2);
+  background:#0b1638; color:#fff
+}
+textarea{min-height:140px}
+
+/* ===== PLEIN ÉCRAN TYPE YOUTUBE ===== */
+body.fs-mode{overflow:hidden;background:#020618}
 body.fs-mode .topbar,
-body.fs-mode .toolbar {
-  display: none !important;
+body.fs-mode .toolbar{display:none}
+
+body.fs-mode .wrap{
+  position:fixed; inset:0; padding:0; margin:0;
+  grid-template-columns:75% 25%;
 }
 
-/* layout plein écran */
-body.fs-mode .wrap {
-  position: fixed;
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 80% 20%;
-  gap: 0;
-  z-index: 9000;
+body.fs-mode .stage,
+body.fs-mode .panel{
+  border-radius:0; height:100vh;
 }
 
-body.fs-mode .stage {
-  border-radius: 0;
-  min-height: 100vh;
+/* bouton plein écran */
+.fs-btn{
+  position:absolute; right:12px; bottom:12px;
+  padding:6px 10px; border-radius:999px;
+  background:rgba(10,15,40,.85);
+  border:1px solid rgba(255,255,255,.4);
+  color:#fff; cursor:pointer; z-index:10;
 }
-
-body.fs-mode .panel {
-  border-radius: 0;
-  height: 100vh;
-  overflow: auto;
-}
-
-/* verrouillage visuel des champs */
-.readonly {
-  background: #0a1433;
-  opacity: 0.85;
-  cursor: default;
-}
-
-    /* === Bouton plein écran SUR l'image === */
-    .fs-btn{
-      position:absolute;
-      right:10px;
-      bottom:10px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.35);
-      background:rgba(10,15,40,.85);
-      color:#eaf1ff;
-      font-size:.85rem;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      cursor:pointer;
-      z-index:10;
-      backdrop-filter:blur(4px);
-    }
-    .fs-btn span.icon{font-size:1rem;line-height:1}
-
-    /* === MODE PLEIN ÉCRAN (image + description seulement) === */
-    body.fs-mode{
-      overflow:hidden;
-      background:#020618;
-    }
-    body.fs-mode .topbar{display:none;}
-    body.fs-mode .toolbar{display:none;}
-
-    body.fs-mode .wrap{
-      position:fixed;
-      inset:0;
-      padding:0;
-      margin:0;
-      gap:0;
-      grid-template-columns:minmax(0,70%) minmax(0,30%) !important;
-      z-index:9000;
-    }
-    body.fs-mode .stage{
-      border-radius:0;
-      border-right:1px solid rgba(255,255,255,.10);
-      min-height:100vh;
-    }
-    body.fs-mode .panel{
-      border-radius:0;
-      border-left:1px solid rgba(255,255,255,.10);
-      height:100vh;
-      overflow:auto;
-    }
-
-    /* On ne garde que Nom / Rôle / Description en plein écran */
-    body.fs-mode .panel h3,
-    body.fs-mode .panel p.hint,
-    body.fs-mode .row.row-piece,
-    body.fs-mode .row.row-actions{
-      display:none !important;
-    }
-
-    /* On ajuste la zone de description pour bien remplir la hauteur */
-    body.fs-mode .row.row-desc textarea{
-      min-height:40vh;
-    }
-  </style>
+</style>
 </head>
+
 <body>
-  <div class="topbar">
-    <span class="mode-pill">Mode : <b id="modeLabel">Lecture</b></span>
-    <button id="toggleMode" class="btn">Passer en Éditeur</button>
 
-    <span class="chip">Image :
-      <select id="imageSelect" style="margin-left:6px"></select>
-    </span>
+<div class="topbar">
+  <span>Mode : <b id="modeLabel">Lecture</b></span>
+  <button id="toggleMode" class="btn">Passer en Éditeur</button>
+</div>
 
-    <span style="flex:1;"></span>
+<div id="editorToolbar" class="toolbar hidden">
+  <button id="btn-draw" class="btn primary">Dessiner</button>
+  <button id="btn-delete" class="btn">Supprimer</button>
+</div>
 
-    <span class="chip">Zoom
-      <input type="range" id="zoom" min="25" max="300" step="1" value="100" style="vertical-align:middle;margin-left:6px">
-    </span>
-
-    <label class="btn">📥 Import projet
-      <input id="fileImportProject" type="file" accept=".json,application/json" style="display:none">
-    </label>
-    <button id="btnExportProject" class="btn">💾 Export projet</button>
+<div class="wrap">
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <button id="btnFsToggle" class="fs-btn">⤢ Plein écran</button>
   </div>
 
-  <div id="editorToolbar" class="toolbar hidden">
-    <button id="btn-move" class="btn primary">🧿 Déplacer / Redim.</button>
-    <button id="btn-draw" class="btn">✏️ Dessiner</button>
-    <button id="btn-pan"  class="btn">✋ Pan</button>
-    <button id="btn-select" class="btn">🖱️ Sélection</button>
-    <button id="btn-delete" class="btn">❌ Supprimer</button>
-    <button id="btn-clear"  class="btn">🗑️ Effacer tout</button>
-  </div>
-
-  <div class="wrap">
-    <div class="stage">
-      <canvas id="c"></canvas>
-      <!-- Bouton plein écran sur l’image -->
-      <button id="btnFsToggle" class="fs-btn" title="Plein écran image + description">
-        <span class="icon">⤢</span>
-        <span>Plein écran</span>
-      </button>
+  <aside class="panel">
+    <h3>📘 Fiche</h3>
+    <div class="row">
+      <label>Nom</label>
+      <input id="partName">
     </div>
-    <aside class="panel">
-      <h3>📘 Fiche de la zone</h3>
-      <p class="hint">Lecture : zones <b>invisibles</b> mais cliquables (flash). Éditeur : dessin / redim / déplacement + édition Rôle/Description.</p>
-      <div class="row row-piece">
-        <label for="inventorySelect">Pièce</label>
-        <select id="inventorySelect"></select>
-      </div>
-      <div class="row row-name">
-        <label for="partName">Nom</label>
-        <input id="partName">
-      </div>
-      <div class="row row-role">
-        <label for="partRole">Rôle</label>
-        <input id="partRole">
-      </div>
-      <div class="row row-desc">
-        <label for="partDesc">Description</label>
-        <textarea id="partDesc"></textarea>
-      </div>
-      <div class="row row-actions" id="editorActions" style="display:flex;gap:8px">
-        <button id="btn-apply" class="btn" style="flex:1">✅ Appliquer à la zone</button>
-        <button id="btn-show-all" class="btn" style="flex:1">👁️ Afficher tout</button>
-      </div>
-      <p class="hint">💾 Sauvegarde locale automatique par image. Utilise Export/Import pour partager tout (zones + inventaire + vue).</p>
-    </aside>
-  </div>
-
-  <!-- Modal auto-assignation -->
-  <div id="assignModal" class="modal-backdrop" role="dialog" aria-modal="true">
-    <div class="modal">
-      <h4>Associer cette zone à une pièce</h4>
-      <div class="row">
-        <label for="assignSelect">Pièce</label>
-        <select id="assignSelect"></select>
-      </div>
-      <div class="row"><label>Nom</label><input id="assignName" readonly></div>
-      <div class="row"><label>Rôle</label><input id="assignRole" readonly></div>
-      <div class="row"><label>Description</label><textarea id="assignDesc" readonly></textarea></div>
-      <div class="actions">
-        <button id="assignCancel" class="btn">Annuler</button>
-        <button id="assignOk" class="btn">Associer</button>
-      </div>
+    <div class="row">
+      <label>Description</label>
+      <textarea id="partDesc"></textarea>
     </div>
-  </div>
+  </aside>
+</div>
 
-  <!-- Modal AJOUT nouvelle pièce -->
-  <div id="newPartModal" class="modal-backdrop" role="dialog" aria-modal="true" style="display:none">
-    <div class="modal">
-      <h4>➕ Nouvelle pièce</h4>
-      <div class="row"><label for="npId">ID (unique, sans espace)</label><input id="npId" placeholder="ex.: filtre_air" /></div>
-      <div class="row"><label for="npNom">Nom</label><input id="npNom" placeholder="ex.: Filtre à air" /></div>
-      <div class="row"><label for="npRole">Rôle</label><input id="npRole" placeholder="ex.: Filtrer l’air entrant" /></div>
-      <div class="row"><label for="npDesc">Description</label><textarea id="npDesc" placeholder="ex.: Retient les impuretés..." ></textarea></div>
-      <div class="row">
-        <label for="npCircuit">Circuit</label>
-        <select id="npCircuit">
-          <option value="">(auto)</option>
-          <option value="LP">LP (basse pression / admission)</option>
-          <option value="HP">HP (haute pression / refoulement)</option>
-          <option value="LUB">LUB (lubrification)</option>
-          <option value="CTRL">CTRL (commande / sécurité)</option>
-          <option value="TR">TR (transmission)</option>
-        </select>
-      </div>
-      <div class="actions">
-        <button id="npCancel" class="btn">Annuler</button>
-        <button id="npSave" class="btn">Enregistrer</button>
-      </div>
-    </div>
-  </div>
+<script>
+/* ================= CONFIG ================= */
+const IMAGE_URL = "actif/compresseur_bg.png";
+let isReading = true;
 
-  <div id="toast" class="toast">OK</div>
-
-  <script>
-/* ===================== Inventaire (fallback minimal) ===================== */
-let INVENTAIRE = {
-  "filtre_air":{nom:"Filtre à air",role:"Filtrer l’air entrant",desc:"Retient les impuretés avant admission.",circuit:"LP"},
-  "cylindre_lp":{nom:"Cylindre basse pression",role:"Compression initiale",desc:"Première étape de compression.",circuit:"LP"},
-  "cylindre_hp":{nom:"Cylindre haute pression",role:"Compression finale",desc:"Monte l’air à la pression de service.",circuit:"HP"},
-  "intercooler":{nom:"Intercooler",role:"Refroidir l’air",desc:"Diminue la T° entre étages.",circuit:"HP"},
-  "carter":{nom:"Carter",role:"Réservoir d’huile",desc:"Contient l’huile du vilebrequin.",circuit:"LUB"},
-  "pressostat":{nom:"Pressostat",role:"Commande moteur",desc:"Arrêt/démarrage (cut-in/cut-out).",circuit:"CTRL"},
-  "volant":{nom:"Volant",role:"Inertie / ventilation",desc:"Stabilise la rotation et ventile.",circuit:"TR"}
-};
-function guessCircuitFromIdName(id,item){
-  const s=(id+" "+(item?.nom||"")+" "+(item?.role||"")).toLowerCase();
-  if(/(lp|admission|aspiration|filtre|entrée)/.test(s)) return "LP";
-  if(/(hp|haute|refoulement|intercooler|aftercooler|réservoir)/.test(s)) return "HP";
-  if(/(huile|lubrifi|graiss|carter|pompe)/.test(s)) return "LUB";
-  if(/(pressostat|décharge|unloader|sécurit|valve|commande|manomètre|purge)/.test(s)) return "CTRL";
-  if(/(courroie|poulie|volant|moteur|tendeur)/.test(s)) return "TR";
-  return "DEF";
-}
-const COULEURS={
-  LP:{fill:"rgba(0,160,255,0.18)",stroke:"#00a0ff"},
-  HP:{fill:"rgba(255,60,60,0.18)",stroke:"#ff3c3c"},
-  LUB:{fill:"rgba(255,150,0,0.18)",stroke:"#ff9500"},
-  CTRL:{fill:"rgba(160,100,255,0.18)",stroke:"#a060ff"},
-  TR:{fill:"rgba(60,220,100,0.18)",stroke:"#3cdc64"},
-  DEF:{fill:"rgba(200,200,200,0.12)",stroke:"#aaa"}
-};
-
-/* ===================== Canvas, images, fit ===================== */
-const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true,backgroundColor:"#0b1536"});
+/* ================= CANVAS ================= */
+const canvas = new fabric.Canvas("c",{selection:false});
 let bgImg=null;
-let FIT_MODE="contain"; // on garde “contain” par défaut en interne
 
-const IMAGES=[
-  "compresseur_bg.png",
-  "TOP.jpeg",
-  "TETE.jpeg",
-  "TETE_2.jpeg",
-  "LOAD_SIDE.jpeg",
-  "POULIE.jpeg",
-  "SOUPAPE_UNLOADER.jpeg",
-  "FILTRE_AIR_COUVERCLE.jpeg",
-  "VERS_RESERVOIR.jpeg",
-  "VUE_GENERAL.jpeg",
-  "VUE_1.jpeg",
-  "VUE_GENARAL_2.jpeg",
-  "VUE_POMPE.jpeg"
-];
-
-let isFullscreen = false;
-
-function resizeCanvas(refitBg = true){
+function resizeCanvas(){
   const stage=document.querySelector(".stage");
-  if(!stage) return;
   canvas.setWidth(stage.clientWidth);
-  const targetH = isFullscreen ? window.innerHeight : window.innerHeight*0.70;
-  canvas.setHeight(Math.max(520, targetH));
-  canvas.requestRenderAll();
-  if(refitBg) fitBackgroundImage(bgImg);
+  canvas.setHeight(stage.clientHeight);
+  if(bgImg) fitImage();
 }
-window.addEventListener("resize",()=>{resizeCanvas(!isFullscreen);},{passive:true});
+window.addEventListener("resize",resizeCanvas);
 
-function fitBackgroundImage(img) {
-  if (!img) return;
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-
-  const iw = img.width;
-  const ih = img.height;
-
-  // --- Calcul "contain" mais optimisé pour remplir au maximum ---
-  const scale = Math.min(cw / iw, ch / ih) * 1.05; // ← ajoute 5% pour réduire les marges
-
-  img.scale(scale);
-  
-  // --- Centre parfait ---
-  img.set({
-    left: (cw - iw * scale) / 2,
-    top: (ch - ih * scale) / 2,
-    selectable: false,
-    evented: false,
-    id: "__BG__",
-  });
-
-  canvas.sendToBack(img);
-  canvas.requestRenderAll();
-}
-function forcePerfectFit(){
-  if(!bgImg) return;
-
-  // reset total zoom + pan (obligatoire après fullscreen)
-  canvas.setViewportTransform([1,0,0,1,0,0]);
-  canvas.setZoom(1);
-
-  fitBackgroundImage(bgImg);
-
-  canvas.requestRenderAll();
-}
-
-
-function loadBackgroundByName(name){
-  const url=`actif/${name}`;
-  fabric.Image.fromURL(url,(img)=>{
-    if(bgImg) canvas.remove(bgImg);
-    bgImg=img;
-    bgImg.objectCaching=false; // iOS: éviter disparition
-    canvas.add(bgImg);
-    fitBackgroundImage(bgImg);
-    setTimeout(()=>{loadSavedForImage(name);canvas.requestRenderAll();},0);
-  },{crossOrigin:"anonymous"});
-}
-
-/* ===================== Sauvegarde par image ===================== */
-function storageKeyForImage(imgName){ return `q310_state_${imgName}`; }
-function toNormalized(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height,rx:o.rx||6,ry:o.ry||6}; }
-function fromNormalized(z){
-  const item=INVENTAIRE[z.id]||{};
-  const circ=item.circuit||guessCircuitFromIdName(z.id,item);
-  const col=COULEURS[circ]||COULEURS.DEF;
-  const rect=new fabric.Rect({left:z.x,top:z.y,width:z.w,height:z.h,rx:z.rx||6,ry:z.ry||6,fill:col.fill,stroke:col.stroke,strokeWidth:2,selectable:!isReading,hasControls:!isReading,evented:true,lockScalingFlip:true});
-  rect.objectCaching=false;
-  rect.pieceId=z.id||"";
-  canvas.add(rect); canvas.bringToFront(rect);
-  if(isReading){ hideZone(rect); rect.hasBorders=false; rect.hasControls=false; }
-  return rect;
-}
-function save(){
-  const imageName=getCurrentImageName();
-  const zones=canvas.getObjects().filter(o=>o!==bgImg).map(toNormalized);
-  const data={fit:FIT_MODE,zones};
-  localStorage.setItem(storageKeyForImage(imageName), JSON.stringify(data));
-}
-function loadSavedForImage(imageName){
-  const raw=localStorage.getItem(storageKeyForImage(imageName)); if(!raw) return;
-  try{
-    const d=JSON.parse(raw); FIT_MODE=d.fit||"contain";
-    (d.zones||[]).forEach(fromNormalized);
-  }catch(e){ console.warn("Aucune sauvegarde valide",e); }
-}
-
-/* ===================== Helpers invisibilité & refresh ===================== */
-function toTransparent(fill,a){
-  if(!fill) return `rgba(0,0,0,${a})`;
-  const m=String(fill).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/i);
-  if(m) return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
-  const hex=String(fill).replace('#','');
-  if(hex.length===3){const r=parseInt(hex[0]+hex[0],16),g=parseInt(hex[1]+hex[1],16),b=parseInt(hex[2]+hex[2],16);return `rgba(${r},${g},${b},${a})`;}
-  if(hex.length===6){const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);return `rgba(${r},${b},${b},${a})`;}
-  return `rgba(0,0,0,${a})`;
-}
-function hideZone(o){
-  if(o===bgImg) return;
-  if(!o.__style) o.__style={fill:o.fill,stroke:o.stroke,opacity:o.opacity,sw:o.strokeWidth};
-  o.opacity=1;
-  o.fill=toTransparent(o.__style.fill||o.fill,0.01);
-  o.stroke=toTransparent(o.__style.stroke||o.stroke,0.01);
-  o.strokeWidth=0.01;
-  o.hasBorders=false; o.hasControls=false; o.evented=true; o.hoverCursor="pointer";
-}
-function showZone(o){
-  if(o===bgImg) return;
-  const s=o.__style;
-  if(s){ o.fill=s.fill; o.stroke=s.stroke; o.opacity=(typeof s.opacity==="number")?s.opacity:1; o.strokeWidth=(typeof s.sw==="number")?s.sw:2; }
-  o.hasBorders=true; o.hasControls=true; o.evented=true; o.hoverCursor="move";
-}
-function setZonesVisibility(invisible){
-  canvas.getObjects().forEach(o=>{ if(o===bgImg) return; invisible?hideZone(o):showZone(o); });
-  canvas.requestRenderAll();
-}
-function flashHighlightReading(o){
-  if(!isReading||!o||o===bgImg) return;
-  const prev={fill:o.fill,stroke:o.stroke,sw:o.strokeWidth};
-  o.fill=toTransparent(prev.fill,0.20); o.stroke=toTransparent(prev.stroke,0.90); o.strokeWidth=2;
-  canvas.requestRenderAll();
-  setTimeout(()=>{ hideZone(o); canvas.requestRenderAll(); }, 500);
-}
-function hardRefresh(){
-  canvas.getObjects().forEach(o=>{ o.dirty=true; if(o.cacheCanvas) o.clearCache(); });
-  if(bgImg){ bgImg.dirty=true; bgImg.objectCaching=false; }
-  canvas.discardActiveObject();
-  canvas.requestRenderAll();
-  setTimeout(()=>canvas.requestRenderAll(),0);
-}
-
-/* ===================== Modes & interactions ===================== */
-let mode="move"; // move|draw|pan|select
-let isReading=true; // démarre en Lecture
-let drawingRect=null, startPoint=null, pendingNewRect=null;
-
-/* ------- LISSAGE PAN + INERTIE ------- */
-let panDX = 0, panDY = 0, panRAF = null;
-let panVX = 0, panVY = 0;          // vitesse (px/frame)
-let inertiaRAF = null;
-const INERTIA_DECAY = 0.90;        // friction par frame (~60 fps)
-const INERTIA_MIN_SPEED = 0.08;    // seuil d’arrêt
-function ensureFiniteVPT(){
-  const v=canvas.viewportTransform;
-  if(!v || v.some(n=>!isFinite(n))) canvas.setViewportTransform([1,0,0,1,0,0]);
-}
-function clampViewportToBg(){
-  if(!bgImg) return;
-  const v = canvas.viewportTransform; ensureFiniteVPT();
-  const cw = canvas.getWidth(), ch = canvas.getHeight();
-  const iw = bgImg.getScaledWidth(), ih = bgImg.getScaledHeight();
-  const leftMin = cw - iw; const topMin = ch - ih;
-  v[4] = Math.min(0, Math.max(leftMin, v[4]));
-  v[5] = Math.min(0, Math.max(topMin,  v[5]));
-  canvas.setViewportTransform(v);
-}
-function schedulePan(dx, dy){
-  panDX += dx; panDY += dy;
-  panVX = dx; panVY = dy;
-  if (panRAF) return;
-  panRAF = requestAnimationFrame(()=>{
-    canvas.relativePan(new fabric.Point(panDX, panDY));
-    panDX = 0; panDY = 0; panRAF = null;
-    clampViewportToBg(); ensureFiniteVPT();
-    canvas.requestRenderAll();
-  });
-}
-function startInertia(){
-  stopInertia();
-  function step(){
-    panVX *= INERTIA_DECAY;
-    panVY *= INERTIA_DECAY;
-    const speed2 = panVX*panVX + panVY*panVY;
-    if(speed2 < INERTIA_MIN_SPEED){
-      stopInertia(); return;
-    }
-    canvas.relativePan(new fabric.Point(panVX, panVY));
-    clampViewportToBg(); ensureFiniteVPT();
-    canvas.requestRenderAll();
-    inertiaRAF = requestAnimationFrame(step);
-  }
-  inertiaRAF = requestAnimationFrame(step);
-}
-function stopInertia(){
-  if(inertiaRAF){ cancelAnimationFrame(inertiaRAF); inertiaRAF=null; }
-}
-
-/* ------------- SET MODE -------------- */
-function setMode(m){
-  mode=m;
-  document.querySelectorAll("#editorToolbar .btn").forEach(b=>b.classList.remove("primary"));
-  const map={move:"btn-move",draw:"btn-draw",pan:"btn-pan",select:"btn-select"};
-  if(map[m]) document.getElementById(map[m]).classList.add("primary");
-  canvas.selection=(!isReading && m==="move");
-
-  canvas.getObjects().forEach(o=>{
-    if(o===bgImg) return;
-    if(isReading){
-      o.selectable=true; o.evented=true; o.hasControls=false; o.hasBorders=false;
-      o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=true;
-      o.hoverCursor="pointer";
-    }else{
-      const editing=(m==="move");
-      o.selectable=editing; o.evented=true; o.hasControls=editing; o.hasBorders=editing;
-      o.lockMovementX=o.lockMovementY=o.lockScalingX=o.lockScalingY=o.lockRotation=!editing;
-      o.hoverCursor=editing?"move":(m==="select"?"pointer":"default");
-      o.transparentCorners=false; o.cornerStyle="rect"; o.cornerSize=9;
-    }
-  });
-  canvas.requestRenderAll();
-}
-
-function applyLectureUI(on){
-  isReading = !!on;
-
-  document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
-  document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
-
-  document.getElementById("editorToolbar").classList.toggle("hidden", on);
-  document.getElementById("editorActions").classList.toggle("hidden", on);
-
-  document.getElementById("inventorySelect").disabled = on;
-  document.getElementById("partName").readOnly = on;
-  document.getElementById("partRole").readOnly = on;
-  document.getElementById("partDesc").readOnly = on;
-
-  setMode(on ? "select" : "move");
-  setZonesVisibility(on);
-  hardRefresh();
-}
-
-
-  const invSel=document.getElementById("inventorySelect");
-  invSel.disabled=on;
-
-  setMode(on?"select":"move");
-  setZonesVisibility(on);
-  hardRefresh();
-}
-
-/* Zoom molette (desktop) centré au centre du canvas */
-canvas.on("mouse:wheel",(opt)=>{
-  stopInertia();
-  const delta=-opt.e.deltaY;
-  const cur=canvas.getZoom();
-  const next=Math.max(0.25, Math.min(3, cur*(1+delta/1000)));
-  const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-  const viewport=canvas.viewportTransform;
-  const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
-  canvas.zoomToPoint(center,next);
-  const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
-  const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
-  canvas.relativePan(new fabric.Point(-dpt.x,-dpt.y));
-  clampViewportToBg(); ensureFiniteVPT();
-  document.getElementById("zoom").value=Math.round(next*100);
-  opt.e.preventDefault(); opt.e.stopPropagation();
-});
-document.getElementById("zoom").addEventListener("input",(e)=>{
-  stopInertia();
-  const z=Math.max(.25, Math.min(3, Number(e.target.value)/100));
-  const center=new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-  const viewport=canvas.viewportTransform;
-  const prevCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(viewport));
-  canvas.zoomToPoint(center,z);
-  const newCenter=fabric.util.transformPoint(center, fabric.util.invertTransform(canvas.viewportTransform));
-  const dpt=new fabric.Point(newCenter.x-prevCenter.x, newCenter.y-prevCenter.y);
-  canvas.relativePan(new fabric.Point(-dpt.x,-dpt.y));
-  clampViewportToBg(); ensureFiniteVPT();
-  canvas.requestRenderAll();
-});
-
-/* Pan & dessin */
-canvas.on("mouse:down",(opt)=>{
-  stopInertia();
-  if(isReading){
-    const t=opt.target;
-    if(!t || t===bgImg){
-      canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
-    }
-  }
-  if(mode==="pan"){
-    canvas.isDragging=true; canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; canvas.setCursor("grabbing"); return;
-  }
-  if(mode!=="draw"||isReading) return;
-  const p=canvas.getPointer(opt.e);
-  startPoint=p;
-  drawingRect=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(255,255,255,0.10)",stroke:"#0ff",strokeWidth:2,rx:6,ry:6,selectable:false,evented:true});
-  drawingRect.objectCaching=false;
-  canvas.add(drawingRect);
-});
-canvas.on("mouse:move",(opt)=>{
-  if(canvas.isDragging){
-    const dx=opt.e.clientX-canvas.lastX, dy=opt.e.clientY-canvas.lastY;
-    schedulePan(dx,dy);
-    canvas.lastX=opt.e.clientX; canvas.lastY=opt.e.clientY; return;
-  }
-  if(mode!=="draw"||!drawingRect||!startPoint||isReading) return;
-  const p=canvas.getPointer(opt.e);
-  drawingRect.set({left:Math.min(p.x,startPoint.x),top:Math.min(p.y,startPoint.y),width:Math.abs(p.x-startPoint.x),height:Math.abs(p.y-startPoint.y)});
-  canvas.requestRenderAll();
-});
-canvas.on("mouse:up",(e)=>{
-  if(canvas.isDragging){ canvas.isDragging=false; canvas.setCursor("default"); startInertia(); return; }
-
-  if(mode==="select"){
-    const t=e.target;
-    if(t && t!==bgImg){
-      fillPanelFromZone(t);
-      flashHighlightReading(t);
-    }
-    return;
-  }
-
-  if(mode!=="draw"||!drawingRect||isReading) return;
-
-  drawingRect.selectable=true;
-  pendingNewRect=drawingRect;
-
-  if(!isReading){
-    canvas.setActiveObject(pendingNewRect);
-    pendingNewRect.selectable=true;
-    pendingNewRect.hasControls=true;
-    pendingNewRect.hasBorders=true;
-    pendingNewRect.lockMovementX=pendingNewRect.lockMovementY=pendingNewRect.lockScalingX=pendingNewRect.lockScalingY=pendingNewRect.lockRotation=false;
-    canvas.requestRenderAll();
-  }
-  drawingRect=null; startPoint=null;
-  openAssignModal();
-});
-
-/* ===================== Panneau & inventaire (localStorage + JSON) ===================== */
-const INV_LS_KEY="q310_inventory_v1";
-function loadInventoryLocal(){ try{return JSON.parse(localStorage.getItem(INV_LS_KEY)||"{}");}catch(_){return{}} }
-function saveInventoryLocal(map){ localStorage.setItem(INV_LS_KEY, JSON.stringify(map||{})); }
-function mergeInventory(base,extra){ const out={...base}; for(const [k,v] of Object.entries(extra||{})) out[k]=v; return out; }
-
-async function tryLoadInventory(){
-  let map=loadInventoryLocal();
-  try{
-    const res=await fetch("./quincy_310L_parts.json",{cache:"no-store"});
-    if(res.ok){
-      const data=await res.json(); let ext={};
-      if(Array.isArray(data)){
-        for(const it of data){ if(!it||!it.id) continue; ext[it.id]={nom:it.nom||it.name||"",role:it.role||"",desc:it.desc||it.description||"",circuit:it.circuit||null}; }
-      }else if(typeof data==="object"){
-        for(const [id,it] of Object.entries(data)){ ext[id]={nom:it.nom||it.name||"",role:it.role||"",desc:it.desc||it.description||"",circuit:it.circuit||null}; }
-      }
-      map=mergeInventory(ext,map); // priorité au local
-    }
-  }catch(e){ console.warn("Inventaire externe introuvable:",e); }
-  INVENTAIRE=mergeInventory(INVENTAIRE,map);
-  saveInventoryLocal(INVENTAIRE);
-}
-
-function refreshInventorySelect(){
-  const sel=document.getElementById("inventorySelect");
-  const ids=Object.keys(INVENTAIRE).sort((a,b)=>a.localeCompare(b));
-  sel.innerHTML='<option value="">— Choisir —</option>'
-    +'<option value="__ADD__">➕ Ajouter une pièce…</option>'
-    +ids.map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom||""}</option>`).join("");
-}
-function showPart(id){
-  const p=INVENTAIRE[id];
-  document.getElementById("partName").value=p?p.nom:"";
-  document.getElementById("partRole").value=p?p.role:"";
-  document.getElementById("partDesc").value=p?p.desc:"";
-}
-function fillPanelFromZone(zone){
-  const id=zone.pieceId||"";
-  const sel=document.getElementById("inventorySelect");
-  sel.value=id;
-  showPart(id);
-}
-
-/* changement dans le select Pièce (inclut +Nouvelle pièce) */
-document.getElementById("inventorySelect").addEventListener("change",(e)=>{
-  const v=e.target.value;
-  if(v==="__ADD__"){
-    const cur=canvas.getActiveObject();
-    const hint=cur && cur.pieceId ? (cur.pieceId+"_2") : "";
-    openNewPartModal(hint);
-    e.target.value="";
-    return;
-  }
-  showPart(v);
-});
-document.getElementById("btn-apply").addEventListener("click",()=>{
-  if(isReading) return;
-  const o=canvas.getActiveObject(); if(!o||o===bgImg){ alert("Sélectionne une zone."); return; }
-  const id=document.getElementById("inventorySelect").value || "";
-  if(!id){ alert("Choisis une pièce."); return; }
-  // maj éventuelle des champs (édition côté panneau)
-  if(INVENTAIRE[id]){
-    INVENTAIRE[id].nom=document.getElementById("partName").value||INVENTAIRE[id].nom;
-    INVENTAIRE[id].role=document.getElementById("partRole").value||INVENTAIRE[id].role;
-    INVENTAIRE[id].desc=document.getElementById("partDesc").value||INVENTAIRE[id].desc;
-    saveInventoryLocal(INVENTAIRE);
-  }
-  applyPieceToObject(o,id); toast("✅ Pièce associée à la zone");
-});
-document.getElementById("btn-show-all").addEventListener("click",()=>{
-  if(isReading) return;
-  canvas.getObjects().forEach(o=>{ if(o!==bgImg)o.opacity=1; });
-  canvas.requestRenderAll();
-});
-
-/* Modal assignation à la création */
-const assignModal=document.getElementById("assignModal");
-const assignSelect=document.getElementById("assignSelect");
-const assignName=document.getElementById("assignName");
-const assignRole=document.getElementById("assignRole");
-const assignDesc=document.getElementById("assignDesc");
-function openAssignModal(){
-  assignSelect.innerHTML='<option value="">— Choisir —</option>'+Object.keys(INVENTAIRE).sort().map(id=>`<option value="${id}">${id} — ${INVENTAIRE[id].nom||""}</option>`).join("");
-  assignName.value=""; assignRole.value=""; assignDesc.value="";
-  assignModal.style.display="flex"; assignSelect.focus();
-}
-function closeAssignModal(){ assignModal.style.display="none"; }
-assignSelect.addEventListener("change",()=>{ const p=INVENTAIRE[assignSelect.value]; assignName.value=p?p.nom:""; assignRole.value=p?p.role:""; assignDesc.value=p?p.desc:""; });
-document.getElementById("assignCancel").addEventListener("click",()=>{ closeAssignModal(); if(pendingNewRect){ save(); pendingNewRect=null; } });
-document.getElementById("assignOk").addEventListener("click",()=>{
-  const id=assignSelect.value; if(!id){ alert("Choisis une pièce."); return; }
-  if(!pendingNewRect){ closeAssignModal(); return; }
-  applyPieceToObject(pendingNewRect,id);
-  closeAssignModal(); pendingNewRect=null; toast("✅ Pièce associée à la zone");
-});
-function applyPieceToObject(obj,id){
-  obj.pieceId=id;
-  const item=INVENTAIRE[id]||{};
-  const circ=item.circuit||guessCircuitFromIdName(id,item);
-  const col=COULEURS[circ]||COULEURS.DEF;
-  obj.set({fill:col.fill,stroke:col.stroke});
-  document.getElementById("inventorySelect").value=id; showPart(id);
-  canvas.setActiveObject(obj);
-  if(!isReading && mode==="move"){
-    obj.selectable=true; obj.hasControls=true; obj.hasBorders=true;
-    obj.lockMovementX=obj.lockMovementY=obj.lockScalingX=obj.lockScalingY=obj.lockRotation=false;
-  }
-  if(isReading){ hideZone(obj); obj.hasControls=false; obj.hasBorders=false; } else { highlight(obj); }
-  canvas.requestRenderAll(); save();
-}
-function highlight(o){ if(isReading) return; canvas.getObjects().forEach(x=>{ if(x!==bgImg) x.opacity=(x===o)?1:0.2; }); canvas.requestRenderAll(); }
-
-/* Modal nouvelle pièce */
-const newPartModal=document.getElementById("newPartModal");
-const npId=document.getElementById("npId");
-const npNom=document.getElementById("npNom");
-const npRole=document.getElementById("npRole");
-const npDesc=document.getElementById("npDesc");
-const npCircuit=document.getElementById("npCircuit");
-function openNewPartModal(prefill=""){ npId.value=prefill||""; npNom.value=""; npRole.value=""; npDesc.value=""; npCircuit.value=""; newPartModal.style.display="flex"; npId.focus(); }
-function closeNewPartModal(){ newPartModal.style.display="none"; }
-document.getElementById("npCancel").addEventListener("click",closeNewPartModal);
-document.getElementById("npSave").addEventListener("click",()=>{
-  const id=(npId.value||"").trim();
-  if(!id || /\s/.test(id)){ alert("ID requis (sans espace)."); return; }
-  if(INVENTAIRE[id]){ alert("Cet ID existe déjà."); return; }
-  const obj={nom:(npNom.value||"").trim(),role:(npRole.value||"").trim(),desc:(npDesc.value||"").trim(),circuit:(npCircuit.value||"")||null};
-  INVENTAIRE[id]=obj; saveInventoryLocal(INVENTAIRE); refreshInventorySelect();
-  document.getElementById("inventorySelect").value=id; showPart(id); closeNewPartModal(); toast("✅ Pièce ajoutée");
-});
-
-/* ===================== Export / Import PROJET COMPLET ===================== */
-function getCurrentImageName(){
-  const sel=document.getElementById("imageSelect");
-  if(sel && sel.value) return sel.value;
-  if(bgImg && bgImg._originalElement && bgImg._originalElement.src){
-    const url=new URL(bgImg._originalElement.src);
-    return decodeURIComponent(url.pathname.split('/').pop());
-  }
-  return "inconnu";
-}
-function zoneToJSON(o){ const r=o.getBoundingRect(true,true); return {id:o.pieceId||"",x:r.left,y:r.top,w:r.width,h:r.height,rx:o.rx||6,ry:o.ry||6}; }
-function jsonToZone(z){ return fromNormalized(z); }
-function buildProjectObject(){
-  const zones=canvas.getObjects().filter(o=>o!==bgImg).map(zoneToJSON);
-  return {version:"q310-projet-v1", image:getCurrentImageName(), fit:FIT_MODE, zoom:canvas.getZoom(), viewport:canvas.viewportTransform, zones, inventory:INVENTAIRE};
-}
-function exportProject(){
-  try{
-    const data=buildProjectObject();
-    const img=(data.image||"image").replace(/\.[a-z0-9]+$/i,"");
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`q310_projet_${img}.json`; a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast("💾 Projet exporté");
-  }catch(e){ console.error(e); alert("Échec de l’export."); }
-}
-async function importProjectFile(file){
-  if(!file) return; const text=await file.text(); let data;
-  try{ data=JSON.parse(text); }catch(e){ alert("JSON invalide."); return; }
-  if(!data || data.version!=="q310-projet-v1"){ alert("Format de projet non reconnu."); return; }
-
-  const wanted=data.image;
-  if(wanted){
-    const sel=document.getElementById("imageSelect");
-    if(sel){ sel.value=wanted; sel.dispatchEvent(new Event("change",{bubbles:true})); }
-    else { loadBackgroundByName(wanted); }
-  }
-  INVENTAIRE={...INVENTAIRE, ...(data.inventory||{})}; saveInventoryLocal(INVENTAIRE); refreshInventorySelect();
-
-  canvas.getObjects().slice().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
-  (data.zones||[]).forEach(jsonToZone);
-
-  if(data.fit){ FIT_MODE=data.fit; fitBackgroundImage(bgImg); }
-  if(Array.isArray(data.viewport) && data.viewport.length===6){ canvas.setViewportTransform(data.viewport); }
-  else if(typeof data.zoom==="number"){ canvas.setZoom(Math.max(0.25, Math.min(3, data.zoom))); }
-  clampViewportToBg(); ensureFiniteVPT();
-  canvas.requestRenderAll(); save(); toast("📥 Projet importé");
-}
-const btnExportProject=document.getElementById("btnExportProject"); if(btnExportProject) btnExportProject.addEventListener("click",exportProject);
-const fileImportProject=document.getElementById("fileImportProject"); if(fileImportProject) fileImportProject.addEventListener("change",(e)=>{ importProjectFile(e.target.files[0]); e.target.value=""; });
-
-/* ===================== UI divers ===================== */
-// (Boutons “Affichage/ Ajuster” retirés, donc plus de refreshFitLabel)
-
-/* Boutons d’outils */
-document.getElementById("btn-move").onclick=()=>setMode("move");
-document.getElementById("btn-draw").onclick=()=>setMode("draw");
-document.getElementById("btn-pan").onclick =()=>setMode("pan");
-document.getElementById("btn-select").onclick=()=>setMode("select");
-document.getElementById("btn-delete").onclick=()=>{ if(isReading) return; const o=canvas.getActiveObject(); if(o&&o!==bgImg){ canvas.remove(o); save(); } };
-document.getElementById("btn-clear").onclick=()=>{ if(isReading) return; if(confirm("Effacer toutes les zones ?")){ canvas.getObjects().slice().forEach(o=>{if(o!==bgImg)canvas.remove(o)}); save(); canvas.requestRenderAll(); } };
-
-/* Sélecteur d’images */
-const imageSelect=document.getElementById("imageSelect");
-imageSelect.innerHTML = IMAGES.map(f=>`<option value="${f}">${f}</option>`).join("");
-imageSelect.addEventListener("change",()=>{ stopInertia(); canvas.getObjects().slice().forEach(o=>{if(o!==bgImg) canvas.remove(o);}); loadBackgroundByName(imageSelect.value); save(); });
-
-/* Bouton mode avec mot de passe */
-document.getElementById("toggleMode").addEventListener("click",()=>{
-  stopInertia();
-  if(isReading){
-    const pw = prompt("Mot de passe requis pour l’Éditeur :");
-    if(pw!=="PROF"){ alert("Mot de passe incorrect."); return; }
-    applyLectureUI(false);
-  }else{
-    applyLectureUI(true);
-  }
-});
-
-/* Toast */
-const toastEl=document.getElementById("toast"); let toastTimer=null;
-function toast(msg){ toastEl.textContent=msg||"OK"; toastEl.style.display="block"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.style.display="none",1400); }
-
-/* ===================== iOS gestures: neutraliser & pinch zoom = point médian ===================== */
-const upper=canvas.upperCanvasEl;
-upper.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
-upper.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
-upper.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
-
-let pinchLastDist=0;
-function midpoint(t1,t2){ return {x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2}; }
-function clientToCanvasPoint(clientX,clientY){ const rect=upper.getBoundingClientRect(); return new fabric.Point(clientX-rect.left, clientY-rect.top); }
-
-upper.addEventListener("touchstart",(e)=>{
-  stopInertia();
-  if(e.touches.length===2){
-    pinchLastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    canvas.isDragging=false; e.preventDefault();
-  }else if(e.touches.length===1){
-    const target=canvas.findTarget(e,false);
-    const isZone=!!(target && target!==bgImg);
-    const canPan=(!isZone && (isReading || mode==="pan"));
-    if(canPan){ canvas.isDragging=true; canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY; e.preventDefault(); }
-  }
-},{passive:false});
-
-upper.addEventListener("touchmove",(e)=>{
-  if(e.touches.length===2){
-    stopInertia();
-    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    if(pinchLastDist===0){ pinchLastDist=dist; return; }
-    const factor=dist/pinchLastDist; pinchLastDist=dist;
-    let zoom=canvas.getZoom()*factor; zoom=Math.max(0.25, Math.min(3, zoom));
-    const mid=midpoint(e.touches[0],e.touches[1]); const p=clientToCanvasPoint(mid.x,mid.y);
-    canvas.zoomToPoint(p,zoom);
-    if(bgImg) bgImg.dirty=true;
-    clampViewportToBg(); ensureFiniteVPT();
-    document.getElementById("zoom").value=Math.round(zoom*100);
-    e.preventDefault();
-  }else if(e.touches.length===1 && canvas.isDragging){
-    const dx=e.touches[0].clientX-canvas.lastX; const dy=e.touches[0].clientY-canvas.lastY;
-    schedulePan(dx, dy);
-    canvas.lastX=e.touches[0].clientX; canvas.lastY=e.touches[0].clientY;
-    e.preventDefault();
-  }
-},{passive:false});
-upper.addEventListener("touchend",(e)=>{
-  if(e.touches && e.touches.length===0){ if(canvas.isDragging){ canvas.isDragging=false; startInertia(); } }
-  if(!e.touches||e.touches.length<2){ pinchLastDist=0; }
-},{passive:false});
-
-/* ===================== MODE PLEIN ÉCRAN (YouTube-like) ===================== */
-const btnFsToggle = document.getElementById("btnFsToggle");
-
-if(btnFsToggle){
-  btnFsToggle.addEventListener("click",(e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-
-    document.body.classList.toggle("fs-mode");
-
-    // attendre que le layout CSS soit appliqué
-    setTimeout(()=>{
-      resizeCanvas();
-      forcePerfectFit();   // 🔑 SINON IMAGE INVISIBLE
-    }, 80);
-  });
-}
-
-
-/* ===================== INIT ===================== */
-async function init(){
-  resizeCanvas();
-  await tryLoadInventory();
-  refreshInventorySelect();
-  imageSelect.value=IMAGES[0];
-  loadBackgroundByName(IMAGES[0]);
-  applyLectureUI(true);
-}
-    function forcePerfectFit() {
-  if (!bgImg) return;
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-
-  const iw = bgImg.width;
-  const ih = bgImg.height;
-
-  const scale = Math.min(cw / iw, ch / ih);
-
-  bgImg.scale(scale);
-
+function fitImage(){
+  const cw=canvas.getWidth(), ch=canvas.getHeight();
+  const s=Math.min(cw/bgImg.width, ch/bgImg.height);
+  bgImg.scale(s);
   bgImg.set({
-    left: (cw - iw * scale) / 2,
-    top:  (ch - ih * scale) / 2
+    left:(cw-bgImg.width*s)/2,
+    top:(ch-bgImg.height*s)/2,
+    selectable:false, evented:false
   });
-
+  canvas.sendToBack(bgImg);
   canvas.requestRenderAll();
 }
-const btnFsToggle = document.getElementById("btnFsToggle");
 
-if(btnFsToggle){
-  btnFsToggle.addEventListener("click",(e)=>{
-    e.preventDefault();
-    e.stopPropagation();
+fabric.Image.fromURL(IMAGE_URL,img=>{
+  bgImg=img;
+  bgImg.objectCaching=false;
+  canvas.add(bgImg);
+  resizeCanvas();
+},{crossOrigin:"anonymous"});
 
-    document.body.classList.toggle("fs-mode");
+/* ================= MODES ================= */
+function applyLecture(on){
+  isReading=on;
+  document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
+  document.getElementById("editorToolbar").classList.toggle("hidden",on);
 
-    // recalcul propre du canvas
-    setTimeout(()=>{
-      resizeCanvas();
-      if(bgImg){
-        canvas.setViewportTransform([1,0,0,1,0,0]);
-        canvas.setZoom(1);
-        fitBackgroundImage(bgImg);
-      }
-      canvas.requestRenderAll();
-    }, 60);
-  });
+  document.getElementById("partName").readOnly=on;
+  document.getElementById("partDesc").readOnly=on;
 }
 
-init();
-  
-const btnFsToggle = document.getElementById("btnFsToggle");
+document.getElementById("toggleMode").onclick=()=>{
+  if(isReading){
+    const pw=prompt("Mot de passe :");
+    if(pw!=="PROF") return;
+    applyLecture(false);
+  }else{
+    applyLecture(true);
+  }
+};
 
-btnFsToggle.addEventListener("click", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
+/* ================= DESSIN ================= */
+let drawing=false,start=null,rect=null;
 
-  console.log("PLEIN ÉCRAN CLICK"); // ← TU DOIS VOIR ÇA
+document.getElementById("btn-draw").onclick=()=>{};
 
-  document.body.classList.toggle("fs-mode");
-
-  setTimeout(() => {
-    resizeCanvas();
-    if (bgImg) {
-      canvas.setViewportTransform([1,0,0,1,0,0]);
-      canvas.setZoom(1);
-      fitBackgroundImage(bgImg);
-    }
-    canvas.requestRenderAll();
-  }, 80);
+canvas.on("mouse:down",opt=>{
+  if(isReading) return;
+  start=canvas.getPointer(opt.e);
+  rect=new fabric.Rect({
+    left:start.x, top:start.y, width:1, height:1,
+    fill:"rgba(0,150,255,.2)", stroke:"#00a0ff", strokeWidth:2
+  });
+  canvas.add(rect);
+  drawing=true;
 });
+canvas.on("mouse:move",opt=>{
+  if(!drawing) return;
+  const p=canvas.getPointer(opt.e);
+  rect.set({
+    left:Math.min(p.x,start.x),
+    top:Math.min(p.y,start.y),
+    width:Math.abs(p.x-start.x),
+    height:Math.abs(p.y-start.y)
+  });
+  canvas.requestRenderAll();
+});
+canvas.on("mouse:up",()=>{drawing=false});
 
-  </script>
+/* ================= PLEIN ÉCRAN ================= */
+document.getElementById("btnFsToggle").onclick=e=>{
+  e.preventDefault();
+  document.body.classList.toggle("fs-mode");
+  setTimeout(resizeCanvas,60);
+};
+
+/* ================= INIT ================= */
+applyLecture(true);
+</script>
+
 </body>
 </html>
