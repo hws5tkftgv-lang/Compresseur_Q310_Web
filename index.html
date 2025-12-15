@@ -350,6 +350,17 @@ function fitBackgroundImage(img) {
   canvas.sendToBack(img);
   canvas.requestRenderAll();
 }
+function forcePerfectFit(){
+  if(!bgImg) return;
+
+  // reset total zoom + pan (obligatoire après fullscreen)
+  canvas.setViewportTransform([1,0,0,1,0,0]);
+  canvas.setZoom(1);
+
+  fitBackgroundImage(bgImg);
+
+  canvas.requestRenderAll();
+}
 
 
 function loadBackgroundByName(name){
@@ -518,11 +529,25 @@ function setMode(m){
 }
 
 function applyLectureUI(on){
-  isReading=!!on;
-  document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
-  document.getElementById("toggleMode").textContent=on?"Passer en Éditeur":"Passer en Lecture";
-  document.getElementById("editorToolbar").classList.toggle("hidden",on);
-  document.getElementById("editorActions").classList.toggle("hidden",on);
+  isReading = !!on;
+
+  document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
+  document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
+
+  document.getElementById("editorToolbar").classList.toggle("hidden", on);
+  document.getElementById("editorActions").classList.toggle("hidden", on);
+
+  // 🔒 LECTURE = champs verrouillés
+  document.getElementById("inventorySelect").disabled = on;
+  document.getElementById("partName").readOnly = on;
+  document.getElementById("partRole").readOnly = on;
+  document.getElementById("partDesc").readOnly = on;
+
+  setMode(on ? "select" : "move");
+  setZonesVisibility(on);
+  hardRefresh();
+}
+
 
   const invSel=document.getElementById("inventorySelect");
   invSel.disabled=on;
