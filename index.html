@@ -985,6 +985,19 @@ btnFsToggle.addEventListener("click", () => {
   document.body.classList.toggle("fs-mode");
   resizeCanvas(false);
 });
+.fs-btn{
+  pointer-events: auto;
+  z-index: 50;
+}
+canvas{
+  pointer-events: auto;
+}
+btnFsToggle.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();   // ← CRUCIAL
+  document.body.classList.toggle("fs-mode");
+  resizeCanvas(false);
+});
 
   </script>
 </body>
