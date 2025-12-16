@@ -207,19 +207,7 @@ function fitBackground(){
 }
 
 function loadBackground(){
-console.log("loadBackground appelé");
-
-  fabric.Image.fromURL(
-    "actif/compresseur_bg.png",
-    img=>{
-      bgImg = img;
-      bgImg.objectCaching=false;
-      canvas.add(bgImg);
-      fitBackground();
-    },
-    {crossOrigin:"anonymous"}
-  );
-}
+console.log("loadBackground appelé");}
 
 /* ================= MODE ================= */
 function applyLecture(on){
@@ -264,32 +252,29 @@ document.addEventListener("fullscreenchange", () => {
 
 
 <script>
-/* ================= INIT CORRECT ================= */
+/* ================= INIT FINAL ================= */
 
 window.addEventListener("load", () => {
 
-  // 1. Canvas prend la taille finale du layout
+  // Mode lecture par défaut
+  applyLecture(true);
+
+  // Taille correcte du canvas
   resizeCanvas();
 
-  // 2. Charger l'image
-  fabric.Image.fromURL(
-    "actif/compresseur_bg.png",
-    img => {
-      bgImg = img;
-      bgImg.selectable = false;
-      bgImg.evented = false;
-      bgImg.objectCaching = false;
+  // Charger UNE SEULE FOIS l’image
+  loadBackground();
 
-      canvas.add(bgImg);
+  // IMPORTANT : forcer le recalcul après layout final
+  setTimeout(() => {
+    resizeCanvas();
+    fitBackground();
+  }, 50);
+});
 
-      // 3. FORCER le même comportement que "sortie plein écran"
-      setTimeout(() => {
-        resizeCanvas();
-        fitBackground();
-      }, 50);
-    },
-    { crossOrigin: "anonymous" }
-  );
+window.addEventListener("resize", () => {
+  resizeCanvas();
+});
 
   // 4. Mode lecture par défaut
   applyLecture(true);
