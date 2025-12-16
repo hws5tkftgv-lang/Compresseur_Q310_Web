@@ -241,32 +241,6 @@ document.getElementById("toggleMode").onclick = ()=>{
     applyLecture(true);
   }
 };
-
-/* ================= FULLSCREEN ================= */
-const fsBtn = document.getElementById("btnFsToggle");
-
-if (fsBtn) {
-  fsBtn.addEventListener("click", () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
-  });
-}
-
-// Quand le fullscreen est réellement actif ou quitté
-document.addEventListener("fullscreenchange", () => {
-  const isFs = !!document.fullscreenElement;
-
-  document.body.classList.toggle("fs-mode", isFs);
-
-  // IMPORTANT : resize + recentrage APRÈS activation
-  setTimeout(() => {
-    resizeCanvas();
-    if (bgImg) fitBackgroundImage(bgImg);
-  }, 50);
-});
 /* ================= FULLSCREEN (UNIQUE) ================= */
 const fsBtn = document.getElementById("btnFsToggle");
 
@@ -287,6 +261,7 @@ document.addEventListener("fullscreenchange", () => {
     fitBackground();
   }, 50);
 });
+
 
 /* ================= INIT ================= */
 window.addEventListener("resize",resizeCanvas);
