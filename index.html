@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quincy 310L — Lecture / Éditeur</title>
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -11,138 +11,104 @@
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
 
-html,body{
-  margin:0;
-  background:#0c132e;
-  color:#eaf1ff;
-  font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
+html, body {
+  margin: 0;
+  background: #0c132e;
+  color: #eaf1ff;
+  font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-/* ================= TOP BAR ================= */
-.topbar{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:10px 12px;
-  background:#0f1a3f;
-  border-bottom:1px solid rgba(255,255,255,.08);
+/* ===== TOP BAR ===== */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #0f1a3f;
+  border-bottom: 1px solid rgba(255,255,255,.08);
 }
 
-.btn{
-  padding:7px 11px;
-  border-radius:8px;
-  border:1px solid rgba(255,255,255,.14);
-  background:#1b2553;
-  color:#eaf1ff;
-  cursor:pointer;
-}
-.btn.primary{
-  background:#0078ff;
-  border-color:#0053ad;
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: #1b2553;
+  color: #eaf1ff;
+  cursor: pointer;
 }
 
-/* ================= LAYOUT ================= */
-.wrap{
-  display:grid;
-  grid-template-columns:1fr 360px;
-  gap:12px;
-  padding:12px;
-}
-.stage{
-  position:relative;
-  background:#0b1536;
-  border-radius:12px;
-  overflow:hidden;
-  min-height:60vh;
-}
-.panel{
-  background:#0f1a44;
-  border-radius:12px;
-  padding:12px;
+/* ===== LAYOUT ===== */
+.wrap {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 12px;
+  padding: 12px;
 }
 
-/* ================= CANVAS ================= */
-canvas{
-  touch-action:none;
-  user-select:none;
+.stage {
+  position: relative;
+  background: #0b1536;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 65vh;
 }
 
-/* ================= FULLSCREEN ================= */
-.fs-btn{
-  position:absolute;
-  right:10px;
-  bottom:10px;
-  padding:6px 10px;
-  border-radius:999px;
-  background:rgba(10,15,40,.85);
-  border:1px solid rgba(255,255,255,.35);
-  color:#fff;
-  cursor:pointer;
-  z-index:10;
+.panel {
+  background: #0f1a44;
+  border-radius: 12px;
+  padding: 12px;
 }
 
-/* Plein écran type YouTube */
-body.fs-mode{
-  background:#020618;
-  overflow:hidden;
+/* ===== CANVAS ===== */
+canvas {
+  display: block;
 }
-body.fs-mode .topbar{display:none;}
-body.fs-mode .wrap{
-  position:fixed;
-  inset:0;
-  margin:0;
-  padding:0;
-  grid-template-columns:80% 20%;
+
+/* ===== FULLSCREEN BUTTON ===== */
+.fs-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15,20,50,.85);
+  border: 1px solid rgba(255,255,255,.35);
+  color: #fff;
+  cursor: pointer;
+  z-index: 10;
 }
+
+/* ===== READ ONLY ===== */
+.readonly {
+  pointer-events: none;
+  opacity: .85;
+  background: #0a1433;
+}
+
+/* ===== FULLSCREEN MODE ===== */
+body.fs-mode {
+  overflow: hidden;
+  background: #020617;
+}
+
+body.fs-mode .topbar {
+  display: none;
+}
+
+body.fs-mode .wrap {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  margin: 0;
+  grid-template-columns: 70% 30%;
+}
+
 body.fs-mode .stage,
-body.fs-mode .panel{
-  border-radius:0;
-  height:100vh;
+body.fs-mode .panel {
+  border-radius: 0;
+  height: 100vh;
 }
-
-/* Lecture seule */
-.readonly{
-  background:#0a1433;
-  pointer-events:none;
-  opacity:.85;
-}
-  .fs-btn{
-  position:absolute;
-  right:12px;
-  bottom:12px;
-  z-index:20;
-  background:rgba(15,20,50,.85);
-  backdrop-filter:blur(6px);
-}
-body.fs-mode{
-  background:#020617;
-  overflow:hidden;
-}
-
-body.fs-mode .topbar,
-body.fs-mode .toolbar{
-  display:none !important;
-}
-
-body.fs-mode .wrap{
-  position:fixed;
-  inset:0;
-  padding:0;
-  margin:0;
-  grid-template-columns:70% 30%;
-}
-
-body.fs-mode .stage{
-  border-radius:0;
-  min-height:100vh;
-}
-
-body.fs-mode .panel{
-  border-radius:0;
-  height:100vh;
-  overflow:auto;
-}
-
 </style>
 </head>
 
@@ -154,13 +120,10 @@ body.fs-mode .panel{
 </div>
 
 <div class="wrap">
- <div class="stage">
-  <canvas id="c"></canvas>
-
-  <!-- Bouton plein écran -->
-  <button id="btnFsToggle" class="btn fs-btn">⤢ Plein écran</button>
-</div>
-
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <button id="btnFsToggle" class="btn fs-btn">⤢ Plein écran</button>
+  </div>
 
   <aside class="panel">
     <h3>Description</h3>
@@ -170,12 +133,12 @@ body.fs-mode .panel{
 
 <script>
 /* ================= CANVAS ================= */
-const canvas = new fabric.Canvas("c",{selection:false});
+const canvas = new fabric.Canvas("c", { selection:false });
 let bgImg = null;
 let isReading = true;
 
 /* ================= RESIZE ================= */
-function resizeCanvas(){
+function resizeCanvas() {
   const stage = document.querySelector(".stage");
   canvas.setWidth(stage.clientWidth);
   canvas.setHeight(stage.clientHeight);
@@ -183,104 +146,85 @@ function resizeCanvas(){
 }
 
 /* ================= IMAGE ================= */
-function fitBackground(){
-  if(!bgImg) return;
-
-  canvas.setViewportTransform([1,0,0,1,0,0]);
-  canvas.setZoom(1);
+function fitBackground() {
+  if (!bgImg) return;
 
   const cw = canvas.getWidth();
   const ch = canvas.getHeight();
   const iw = bgImg.width;
   const ih = bgImg.height;
 
-  const scale = Math.min(cw/iw, ch/ih);
+  const scale = Math.min(cw / iw, ch / ih);
+
   bgImg.scale(scale);
   bgImg.set({
-    left:(cw - iw*scale)/2,
-    top:(ch - ih*scale)/2,
-    selectable:false,
-    evented:false
+    left: (cw - iw * scale) / 2,
+    top:  (ch - ih * scale) / 2,
+    selectable: false,
+    evented: false
   });
-  canvas.sendToBack(bgImg);
+
   canvas.requestRenderAll();
 }
 
-function loadBackground(){
-console.log("loadBackground appelé");}
+function loadBackground() {
+  fabric.Image.fromURL(
+    "actif/compresseur_bg.png",
+    img => {
+      bgImg = img;
+      bgImg.objectCaching = false;
+      canvas.add(bgImg);
+      fitBackground();
+    },
+    { crossOrigin: "anonymous" }
+  );
+}
 
 /* ================= MODE ================= */
-function applyLecture(on){
+function applyLecture(on) {
   isReading = on;
-  document.getElementById("modeLabel").textContent = on?"Lecture":"Éditeur";
-  document.getElementById("toggleMode").textContent = on?"Passer en Éditeur":"Passer en Lecture";
+  document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
+  document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
 
   const d = document.getElementById("desc");
   d.readOnly = on;
   d.classList.toggle("readonly", on);
 }
 
-document.getElementById("toggleMode").onclick = ()=>{
-  if(isReading){
-    const pw = prompt("Mot de passe Éditeur:");
-    if(pw!=="PROF") return;
+document.getElementById("toggleMode").onclick = () => {
+  if (isReading) {
+    if (prompt("Mot de passe Éditeur :") !== "PROF") return;
     applyLecture(false);
-  }else{
+  } else {
     applyLecture(true);
   }
 };
-/* ================= FULLSCREEN (UNIQUE) ================= */
-const fsBtn = document.getElementById("btnFsToggle");
 
-fsBtn.addEventListener("click", () => {
+/* ================= FULLSCREEN ================= */
+document.getElementById("btnFsToggle").onclick = () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen();
   } else {
     document.exitFullscreen();
   }
-});
+};
 
 document.addEventListener("fullscreenchange", () => {
-  const isFs = !!document.fullscreenElement;
-  document.body.classList.toggle("fs-mode", isFs);
-
+  document.body.classList.toggle("fs-mode", !!document.fullscreenElement);
   setTimeout(() => {
     resizeCanvas();
-    fitBackground();
   }, 50);
 });
 
-
-<script>
-/* ================= INIT FINAL ================= */
-
+/* ================= INIT ================= */
 window.addEventListener("load", () => {
-
-  // Mode lecture par défaut
   applyLecture(true);
-
-  // Taille correcte du canvas
   resizeCanvas();
-
-  // Charger UNE SEULE FOIS l’image
   loadBackground();
-
-  // IMPORTANT : forcer le recalcul après layout final
-  setTimeout(() => {
-    resizeCanvas();
-    fitBackground();
-  }, 50);
 });
 
-window.addEventListener("resize", () => {
-  resizeCanvas();
-});
-
-  // 4. Mode lecture par défaut
-  applyLecture(true);
-});
+window.addEventListener("resize", resizeCanvas);
 </script>
-
 
 </body>
 </html>
