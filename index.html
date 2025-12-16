@@ -130,7 +130,10 @@ body.fs-mode .panel {
     <textarea id="desc" rows="10"></textarea>
   </aside>
 </div>
-/* ===================== DATA ===================== */
+
+
+<script>
+  /* ===================== DATA ===================== */
 let partsData = [];
 
 // Charger le fichier JSON des pièces
@@ -144,8 +147,6 @@ async function loadPartsData(){
     console.error("❌ Erreur chargement JSON :", err);
   }
 }
-
-<script>
 /* ================= CANVAS ================= */
 const canvas = new fabric.Canvas("c", { selection:false });
 let bgImg = null;
