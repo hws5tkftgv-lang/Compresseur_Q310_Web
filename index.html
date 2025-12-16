@@ -151,6 +151,90 @@ async function loadPartsData(){
 const canvas = new fabric.Canvas("c", { selection:false });
 let bgImg = null;
 let isReading = true;
+/* ================= HOTSPOTS ================= */
+let drawing = false;
+let startX, startY;
+let currentRect = null;
+
+canvas.on("mouse:down", opt => {
+  if (isReading) return;
+
+  const p = canvas.getPointer(opt.e);
+  drawing = true;
+  startX = p.x;
+  startY = p.y;
+
+  currentRect = new fabric.Rect({
+    left: startX,
+    top: startY,
+    width: 1,
+    height: 1,
+    fill: "rgba(255,0,0,0.25)",
+    stroke: "red",
+    strokeWidth: 2,
+    selectable: true,
+    hasControls: true
+  });
+
+  canvas.add(currentRect);
+});
+
+canvas.on("mouse:move", opt => {
+  if (!drawing || !currentRect) return;
+
+  const p = canvas.getPointer(opt.e);
+  currentRect.set({
+    width: Math.abs(p.x - startX),
+    height: Math.abs(p.y - startY),
+    left: Math.min(p.x, startX),
+    top: Math.min(p.y, startY)
+  });
+
+  canvas.requestRenderAll();
+});
+
+canvas.on("mouse:up", () => {
+  drawing = false;
+  saveHotspots();
+});
+  function saveHotspots() {
+  const zones = canvas.getObjects().filter(o => o !== bgImg).map(o => ({
+    left: o.left,
+    top: o.top,
+    width: o.width * o.scaleX,
+    height: o.height * o.scaleY
+  }));
+  localStorage.setItem("q310_hotspots", JSON.stringify(zones));
+}
+
+function loadHotspots() {
+  const raw = localStorage.getItem("q310_hotspots");
+  if (!raw) return;
+
+  JSON.parse(raw).forEach(z => {
+    const r = new fabric.Rect({
+      ...z,
+      fill: "rgba(255,0,0,0.25)",
+      stroke: "red",
+      strokeWidth: 2
+    });
+    canvas.add(r);
+  });
+
+  canvas.requestRenderAll();
+}
+
+function applyLecture(on) {
+  isReading = on;
+
+  canvas.getObjects().forEach(o => {
+    if (o === bgImg) return;
+    o.selectable = !on;
+    o.evented = !on;
+  });
+
+  document.getElementById("desc").readOnly = on;
+}
 
 /* ================= RESIZE ================= */
 function resizeCanvas() {
@@ -234,7 +318,8 @@ document.addEventListener("fullscreenchange", () => {
 /* ================= INIT ================= */
 resizeCanvas();
 loadBackground();
-loadPartsData();
+loadPartsData();   // JSON
+loadHotspots();    // sauvegarde
 applyLecture(true);
 
 
