@@ -158,7 +158,7 @@ body.fs-mode .panel{
   <canvas id="c"></canvas>
 
   <!-- Bouton plein écran -->
-  <button id="btnFullscreen" class="btn fs-btn">⤢ Plein écran</button>
+  <button id="btnFsToggle" class="btn fs-btn">⤢ Plein écran</button>
 </div>
 
 
@@ -265,7 +265,7 @@ resizeCanvas();
 loadBackground();
 applyLecture(true);
   /* ===================== FULLSCREEN STYLE YOUTUBE ===================== */
-const btnFs = document.getElementById("btnFullscreen");
+const btnFs = document.getElementById("btnFsToggle");
 
 btnFs.addEventListener("click",()=>{
   const root = document.documentElement;
