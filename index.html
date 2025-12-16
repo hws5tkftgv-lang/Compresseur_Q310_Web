@@ -263,15 +263,39 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 
-/* ================= INIT ================= */
-window.addEventListener("resize",resizeCanvas);
+<script>
+/* ================= INIT CORRECT ================= */
 
-resizeCanvas();
-loadBackground();
-applyLecture(true);
+window.addEventListener("load", () => {
 
+  // 1. Canvas prend la taille finale du layout
+  resizeCanvas();
 
+  // 2. Charger l'image
+  fabric.Image.fromURL(
+    "actif/compresseur_bg.png",
+    img => {
+      bgImg = img;
+      bgImg.selectable = false;
+      bgImg.evented = false;
+      bgImg.objectCaching = false;
+
+      canvas.add(bgImg);
+
+      // 3. FORCER le même comportement que "sortie plein écran"
+      setTimeout(() => {
+        resizeCanvas();
+        fitBackground();
+      }, 50);
+    },
+    { crossOrigin: "anonymous" }
+  );
+
+  // 4. Mode lecture par défaut
+  applyLecture(true);
+});
 </script>
+
 
 </body>
 </html>
