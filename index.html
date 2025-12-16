@@ -130,6 +130,20 @@ body.fs-mode .panel {
     <textarea id="desc" rows="10"></textarea>
   </aside>
 </div>
+/* ===================== DATA ===================== */
+let partsData = [];
+
+// Charger le fichier JSON des pièces
+async function loadPartsData(){
+  try{
+    const res = await fetch("quincy_310L_parts.json");
+    if(!res.ok) throw new Error("JSON introuvable");
+    partsData = await res.json();
+    console.log("✅ Données chargées :", partsData);
+  }catch(err){
+    console.error("❌ Erreur chargement JSON :", err);
+  }
+}
 
 <script>
 /* ================= CANVAS ================= */
@@ -217,11 +231,11 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 /* ================= INIT ================= */
-window.addEventListener("load", () => {
-  applyLecture(true);
-  resizeCanvas();
-  loadBackground();
-});
+resizeCanvas();
+loadBackground();
+loadPartsData();
+applyLecture(true);
+
 
 window.addEventListener("resize", resizeCanvas);
 </script>
