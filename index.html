@@ -284,6 +284,37 @@ document.addEventListener("fullscreenchange",()=>{
   document.body.classList.toggle("fs-mode", !!document.fullscreenElement);
   setTimeout(()=>resizeCanvas(),100);
 });
+  window.addEventListener("load", () => {
+  console.log("PAGE CHARGÉE");
+
+  // sécurité : taille du canvas
+  const stage = document.querySelector(".stage");
+  canvas.setWidth(stage.clientWidth);
+  canvas.setHeight(stage.clientHeight || 600);
+
+  fabric.Image.fromURL(
+    "actif/compresseur_bg.png",
+    img => {
+      console.log("IMAGE CHARGÉE");
+      img.selectable = false;
+      img.evented = false;
+      canvas.add(img);
+
+      // centrage simple
+      const scale = Math.min(
+        canvas.getWidth() / img.width,
+        canvas.getHeight() / img.height
+      );
+      img.scale(scale);
+      img.left = (canvas.getWidth() - img.width * scale) / 2;
+      img.top  = (canvas.getHeight() - img.height * scale) / 2;
+
+      canvas.requestRenderAll();
+    },
+    { crossOrigin: "anonymous" }
+  );
+});
+
 
 </script>
 
