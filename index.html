@@ -245,17 +245,27 @@ document.getElementById("toggleMode").onclick = ()=>{
 /* ================= FULLSCREEN ================= */
 const fsBtn = document.getElementById("btnFsToggle");
 
-fsBtn.onclick = ()=>{
-  if(!document.fullscreenElement){
-    document.documentElement.requestFullscreen();
-  }else{
-    document.exitFullscreen();
-  }
-};
+if (fsBtn) {
+  fsBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  });
+}
 
-document.addEventListener("fullscreenchange",()=>{
-  document.body.classList.toggle("fs-mode",!!document.fullscreenElement);
-  setTimeout(resizeCanvas,80);
+// Quand le fullscreen est réellement actif ou quitté
+document.addEventListener("fullscreenchange", () => {
+  const isFs = !!document.fullscreenElement;
+
+  document.body.classList.toggle("fs-mode", isFs);
+
+  // IMPORTANT : resize + recentrage APRÈS activation
+  setTimeout(() => {
+    resizeCanvas();
+    if (bgImg) fitBackgroundImage(bgImg);
+  }, 50);
 });
 
 /* ================= INIT ================= */
