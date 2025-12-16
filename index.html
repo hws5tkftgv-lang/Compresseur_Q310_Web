@@ -133,54 +133,123 @@ body.fs-mode .panel {
 
 
 <script>
-  /* ===================== DATA ===================== */
-let partsData = [];
+  <script>
+/* ================= CONFIG ================= */
+const BG_URL = "actif/compresseur_bg.png";
+const PARTS_JSON_URL = "quincy_310L_parts.json";
+const LS_KEY = "q310_hotspots_v1";
+const EDIT_PW = "PROF";
 
-// Charger le fichier JSON des pièces
-async function loadPartsData(){
-  try{
-    const res = await fetch("quincy_310L_parts.json");
-    if(!res.ok) throw new Error("JSON introuvable");
-    partsData = await res.json();
-    console.log("✅ Données chargées :", partsData);
-  }catch(err){
-    console.error("❌ Erreur chargement JSON :", err);
-  }
-}
 /* ================= CANVAS ================= */
-const canvas = new fabric.Canvas("c", { selection:false });
+const canvas = new fabric.Canvas("c", { selection: false });
 let bgImg = null;
 let isReading = true;
-/* ================= HOTSPOTS ================= */
+let partsData = []; // [{id, title, desc...}] selon ton JSON
+
+/* ================= RESIZE + FIT ================= */
+function resizeCanvas(){
+  const stage = document.querySelector(".stage");
+  canvas.setWidth(stage.clientWidth);
+  canvas.setHeight(stage.clientHeight);
+  fitBackground();
+  canvas.requestRenderAll();
+}
+
+function fitBackground(){
+  if(!bgImg) return;
+
+  canvas.setViewportTransform([1,0,0,1,0,0]);
+  canvas.setZoom(1);
+
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+  const iw = bgImg.width;
+  const ih = bgImg.height;
+
+  const scale = Math.min(cw/iw, ch/ih);
+  bgImg.scale(scale);
+  bgImg.set({
+    left:(cw - iw*scale)/2,
+    top:(ch - ih*scale)/2,
+    selectable:false,
+    evented:false
+  });
+  canvas.sendToBack(bgImg);
+}
+
+/* ================= LOAD BACKGROUND ================= */
+function loadBackground(){
+  return new Promise((resolve, reject) => {
+    fabric.Image.fromURL(
+      BG_URL,
+      img => {
+        bgImg = img;
+        bgImg.objectCaching = false;
+        bgImg.selectable = false;
+        bgImg.evented = false;
+        canvas.add(bgImg);
+        fitBackground();
+        canvas.requestRenderAll();
+        resolve();
+      },
+      { crossOrigin: "anonymous" }
+    );
+  });
+}
+
+/* ================= PARTS JSON ================= */
+async function loadPartsData(){
+  try{
+    const res = await fetch(PARTS_JSON_URL, { cache: "no-store" });
+    if(!res.ok) throw new Error("JSON introuvable: " + PARTS_JSON_URL);
+    const data = await res.json();
+
+    // Accepte soit un tableau direct, soit {parts:[...]}
+    partsData = Array.isArray(data) ? data : (data.parts || []);
+    console.log("✅ Parts chargées:", partsData.length);
+  }catch(err){
+    console.error("❌ Erreur chargement JSON:", err);
+  }
+}
+
+/* ================= HOTSPOTS (RECTANGLES) ================= */
 let drawing = false;
-let startX, startY;
+let startX = 0, startY = 0;
 let currentRect = null;
 
+function createRect(x, y){
+  const r = new fabric.Rect({
+    left: x,
+    top: y,
+    width: 1,
+    height: 1,
+    fill: "rgba(255,0,0,0.18)",
+    stroke: "red",
+    strokeWidth: 2,
+    selectable: true,
+    hasControls: true,
+    lockRotation: true
+  });
+
+  // meta pour association JSON
+  r.partId = "";
+  return r;
+}
+
 canvas.on("mouse:down", opt => {
-  if (isReading) return;
+  if(isReading) return;
 
   const p = canvas.getPointer(opt.e);
   drawing = true;
   startX = p.x;
   startY = p.y;
 
-  currentRect = new fabric.Rect({
-    left: startX,
-    top: startY,
-    width: 1,
-    height: 1,
-    fill: "rgba(255,0,0,0.25)",
-    stroke: "red",
-    strokeWidth: 2,
-    selectable: true,
-    hasControls: true
-  });
-
+  currentRect = createRect(startX, startY);
   canvas.add(currentRect);
 });
 
 canvas.on("mouse:move", opt => {
-  if (!drawing || !currentRect) return;
+  if(!drawing || !currentRect) return;
 
   const p = canvas.getPointer(opt.e);
   currentRect.set({
@@ -189,141 +258,178 @@ canvas.on("mouse:move", opt => {
     left: Math.min(p.x, startX),
     top: Math.min(p.y, startY)
   });
-
   canvas.requestRenderAll();
 });
 
 canvas.on("mouse:up", () => {
+  if(!drawing) return;
   drawing = false;
+
+  // Si rectangle trop petit, on l'enlève
+  const w = currentRect.width * currentRect.scaleX;
+  const h = currentRect.height * currentRect.scaleY;
+  if(w < 8 || h < 8){
+    canvas.remove(currentRect);
+    currentRect = null;
+    return;
+  }
+
+  // Associer une pièce (Option A)
+  const pid = prompt("Associer à quelle pièce? (partId exact du JSON)");
+  if(pid !== null) currentRect.partId = pid.trim();
+
+  currentRect = null;
   saveHotspots();
 });
-  function saveHotspots() {
-  const zones = canvas.getObjects().filter(o => o !== bgImg).map(o => ({
-    left: o.left,
-    top: o.top,
-    width: o.width * o.scaleX,
-    height: o.height * o.scaleY
-  }));
-  localStorage.setItem("q310_hotspots", JSON.stringify(zones));
+
+/* ================= CLICK (Lecture) ================= */
+canvas.on("mouse:down", opt => {
+  if(!isReading) return;
+  const t = opt.target;
+  if(!t || t === bgImg) return;
+
+  const pid = (t.partId || "").trim();
+  const box = document.getElementById("desc");
+
+  if(!pid){
+    box.value = "(Aucune pièce associée)";
+    return;
+  }
+
+  // Cherche dans JSON (id ou partId selon ton fichier)
+  const found =
+    partsData.find(p => (p.id+"") === pid) ||
+    partsData.find(p => (p.partId+"") === pid);
+
+  if(!found){
+    box.value = `Pièce introuvable dans JSON: ${pid}`;
+    return;
+  }
+
+  // Affiche
+  const title = found.title || found.nom || found.name || pid;
+  const desc  = found.desc || found.description || found.texte || "";
+  box.value = `${title}\n\n${desc}`.trim();
+});
+
+/* ================= SAVE/LOAD ================= */
+function saveHotspots(){
+  const zones = canvas.getObjects()
+    .filter(o => o !== bgImg)
+    .map(o => ({
+      left: o.left,
+      top: o.top,
+      width: o.width * o.scaleX,
+      height: o.height * o.scaleY,
+      partId: (o.partId || "")
+    }));
+
+  localStorage.setItem(LS_KEY, JSON.stringify(zones));
+  console.log("💾 Hotspots sauvés:", zones.length);
 }
 
-function loadHotspots() {
-  const raw = localStorage.getItem("q310_hotspots");
-  if (!raw) return;
+function clearHotspots(){
+  canvas.getObjects().filter(o => o !== bgImg).forEach(o => canvas.remove(o));
+  localStorage.removeItem(LS_KEY);
+  canvas.requestRenderAll();
+}
 
-  JSON.parse(raw).forEach(z => {
+function loadHotspots(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(!raw) return;
+
+  const zones = JSON.parse(raw);
+  zones.forEach(z => {
     const r = new fabric.Rect({
-      ...z,
-      fill: "rgba(255,0,0,0.25)",
+      left: z.left,
+      top: z.top,
+      width: z.width,
+      height: z.height,
+      fill: "rgba(255,0,0,0.18)",
       stroke: "red",
-      strokeWidth: 2
+      strokeWidth: 2,
+      selectable: !isReading,
+      hasControls: !isReading,
+      lockRotation: true
     });
+    r.partId = z.partId || "";
     canvas.add(r);
   });
 
   canvas.requestRenderAll();
+  console.log("📥 Hotspots chargés:", zones.length);
 }
 
-function applyLecture(on) {
+/* Sauvegarder aussi si on déplace / redimensionne */
+canvas.on("object:modified", () => saveHotspots());
+
+/* ================= MODE LECTURE/EDITEUR ================= */
+function applyLecture(on){
   isReading = on;
 
-  canvas.getObjects().forEach(o => {
-    if (o === bgImg) return;
-    o.selectable = !on;
-    o.evented = !on;
-  });
-
-  document.getElementById("desc").readOnly = on;
-}
-
-/* ================= RESIZE ================= */
-function resizeCanvas() {
-  const stage = document.querySelector(".stage");
-  canvas.setWidth(stage.clientWidth);
-  canvas.setHeight(stage.clientHeight);
-  fitBackground();
-}
-
-/* ================= IMAGE ================= */
-function fitBackground() {
-  if (!bgImg) return;
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-  const iw = bgImg.width;
-  const ih = bgImg.height;
-
-  const scale = Math.min(cw / iw, ch / ih);
-
-  bgImg.scale(scale);
-  bgImg.set({
-    left: (cw - iw * scale) / 2,
-    top:  (ch - ih * scale) / 2,
-    selectable: false,
-    evented: false
-  });
-
-  canvas.requestRenderAll();
-}
-
-function loadBackground() {
-  fabric.Image.fromURL(
-    "actif/compresseur_bg.png",
-    img => {
-      bgImg = img;
-      bgImg.objectCaching = false;
-      canvas.add(bgImg);
-      fitBackground();
-    },
-    { crossOrigin: "anonymous" }
-  );
-}
-
-/* ================= MODE ================= */
-function applyLecture(on) {
-  isReading = on;
   document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
   document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
 
   const d = document.getElementById("desc");
   d.readOnly = on;
   d.classList.toggle("readonly", on);
+
+  canvas.getObjects().forEach(o => {
+    if(o === bgImg) return;
+    o.selectable = !on;
+    o.evented = !on;
+    o.hasControls = !on;
+  });
+
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
 }
 
-document.getElementById("toggleMode").onclick = () => {
-  if (isReading) {
-    if (prompt("Mot de passe Éditeur :") !== "PROF") return;
+document.getElementById("toggleMode").addEventListener("click", () => {
+  if(isReading){
+    const pw = prompt("Mot de passe Éditeur:");
+    if(pw !== EDIT_PW) return;
     applyLecture(false);
-  } else {
+  }else{
     applyLecture(true);
   }
-};
+});
 
-/* ================= FULLSCREEN ================= */
-document.getElementById("btnFsToggle").onclick = () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-  } else {
+/* ================= FULLSCREEN (UNIQUE) ================= */
+const fsBtn = document.getElementById("btnFsToggle");
+
+fsBtn.addEventListener("click", () => {
+  const root = document.documentElement;
+
+  if(!document.fullscreenElement){
+    root.requestFullscreen().catch(err => {
+      alert("Plein écran impossible");
+      console.error(err);
+    });
+  }else{
     document.exitFullscreen();
   }
-};
+});
 
 document.addEventListener("fullscreenchange", () => {
   document.body.classList.toggle("fs-mode", !!document.fullscreenElement);
   setTimeout(() => {
     resizeCanvas();
-  }, 50);
+  }, 80);
 });
 
 /* ================= INIT ================= */
-resizeCanvas();
-loadBackground();
-loadPartsData();   // JSON
-loadHotspots();    // sauvegarde
-applyLecture(true);
-
-
 window.addEventListener("resize", resizeCanvas);
+
+(async function init(){
+  resizeCanvas();
+  await loadPartsData();
+  await loadBackground();
+  applyLecture(true);
+  loadHotspots();
+})();
+</script>
+
 </script>
 
 </body>
