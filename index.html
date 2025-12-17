@@ -10,217 +10,310 @@
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
-html,body{margin:0;background:#0c132e;color:#eaf1ff;font-family:system-ui}
+html,body{
+  margin:0;
+  background:#020617;
+  color:#eaf1ff;
+  font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
+}
 
+/* ================= TOPBAR ================= */
 .topbar{
- display:flex;gap:10px;align-items:center;
- padding:10px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.1)
+  position:sticky;
+  top:0;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  background:#0f1a3f;
+  border-bottom:1px solid rgba(255,255,255,.12);
 }
-.btn{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#1b2553;color:#fff;cursor:pointer}
-.btn.primary{background:#0078ff}
-.select,input,textarea{
- background:#101a40;color:#fff;border:1px solid rgba(255,255,255,.2);
- border-radius:8px;padding:6px 8px
-}
-.zoomwrap{display:flex;gap:6px;align-items:center}
 
-.wrap{
- display:grid;grid-template-columns:1fr 360px;gap:10px;padding:10px
+.btn{
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#1b2553;
+  color:#fff;
+  cursor:pointer;
+  font-size:13px;
 }
-.stage{position:relative;background:#0b1536;border-radius:12px;overflow:hidden}
-.panel{background:#0f1a44;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.btn.primary{background:#0078ff}
+.btn.tiny{padding:5px 9px;border-radius:999px}
+
+.zoomwrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#121c45;
+}
+.zoomwrap input{width:160px}
+
+/* ================= LAYOUT ================= */
+.wrap{
+  display:grid;
+  grid-template-columns:1fr 340px;
+  gap:12px;
+  padding:12px;
+}
+
+.stage{
+  position:relative;
+  background:#0b1536;
+  border-radius:12px;
+  overflow:hidden;
+  min-height:80vh;
+}
+
+.panel{
+  background:#0f1a44;
+  border-radius:12px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
 canvas{display:block}
 
-body.fs-mode{overflow:hidden}
-body.fs-mode .wrap{
- position:fixed;inset:0;padding:8px;
- grid-template-columns:70% 30%
+/* ================= FULLSCREEN ================= */
+body.fs-mode{
+  background:#020617;
+  overflow:hidden;
 }
+body.fs-mode .topbar{
+  position:fixed;
+  top:0;left:0;right:0;
+}
+body.fs-mode .wrap{
+  position:fixed;
+  inset:0;
+  padding:12px;
+  padding-top:64px;
+  grid-template-columns:70% 30%;
+}
+
+/* ================= FORM ================= */
+select,input,textarea{
+  background:#101a40;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:6px;
+  color:#fff;
+  padding:6px 8px;
+}
+textarea{resize:vertical;min-height:80px}
+.small{font-size:12px;opacity:.8}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
- <b id="modeLabel">Lecture</b>
- <button id="toggleMode" class="btn">Éditeur</button>
+  <b id="modeLabel">Lecture</b>
+  <button id="toggleMode" class="btn">Passer en Éditeur</button>
 
- <div class="zoomwrap">
-  Zoom
-  <input id="zoomRange" type="range" min="25" max="250" value="100">
-  <span id="zoomLabel">100%</span>
- </div>
+  <button id="btnHand" class="btn tiny">✋</button>
+  <button id="btnRect" class="btn tiny primary">▭ Zone</button>
 
- <button id="btnHand" class="btn">✋</button>
- <button id="btnRect" class="btn primary">▭ Zone</button>
- <button id="btnFit" class="btn">⤡</button>
- <button id="btnFs" class="btn">⤢</button>
+  <div class="zoomwrap">
+    <b>Zoom</b>
+    <input id="zoomRange" type="range" min="25" max="250" value="100">
+    <span id="zoomLabel">100%</span>
+  </div>
+
+  <button id="btnFit" class="btn tiny">⤡</button>
+  <button id="btnFs" class="btn tiny">⤢</button>
 </div>
 
 <div class="wrap">
- <div class="stage">
-  <canvas id="c"></canvas>
- </div>
+  <div class="stage">
+    <canvas id="c"></canvas>
+  </div>
 
- <aside class="panel">
-  <b>Zone</b>
-  <select id="pieceSelect" class="select"></select>
-  <input id="fName" placeholder="Nom">
-  <textarea id="fDesc" placeholder="Description"></textarea>
-  <button id="btnApply" class="btn primary">Appliquer</button>
-  <button id="btnDelete" class="btn">Supprimer</button>
- </aside>
+  <aside class="panel">
+    <b>Zone</b>
+
+    <select id="pieceSelect"></select>
+    <input id="fName" placeholder="Nom">
+    <textarea id="fDesc" placeholder="Description"></textarea>
+
+    <button id="btnApply" class="btn primary">Appliquer</button>
+    <button id="btnDelete" class="btn">Supprimer</button>
+
+    <div class="small">Sauvegarde automatique locale</div>
+  </aside>
 </div>
 
 <script>
-/* CONFIG */
+/* ================= CONFIG ================= */
 const EDIT_PW="PROF";
-const IMAGE_URL="actif/compresseur_bg.png";
+const BG_URL="actif/compresseur_bg.png";
 const PARTS_JSON="quincy_310L_parts.json";
+const LS_KEY="q310_zones";
 
-/* CANVAS */
+/* ================= CANVAS ================= */
 const canvas=new fabric.Canvas("c",{selection:false});
-let bgImg=null,currentZoom=1,isReading=true;
-const TOOL={HAND:0,RECT:1}; let tool=TOOL.RECT;
+let bgImg,isReading=true,currentZoom=1;
 
-/* UI */
-const zoomRange=zoomLabel.previousElementSibling;
-const pieceSelect=document.getElementById("pieceSelect");
-
-/* ZOOM */
-function applyZoom(z,pt){
- currentZoom=Math.max(.25,Math.min(3,z));
- const p=pt||new fabric.Point(canvas.getWidth()/2,canvas.getHeight()/2);
- canvas.zoomToPoint(p,currentZoom);
- zoomRange.value=Math.round(currentZoom*100);
- zoomLabel.textContent=zoomRange.value+"%";
+/* ================= ZOOM ================= */
+function applyZoom(z){
+  currentZoom=Math.min(2.5,Math.max(0.25,z));
+  const c=new fabric.Point(canvas.getWidth()/2,canvas.getHeight()/2);
+  canvas.zoomToPoint(c,currentZoom);
+  zoomLabel.textContent=Math.round(currentZoom*100)+"%";
+  zoomRange.value=Math.round(currentZoom*100);
 }
-zoomRange.oninput=e=>applyZoom(e.target.value/100);
 
-/* RESIZE */
+/* ================= BACKGROUND ================= */
+function fitBg(){
+  if(!bgImg)return;
+  const cw=canvas.getWidth(),ch=canvas.getHeight();
+  const iw=bgImg.width,ih=bgImg.height;
+  const s=Math.min(cw/iw,ch/ih);
+  bgImg.scale(s);
+  bgImg.set({left:(cw-iw*s)/2,top:(ch-ih*s)/2});
+  canvas.sendToBack(bgImg);
+}
+
+fabric.Image.fromURL(BG_URL,img=>{
+  bgImg=img;
+  bgImg.selectable=false;
+  canvas.add(bgImg);
+  resize();
+},{crossOrigin:"anonymous"});
+
+/* ================= RESIZE ================= */
 function resize(){
- const s=document.querySelector(".stage");
- canvas.setWidth(s.clientWidth);
- canvas.setHeight(s.clientHeight);
- fitBg();
+  const st=document.querySelector(".stage");
+  canvas.setWidth(st.clientWidth);
+  canvas.setHeight(st.clientHeight);
+  fitBg();
 }
 window.addEventListener("resize",resize);
 
-/* BACKGROUND */
-function fitBg(){
- if(!bgImg)return;
- const cw=canvas.getWidth(),ch=canvas.getHeight();
- const s=Math.min(cw/bgImg.width,ch/bgImg.height);
- bgImg.set({
-  left:(cw-bgImg.width*s)/2,
-  top:(ch-bgImg.height*s)/2,
-  scaleX:s,scaleY:s
- });
- canvas.sendToBack(bgImg);
- canvas.getObjects("rect").forEach(r=>{
-  if(!r._img)return;
-  r.set({
-   left:bgImg.left+r._img.x*s,
-   top:bgImg.top+r._img.y*s,
-   width:r._img.w*s,
-   height:r._img.h*s
-  });
- });
- canvas.requestRenderAll();
-}
-
-/* LOAD IMAGE */
-fabric.Image.fromURL(IMAGE_URL,img=>{
- bgImg=img;
- img.selectable=false;
- canvas.add(img);
- resize();
-},{crossOrigin:"anonymous"});
-
-/* LOAD PARTS */
+/* ================= PARTS ================= */
+let parts=[];
 fetch(PARTS_JSON).then(r=>r.json()).then(d=>{
- d.forEach(p=>{
-  const o=document.createElement("option");
-  o.value=p.id;o.textContent=p.id+" – "+p.name;
-  pieceSelect.appendChild(o);
- });
+  parts=d.parts||d;
+  pieceSelect.innerHTML='<option value="">— pièce —</option>';
+  parts.forEach(p=>{
+    const o=document.createElement("option");
+    o.value=p.id;
+    o.textContent=p.id+" — "+(p.title||p.name||"");
+    pieceSelect.appendChild(o);
+  });
 });
+
+/* ================= TOOLS ================= */
+let tool="rect",drawing=false,start,current;
+
+btnHand.onclick=()=>tool="hand";
+btnRect.onclick=()=>tool="rect";
+
+/* PAN */
+canvas.on("mouse:down",o=>{
+  if(tool!=="hand")return;
+  drawing=true;start=o.e;
+});
+canvas.on("mouse:move",o=>{
+  if(!drawing||tool!=="hand")return;
+  const v=canvas.viewportTransform;
+  v[4]+=o.e.clientX-start.clientX;
+  v[5]+=o.e.clientY-start.clientY;
+  canvas.setViewportTransform(v);
+  start=o.e;
+});
+canvas.on("mouse:up",()=>drawing=false);
 
 /* DRAW RECT */
-let drawing=false,start={},rect=null;
-
 canvas.on("mouse:down",o=>{
- if(isReading||tool!==TOOL.RECT||o.target)return;
- const p=canvas.getPointer(o.e,true);
- drawing=true;start=p;
- rect=new fabric.Rect({
-  left:p.x,top:p.y,width:1,height:1,
-  fill:"rgba(0,140,255,.1)",
-  stroke:"rgba(0,140,255,.9)",strokeWidth:2
- });
- canvas.add(rect);
- canvas.setActiveObject(rect);
+  if(isReading||tool!=="rect"||o.target)return;
+  drawing=true;
+  const p=canvas.getPointer(o.e,true);
+  start=p;
+  current=new fabric.Rect({
+    left:p.x,top:p.y,width:1,height:1,
+    fill:"rgba(0,140,255,.15)",
+    stroke:"#0099ff",strokeWidth:2
+  });
+  canvas.add(current);
+  canvas.setActiveObject(current);
 });
-
 canvas.on("mouse:move",o=>{
- if(!drawing)return;
- const p=canvas.getPointer(o.e,true);
- rect.set({
-  left:Math.min(start.x,p.x),
-  top:Math.min(start.y,p.y),
-  width:Math.abs(p.x-start.x),
-  height:Math.abs(p.y-start.y)
- });
- canvas.requestRenderAll();
+  if(!drawing||!current)return;
+  const p=canvas.getPointer(o.e,true);
+  current.set({
+    left:Math.min(p.x,start.x),
+    top:Math.min(p.y,start.y),
+    width:Math.abs(p.x-start.x),
+    height:Math.abs(p.y-start.y)
+  });
+  canvas.requestRenderAll();
 });
-
 canvas.on("mouse:up",()=>{
- if(!drawing)return;
- drawing=false;
- rect._img={
-  x:(rect.left-bgImg.left)/bgImg.scaleX,
-  y:(rect.top-bgImg.top)/bgImg.scaleY,
-  w:rect.width/bgImg.scaleX,
-  h:rect.height/bgImg.scaleY
- };
- pieceSelect.focus(); // 🔑 OUVERTURE AUTO
+  if(!drawing||!current)return;
+  drawing=false;
+  pieceSelect.focus();
 });
 
-/* APPLY */
+/* ================= PANEL ================= */
 btnApply.onclick=()=>{
- const r=canvas.getActiveObject();
- if(!r)return;
- r.partId=pieceSelect.value;
+  const r=canvas.getActiveObject();
+  if(!r)return;
+  r.partId=pieceSelect.value;
+  r.name=fName.value;
+  r.desc=fDesc.value;
+  save();
 };
-
-/* DELETE */
 btnDelete.onclick=()=>{
- const r=canvas.getActiveObject();
- if(r)canvas.remove(r);
+  const r=canvas.getActiveObject();
+  if(!r)return;
+  canvas.remove(r);
+  save();
 };
 
-/* TOOLS */
-btnHand.onclick=()=>tool=TOOL.HAND;
-btnRect.onclick=()=>tool=TOOL.RECT;
+function save(){
+  const z=canvas.getObjects().filter(o=>o!==bgImg).map(o=>({
+    left:o.left,top:o.top,width:o.width,height:o.height,
+    partId:o.partId||"",name:o.name||"",desc:o.desc||""
+  }));
+  localStorage.setItem(LS_KEY,JSON.stringify(z));
+}
+function load(){
+  const r=JSON.parse(localStorage.getItem(LS_KEY)||"[]");
+  r.forEach(z=>{
+    const o=new fabric.Rect({
+      ...z,
+      fill:"rgba(0,140,255,.15)",
+      stroke:"#0099ff",strokeWidth:2
+    });
+    canvas.add(o);
+  });
+}
+load();
 
-/* FULLSCREEN */
-btnFs.onclick=()=>{
- if(!document.fullscreenElement)document.documentElement.requestFullscreen();
- else document.exitFullscreen();
-};
-document.addEventListener("fullscreenchange",()=>{
- document.body.classList.toggle("fs-mode",!!document.fullscreenElement);
- setTimeout(()=>{resize();applyZoom(currentZoom)},120);
-});
-
-/* MODE */
+/* ================= MODE ================= */
 toggleMode.onclick=()=>{
- if(isReading && prompt("Mot de passe")!==EDIT_PW)return;
- isReading=!isReading;
- modeLabel.textContent=isReading?"Lecture":"Éditeur";
+  if(isReading){
+    if(prompt("Mot de passe")!==EDIT_PW)return;
+  }
+  isReading=!isReading;
+  modeLabel.textContent=isReading?"Lecture":"Éditeur";
 };
 
-/* INIT */
+/* ================= ZOOM UI ================= */
+zoomRange.oninput=e=>applyZoom(e.target.value/100);
+btnFit.onclick=()=>{canvas.setViewportTransform([1,0,0,1,0,0]);applyZoom(1);fitBg()};
+
+/* ================= FULLSCREEN ================= */
+btnFs.onclick=()=>{
+  document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+};
+document.addEventListener("fullscreenchange",()=>setTimeout(resize,50));
+
 resize();
 </script>
 
