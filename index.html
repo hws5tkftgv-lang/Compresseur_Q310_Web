@@ -2,587 +2,293 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quincy 310L – Zones interactives</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- FABRIC.JS -->
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
 <style>
-  :root { color-scheme: dark; }
-  *{ box-sizing:border-box; }
-  html,body{ margin:0; background:#0b1436; color:#eaf1ff; font-family:Arial,Segoe UI,sans-serif; }
-
-  .topbar{
-    display:flex; align-items:center; gap:8px;
-    padding:10px; background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08);
-    position:sticky; top:0; z-index:9999; /* ✅ visible même en plein écran */
-  }
-  .pill{
-    padding:6px 10px; border-radius:999px;
-    border:1px solid rgba(255,255,255,.18);
-    background:#121c45; font-size:13px;
-  }
-  .btn{
-    padding:7px 12px; background:#1b2553; color:#fff;
-    border:1px solid rgba(255,255,255,.18); border-radius:8px;
-    cursor:pointer; font-weight:700; font-size:13px;
-  }
-  .btn:hover{ filter:brightness(1.06); }
-  .btn.active{ background:#0078ff; border-color:#0053ad; } /* ✅ bleu quand actif */
-  .btn.danger{ background:#7f1d2d; border-color:#5f1622; }
-
-  .select{
-    background:#101a40; color:#fff; border-radius:8px;
-    padding:7px 10px; border:1px solid rgba(255,255,255,.18);
-  }
-
-  .zoom{
-    display:flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:12px;
-    border:1px solid rgba(255,255,255,.18);
-    background:#121c45;
-  }
-  .zoom input[type="range"]{ width:160px; }
-
-  .wrap{
-    display:grid; grid-template-columns:1fr 340px;
-    gap:12px; padding:12px;
-  }
-  @media(max-width:1000px){
-    .wrap{ grid-template-columns:1fr; }
-  }
-
-  .stage{
-    background:#0b1536; border-radius:12px; overflow:hidden;
-    min-height:78vh; position:relative;
-  }
-  .panel{
-    background:#0f1a44; border-radius:12px; padding:12px;
-    display:flex; flex-direction:column; gap:10px;
-    min-height:78vh;
-  }
-  .panel h3{ margin:0; font-size:15px; }
-  .small{ font-size:12px; opacity:.85; line-height:1.3; }
-
-  .hr{ height:1px; background:rgba(255,255,255,.12); margin:6px 0; }
-
-  label{ font-size:12px; opacity:.9; }
-  textarea{
-    width:100%; min-height:180px; resize:vertical;
-    background:#101a40; color:#fff;
-    border:1px solid rgba(255,255,255,.18); border-radius:10px;
-    padding:10px;
-  }
-
-  canvas{ display:block; }
-
-  /* ✅ plein écran : on ne cache rien, on agrandit juste */
-  body.fs .wrap{
-    position:fixed; inset:56px 0 0 0; /* topbar ~56px */
-    padding:8px; margin:0;
-  }
-  body.fs .stage, body.fs .panel{
-    height:calc(100vh - 56px - 16px);
-    min-height:unset;
-  }
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif}
+header{
+  display:flex;gap:10px;align-items:center;
+  padding:10px;border-bottom:1px solid #ccc
+}
+main{
+  display:grid;
+  grid-template-columns:1fr 340px;
+  height:calc(100vh - 52px)
+}
+#canvasWrap{background:#111;overflow:hidden}
+canvas{display:block}
+aside{
+  padding:10px;border-left:1px solid #ccc;overflow:auto
+}
+h3{margin-top:0}
+strong{display:block;margin-top:10px}
+select,button{width:100%;margin-top:6px;padding:6px}
 </style>
 </head>
 
 <body>
 
-<div class="topbar">
-  <span class="pill"><b id="modeLabel">Mode : Lecture</b></span>
-  <button id="btnMode" class="btn">Basculer Éditeur</button>
+<header>
+  <strong>Quincy 310L</strong>
 
-  <select id="imgSelect" class="select"></select>
+  <label>
+    <input type="checkbox" id="modeToggle">
+    Mode éditeur
+  </label>
 
-  <button id="btnSelect" class="btn active" title="Sélection">🖱</button>
-  <button id="btnDraw" class="btn" title="Dessiner une zone">✏️</button>
-  <button id="btnPan" class="btn" title="Main (Pan)">✋</button>
-  <button id="btnErase" class="btn danger" title="Supprimer la zone sélectionnée">🧽</button>
+  <select id="imageSelect"></select>
 
-  <div class="zoom">
-    <b>Zoom</b>
-    <input id="zoomRange" type="range" min="50" max="250" value="100">
-    <span id="zoomLabel" style="width:52px; text-align:right;">100%</span>
-  </div>
+  <button id="zoomIn">+</button>
+  <button id="zoomOut">−</button>
+  <button id="resetView">Reset</button>
+</header>
 
-  <button id="btnFit" class="btn" title="Ajuster">⤡ Ajuster</button>
-  <button id="btnFs" class="btn" title="Plein écran">⤢ Plein écran</button>
-</div>
-
-<div class="wrap">
-  <div class="stage">
+<main>
+  <div id="canvasWrap">
     <canvas id="c"></canvas>
   </div>
 
-  <aside class="panel">
-    <h3>🟦 Fiche de la zone</h3>
-    <div class="small">
-      Lecture : zones invisibles mais cliquables.<br>
-      Éditeur : dessin / sélection / pan / suppression.<br>
-      La pièce + description s’affichent dès qu’on clique une zone.
-    </div>
+  <aside>
+    <h3 id="part-name">—</h3>
 
-    <div class="hr"></div>
+    <strong>Rôle</strong>
+    <div id="part-role">—</div>
 
-    <div>
-      <label>Pièce (JSON)</label><br>
-      <select id="pieceSelect" class="select" style="width:100%"></select>
-    </div>
+    <strong>Description</strong>
+    <div id="part-description">—</div>
 
-    <div>
-      <label>Description</label>
-      <textarea id="desc" placeholder="Clique une zone pour voir la description…"></textarea>
-    </div>
+    <strong>Référence manuel</strong>
+    <div id="part-manual">—</div>
 
-    <div class="small" style="margin-top:auto; opacity:.75;">
-      Sauvegarde locale automatique <b>par image</b>.
-    </div>
+    <hr>
+
+    <select id="partSelect" disabled>
+      <option value="">— Associer une pièce —</option>
+    </select>
+
+    <button id="drawRect" disabled>Dessiner une zone</button>
+    <button id="deleteRect" disabled>Supprimer la zone</button>
+    <button id="saveZones" disabled>Sauvegarder</button>
   </aside>
-</div>
+</main>
 
 <script>
-/* ================= CONFIG ================= */
-const JSON_URL = "quincy_310L_parts.json";
-
-/* ✅ Ajoute ici tes photos */
+/* ===================== CONFIG ===================== */
 const IMAGES = [
-  { label:"compresseur_bg.png", url:"actif/compresseur_bg.png" },
-  // { label:"VUE_GENERAL.jpeg", url:"actif/VUE_GENERAL.jpeg" },
-  // { label:"VUE_POMPE.jpeg",   url:"actif/VUE_POMPE.jpeg"   },
+  { id:"IMG_0001", src:"images/IMG_0001.jpg" }
 ];
+const PARTS_URL = "quincy_310L_parts.json";
+const LS_KEY = "quincy310L_";
 
-/* ================= HELPERS ================= */
-const $ = (id)=>document.getElementById(id);
-const LS = (imgUrl)=>"q310_zones_v3::"+imgUrl;
+/* ===================== DOM ===================== */
+const canvasWrap = document.getElementById("canvasWrap");
+const canvas = new fabric.Canvas("c");
 
-/* ================= STATE ================= */
-const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true });
-let bg = null;
-let isEditor = false;
-let tool = "select";          // select | draw | pan
+const modeToggle = document.getElementById("modeToggle");
+const imageSelect = document.getElementById("imageSelect");
+
+const partName = document.getElementById("part-name");
+const partRole = document.getElementById("part-role");
+const partDesc = document.getElementById("part-description");
+const partManual = document.getElementById("part-manual");
+
+const partSelect = document.getElementById("partSelect");
+const drawBtn = document.getElementById("drawRect");
+const delBtn = document.getElementById("deleteRect");
+const saveBtn = document.getElementById("saveZones");
+
+const zoomIn = document.getElementById("zoomIn");
+const zoomOut = document.getElementById("zoomOut");
+const resetView = document.getElementById("resetView");
+
+/* ===================== STATE ===================== */
+let partsData = {};
+let currentImage = IMAGES[0];
+let editor = false;
+let drawing = false;
+let start = null;
+let tempRect = null;
 let zoom = 1;
-let currentImage = IMAGES[0].url;
 
-/* Parts */
-let partsIndex = []; // {id,name,desc}
+/* ===================== INIT ===================== */
+init();
 
-/* Drawing */
-let drawing=false, startPt=null, curRect=null;
+async function init(){
+  resize();
+  window.addEventListener("resize", resize);
 
-/* Panning */
-let isPanning=false, lastClient=null;
+  await loadParts();
+  initImages();
+  loadImage(currentImage);
 
-/* ================= UI INIT ================= */
-function setActiveTool(t){
-  tool = t;
-
-  $("btnSelect").classList.toggle("active", t==="select");
-  $("btnDraw").classList.toggle("active", t==="draw");
-  $("btnPan").classList.toggle("active", t==="pan");
-
-  // ✅ curseur stable : reste celui de l’outil
-  if(t==="pan") canvas.defaultCursor = "grab";
-  else if(t==="draw") canvas.defaultCursor = "crosshair";
-  else canvas.defaultCursor = "pointer";
+  bindUI();
+  setEditor(false);
 }
 
-/* ================= CANVAS SIZE ================= */
-function resizeCanvas(){
-  const stage = document.querySelector(".stage");
-  canvas.setWidth(stage.clientWidth);
-  canvas.setHeight(stage.clientHeight);
-  if(bg) fitBackgroundAndZones();
-  canvas.requestRenderAll();
+/* ===================== LOAD PARTS ===================== */
+async function loadParts(){
+  const res = await fetch(PARTS_URL);
+  partsData = await res.json();
+
+  for(const id in partsData){
+    const o = document.createElement("option");
+    o.value = id;
+    o.textContent = partsData[id].name || id;
+    partSelect.appendChild(o);
+  }
 }
-window.addEventListener("resize", resizeCanvas);
 
-/* ================= IMAGE LOAD ================= */
-function loadBackground(url){
-  return new Promise((resolve)=>{
-    fabric.Image.fromURL(url, (img)=>{
-      canvas.clear();
-      bg = img;
-      bg.selectable = false;
-      bg.evented = false;
-      bg.objectCaching = false;
-      canvas.add(bg);
-
-      resetViewToFit();
-      loadZones();
-      applyModeVisibility();
-      resolve();
-    }, { crossOrigin:"anonymous" });
+/* ===================== IMAGES ===================== */
+function initImages(){
+  IMAGES.forEach(img=>{
+    const o = document.createElement("option");
+    o.value = img.id;
+    o.textContent = img.id;
+    imageSelect.appendChild(o);
   });
 }
 
-/* ================= FIT + VIEW ================= */
-function resetViewToFit(){
-  canvas.setViewportTransform([1,0,0,1,0,0]);
-  zoom = 1;
-  $("zoomRange").value = "100";
-  $("zoomLabel").textContent = "100%";
-  fitBackgroundAndZones();
-}
-
-/* Fit bg + reposition zones from _imgBox (coords image) */
-function fitBackgroundAndZones(){
-  if(!bg) return;
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-
-  const iw = bg._originalElement ? bg._originalElement.naturalWidth : bg.width;
-  const ih = bg._originalElement ? bg._originalElement.naturalHeight : bg.height;
-
-  const baseScale = Math.min(cw/iw, ch/ih);
-
-  bg.set({
-    originX:"left", originY:"top",
-    left:(cw - iw*baseScale)/2,
-    top:(ch - ih*baseScale)/2,
-    scaleX:baseScale, scaleY:baseScale
-  });
-  canvas.sendToBack(bg);
-
-  // zones
-  getZones().forEach(r=>{
-    if(!r._imgBox) return;
-    const z = r._imgBox;
-    r.set({
-      left: bg.left + z.x * bg.scaleX,
-      top:  bg.top  + z.y * bg.scaleY,
-      width: z.w * bg.scaleX,
-      height:z.h * bg.scaleY,
-      scaleX:1, scaleY:1
+function loadImage(img){
+  canvas.clear();
+  fabric.Image.fromURL(img.src, i=>{
+    canvas.setBackgroundImage(i, canvas.renderAll.bind(canvas),{
+      scaleX: canvas.width / i.width,
+      scaleY: canvas.height / i.height
     });
-    r.setCoords();
+    loadZones();
   });
 }
 
-/* ================= ZONES SAVE/LOAD ================= */
-function getZones(){
-  return canvas.getObjects().filter(o=>o!==bg && o.type==="rect");
+/* ===================== UI ===================== */
+function bindUI(){
+  modeToggle.onchange = e => setEditor(e.target.checked);
+
+  drawBtn.onclick = ()=> drawing = !drawing;
+  delBtn.onclick = ()=> {
+    const o = canvas.getActiveObject();
+    if(o) canvas.remove(o);
+  };
+  saveBtn.onclick = saveZones;
+
+  partSelect.onchange = ()=>{
+    const o = canvas.getActiveObject();
+    if(!o) return;
+    o.partId = partSelect.value;
+    showInfo(o.partId);
+  };
+
+  imageSelect.onchange = ()=>{
+    currentImage = IMAGES.find(i=>i.id===imageSelect.value);
+    loadImage(currentImage);
+  };
+
+  zoomIn.onclick = ()=> setZoom(zoom*1.2);
+  zoomOut.onclick = ()=> setZoom(zoom/1.2);
+  resetView.onclick = ()=> setZoom(1);
 }
 
-function updateImgBoxFromRect(r){
-  const x = (r.left - bg.left) / bg.scaleX;
-  const y = (r.top  - bg.top ) / bg.scaleY;
-  const w = (r.width  * r.scaleX) / bg.scaleX;
-  const h = (r.height * r.scaleY) / bg.scaleY;
-  r._imgBox = {x,y,w,h};
+/* ===================== CANVAS ===================== */
+canvas.on("mouse:down", opt=>{
+  if(editor && drawing){
+    start = canvas.getPointer(opt.e);
+    tempRect = new fabric.Rect({
+      left:start.x, top:start.y, width:1, height:1,
+      fill:"rgba(0,150,255,.2)", stroke:"blue", strokeWidth:2
+    });
+    tempRect.partId = "";
+    canvas.add(tempRect);
+  }
+  if(!editor && opt.target?.partId){
+    showInfo(opt.target.partId);
+  }
+});
+
+canvas.on("mouse:move", opt=>{
+  if(!tempRect) return;
+  const p = canvas.getPointer(opt.e);
+  tempRect.set({
+    width: Math.abs(p.x-start.x),
+    height: Math.abs(p.y-start.y)
+  });
+  canvas.renderAll();
+});
+
+canvas.on("mouse:up", ()=> tempRect=null);
+
+canvas.on("selection:created", e=>selectRect(e.selected[0]));
+canvas.on("selection:updated", e=>selectRect(e.selected[0]));
+
+/* ===================== HELPERS ===================== */
+function resize(){
+  canvas.setWidth(canvasWrap.clientWidth);
+  canvas.setHeight(canvasWrap.clientHeight);
+  canvas.renderAll();
+}
+
+function setEditor(on){
+  editor = on;
+  partSelect.disabled = !on;
+  drawBtn.disabled = !on;
+  delBtn.disabled = !on;
+  saveBtn.disabled = !on;
+
+  canvas.getObjects().forEach(o=>{
+    o.selectable = on;
+    o.fill = on ? "rgba(0,150,255,.2)" : "transparent";
+    o.stroke = on ? "blue" : "transparent";
+  });
+  canvas.renderAll();
+}
+
+function selectRect(o){
+  if(!o?.partId) return;
+  partSelect.value = o.partId;
+  showInfo(o.partId);
+}
+
+function showInfo(id){
+  const p = partsData[id];
+  if(!p) return;
+  partName.textContent = p.name || id;
+  partRole.textContent = p.role || "—";
+  partDesc.textContent = p.description || "—";
+  partManual.textContent = p.manual_page || "—";
 }
 
 function saveZones(){
-  if(!bg) return;
-  const zones = getZones().map(r=>{
-    updateImgBoxFromRect(r);
-    return { imgBox:r._imgBox, partId:(r.partId||"") };
-  });
-  localStorage.setItem(LS(currentImage), JSON.stringify(zones));
-}
-
-function clearZones(){
-  getZones().forEach(r=>canvas.remove(r));
-  localStorage.removeItem(LS(currentImage));
-  canvas.requestRenderAll();
+  const data = canvas.getObjects().map(o=>({
+    left:o.left, top:o.top,
+    width:o.width*o.scaleX,
+    height:o.height*o.scaleY,
+    partId:o.partId||""
+  }));
+  localStorage.setItem(LS_KEY+currentImage.id, JSON.stringify(data));
+  alert("Zones sauvegardées");
 }
 
 function loadZones(){
-  // remove zones only
-  getZones().forEach(r=>canvas.remove(r));
-
-  const raw = localStorage.getItem(LS(currentImage));
+  const raw = localStorage.getItem(LS_KEY+currentImage.id);
   if(!raw) return;
-
-  let zones;
-  try{ zones = JSON.parse(raw); }catch{ return; }
-
-  zones.forEach(z=>{
-    const r = makeZoneRect();
-    r.partId = z.partId || "";
-    r._imgBox = z.imgBox || null;
+  JSON.parse(raw).forEach(z=>{
+    const r = new fabric.Rect({
+      left:z.left, top:z.top,
+      width:z.width, height:z.height,
+      fill:"rgba(0,150,255,.2)", stroke:"blue", strokeWidth:2
+    });
+    r.partId = z.partId;
     canvas.add(r);
   });
-
-  fitBackgroundAndZones();
-  canvas.requestRenderAll();
 }
 
-canvas.on("object:modified", (e)=>{
-  if(!e.target || e.target===bg) return;
-  saveZones();
-});
-
-/* ================= ZONE LOOK ================= */
-function makeZoneRect(){
-  const r = new fabric.Rect({
-    left:0, top:0, width:50, height:50,
-    fill:"rgba(0,150,255,0.12)",
-    stroke:"rgba(0,150,255,0.95)",
-    strokeWidth:2,
-    lockRotation:true,
-    objectCaching:false
-  });
-  r.partId = "";
-  r._imgBox = null;
-  return r;
-}
-
-function applyModeVisibility(){
-  getZones().forEach(r=>{
-    // ✅ en lecture : invisible, mais cliquable
-    r.opacity = isEditor ? 1 : 0;
-    r.evented = true;
-    r.selectable = isEditor;   // sélectionnable seulement en éditeur
-  });
-  canvas.discardActiveObject();
-  canvas.requestRenderAll();
-
-  $("modeLabel").textContent = isEditor ? "Mode : Éditeur" : "Mode : Lecture";
-}
-
-/* ================= PANEL (pièce + description auto) ================= */
-function setPanelForZone(r){
-  if(!r || r===bg){
-    $("pieceSelect").value = "";
-    $("desc").value = "";
-    return;
-  }
-  const pid = (r.partId||"").toString();
-  $("pieceSelect").value = pid;
-
-  const p = partsIndex.find(x=>x.id===pid);
-  $("desc").value = p ? (p.desc || "") : (pid ? "(Pièce introuvable dans le JSON)" : "(Aucune pièce associée)");
-}
-
-/* ================= PARTS JSON ================= */
-async function loadParts(){
-  $("pieceSelect").innerHTML = `<option value="">— choisir —</option>`;
-  try{
-    const res = await fetch(JSON_URL, { cache:"no-store" });
-    if(!res.ok) throw new Error("JSON introuvable");
-    const data = await res.json();
-    const arr = Array.isArray(data) ? data : (data.parts || data.Parts || []);
-    partsIndex = arr.map(p=>{
-      const id = (p.id ?? p.partId ?? p.code ?? p.key ?? "").toString();
-      const name = (p.name ?? p.nom ?? p.title ?? id).toString();
-      const desc = (p.description ?? p.desc ?? p.texte ?? "").toString();
-      return {id, name, desc, raw:p};
-    }).filter(x=>x.id);
-
-    partsIndex.forEach(it=>{
-      const o = document.createElement("option");
-      o.value = it.id;
-      o.textContent = `${it.id} — ${it.name}`;
-      $("pieceSelect").appendChild(o);
-    });
-  }catch(e){
-    console.error(e);
-    $("desc").value = "⚠️ JSON non chargé. Vérifie qu'il est à la racine du site: quincy_310L_parts.json";
-  }
-}
-
-/* Choix pièce => applique à la zone active */
-$("pieceSelect").addEventListener("change", ()=>{
-  const r = canvas.getActiveObject();
-  if(!r || r===bg || r.type!=="rect") return;
-  r.partId = $("pieceSelect").value;
-  saveZones();
-  // refresh desc auto
-  setPanelForZone(r);
-});
-
-/* ================= TOOL ACTIONS ================= */
-$("btnSelect").onclick = ()=>setActiveTool("select");
-$("btnDraw").onclick   = ()=>setActiveTool("draw");
-$("btnPan").onclick    = ()=>setActiveTool("pan");
-
-$("btnErase").onclick  = ()=>{
-  if(!isEditor) return;
-  const r = canvas.getActiveObject();
-  if(!r || r===bg || r.type!=="rect") return;
-  canvas.remove(r);
-  canvas.discardActiveObject();
-  saveZones();
-  setPanelForZone(null);
-  canvas.requestRenderAll();
-};
-
-$("btnMode").onclick = ()=>{
-  isEditor = !isEditor;
-  applyModeVisibility();
-};
-
-/* ================= CANVAS EVENTS ================= */
-/* ✅ CLICK zone : affiche pièce+desc dans TOUS les modes */
-canvas.on("mouse:down", (opt)=>{
-  const t = opt.target;
-  if(!t || t===bg) return;
-
-  // en pan, on ignore click zone
-  if(tool==="pan") return;
-
-  // Toujours afficher fiche
-  setPanelForZone(t);
-
-  // Si éditeur + select => active selection
-  if(isEditor && tool==="select"){
-    canvas.setActiveObject(t);
-  }
-});
-
-/* Draw */
-canvas.on("mouse:down", (opt)=>{
-  if(!isEditor) return;
-  if(tool!=="draw") return;
-
-  // si on clique une zone, on ne redessine pas
-  if(opt.target && opt.target!==bg) return;
-
-  drawing = true;
-  startPt = canvas.getPointer(opt.e, true);
-  curRect = makeZoneRect();
-  curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
-  canvas.add(curRect);
-  canvas.setActiveObject(curRect);
-});
-
-canvas.on("mouse:move", (opt)=>{
-  if(drawing && curRect){
-    const p = canvas.getPointer(opt.e, true);
-    const left = Math.min(p.x, startPt.x);
-    const top  = Math.min(p.y, startPt.y);
-    const w = Math.abs(p.x - startPt.x);
-    const h = Math.abs(p.y - startPt.y);
-    curRect.set({ left, top, width:w, height:h, scaleX:1, scaleY:1 });
-    curRect.setCoords();
-    canvas.requestRenderAll();
-  }
-
-  if(isPanning){
-    const e = opt.e;
-    const vpt = canvas.viewportTransform;
-    vpt[4] += (e.clientX - lastClient.x);
-    vpt[5] += (e.clientY - lastClient.y);
-    lastClient = {x:e.clientX, y:e.clientY};
-    canvas.setViewportTransform(vpt);
-    canvas.requestRenderAll();
-  }
-});
-
-canvas.on("mouse:up", ()=>{
-  if(drawing && curRect){
-    drawing = false;
-
-    if(curRect.width < 10 || curRect.height < 10){
-      canvas.remove(curRect);
-      curRect = null;
-      canvas.requestRenderAll();
-      return;
-    }
-
-    updateImgBoxFromRect(curRect);
-    curRect.partId = ""; // pas encore associé
-    saveZones();
-
-    // ✅ ouvrir la fiche automatiquement (sélection + focus dropdown)
-    setPanelForZone(curRect);
-    $("pieceSelect").focus();
-
-    curRect = null;
-  }
-
-  if(isPanning){
-    isPanning = false;
-    canvas.defaultCursor = (tool==="pan") ? "grab" : (tool==="draw" ? "crosshair" : "pointer");
-  }
-});
-
-/* Pan (fonctionne en lecture + éditeur) */
-canvas.on("mouse:down", (opt)=>{
-  if(tool!=="pan") return;
-  isPanning = true;
-  lastClient = { x:opt.e.clientX, y:opt.e.clientY };
-  canvas.defaultCursor = "grabbing";
-});
-
-/* ✅ éviter que Fabric remette le “4 flèches” */
-canvas.on("mouse:over", ()=>{
-  if(tool==="pan") canvas.defaultCursor = isPanning ? "grabbing" : "grab";
-  else if(tool==="draw") canvas.defaultCursor = "crosshair";
-  else canvas.defaultCursor = "pointer";
-});
-
-/* ================= ZOOM ================= */
 function setZoom(z){
-  zoom = Math.max(0.5, Math.min(3, z));
-  const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-  canvas.zoomToPoint(center, zoom);
-  $("zoomRange").value = String(Math.round(zoom*100));
-  $("zoomLabel").textContent = Math.round(zoom*100) + "%";
-  canvas.requestRenderAll();
+  zoom = z;
+  canvas.setZoom(zoom);
 }
-
-$("zoomRange").addEventListener("input", ()=>{
-  setZoom(parseInt($("zoomRange").value,10)/100);
-});
-
-canvas.on("mouse:wheel", (opt)=>{
-  const e = opt.e;
-  if(!e.ctrlKey && !e.metaKey) return; // ctrl+molette
-  e.preventDefault(); e.stopPropagation();
-  const delta = e.deltaY;
-  setZoom( zoom * (0.999 ** delta) );
-}, { passive:false });
-
-$("btnFit").onclick = ()=>{
-  resetViewToFit();
-  setPanelForZone(null);
-};
-
-/* ================= FULLSCREEN ================= */
-$("btnFs").onclick = ()=>{
-  if(!document.fullscreenElement){
-    document.documentElement.requestFullscreen();
-  }else{
-    document.exitFullscreen();
-  }
-};
-
-document.addEventListener("fullscreenchange", ()=>{
-  document.body.classList.toggle("fs", !!document.fullscreenElement);
-  setTimeout(()=>{ resizeCanvas(); fitBackgroundAndZones(); }, 80);
-});
-
-/* ================= IMAGE SELECT ================= */
-function fillImageSelect(){
-  $("imgSelect").innerHTML = "";
-  IMAGES.forEach(i=>{
-    const o = document.createElement("option");
-    o.value = i.url;
-    o.textContent = i.label;
-    $("imgSelect").appendChild(o);
-  });
-  $("imgSelect").value = currentImage;
-}
-
-$("imgSelect").addEventListener("change", async ()=>{
-  currentImage = $("imgSelect").value;
-  await loadBackground(currentImage);
-  setPanelForZone(null);
-});
-
-/* ================= INIT ================= */
-(async function init(){
-  fillImageSelect();
-  setActiveTool("select");
-  await loadParts();
-  await loadBackground(currentImage);
-  resizeCanvas();
-  applyModeVisibility();
-})();
 </script>
 
 </body>
