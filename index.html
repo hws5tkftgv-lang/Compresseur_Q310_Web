@@ -270,6 +270,23 @@ function lsKeyFor(url){ return "q310_hotspots_v2::" + url; }
 const canvas = new fabric.Canvas("c", { selection: false, preserveObjectStacking: true });
 let bgImg = null;
 let isReading = true;
+let currentZoom = 1;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+
+function applyZoom(z){
+  currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+  const center = new fabric.Point(
+    canvas.getWidth() / 2,
+    canvas.getHeight() / 2
+  );
+
+  canvas.zoomToPoint(center, currentZoom);
+  canvas.requestRenderAll();
+}
+
+  
 
 /* Tools */
 const TOOL = { HAND:"hand", RECT:"rect" };
@@ -813,6 +830,12 @@ canvas.on("mouse:wheel", (opt)=>{
   elZoomLabel.textContent = Math.round(zoom*100) + "%";
   canvas.requestRenderAll();
 }, { passive:false });
+  const zoomRange = document.getElementById("zoomRange");
+
+zoomRange.addEventListener("input", e => {
+  applyZoom(e.target.value / 100);
+});
+
 
 /* ================= TOOL BUTTONS ================= */
 elBtnHand.addEventListener("click", ()=>setTool(TOOL.HAND));
@@ -838,10 +861,21 @@ elBtnFs.addEventListener("click", ()=>{
     document.exitFullscreen();
   }
 });
-document.addEventListener("fullscreenchange", ()=>{
-  document.body.classList.toggle("fs-mode", !!document.fullscreenElement);
-  setTimeout(resizeCanvas, 80);
+document.addEventListener("fullscreenchange", () => {
+  const isFs = !!document.fullscreenElement;
+  document.body.classList.toggle("fs-mode", isFs);
+
+  setTimeout(() => {
+    resizeCanvas();
+
+    // 🔑 RE-CENTRAGE + ZOOM
+    if (bgImg) {
+      fitBackground();
+      applyZoom(currentZoom);
+    }
+  }, 80);
 });
+
 
 /* ================= INIT ================= */
 window.addEventListener("resize", resizeCanvas);
