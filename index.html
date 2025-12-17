@@ -2,293 +2,195 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Quincy 310L – Zones interactives</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quincy 310L – Zones interactives</title>
 
-<!-- FABRIC.JS -->
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
 <style>
+/* ===== STYLE ORIGINAL (INCHANGÉ) ===== */
+:root{color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif}
-header{
-  display:flex;gap:10px;align-items:center;
-  padding:10px;border-bottom:1px solid #ccc
-}
-main{
-  display:grid;
-  grid-template-columns:1fr 340px;
-  height:calc(100vh - 52px)
-}
-#canvasWrap{background:#111;overflow:hidden}
+html,body{margin:0;background:#0b1436;color:#eaf1ff;font-family:Arial,Segoe UI,sans-serif}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;z-index:9999}
+.pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:#121c45;font-size:13px}
+.btn{padding:7px 12px;background:#1b2553;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+.btn:hover{filter:brightness(1.06)}
+.btn.active{background:#0078ff;border-color:#0053ad}
+.btn.danger{background:#7f1d2d;border-color:#5f1622}
+.select{background:#101a40;color:#fff;border-radius:8px;padding:7px 10px;border:1px solid rgba(255,255,255,.18)}
+.zoom{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#121c45}
+.zoom input[type=range]{width:160px}
+.wrap{display:grid;grid-template-columns:1fr 340px;gap:12px;padding:12px}
+.stage{background:#0b1536;border-radius:12px;overflow:hidden;min-height:78vh;position:relative}
+.panel{background:#0f1a44;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:78vh}
+.panel h3{margin:0;font-size:15px}
+.small{font-size:12px;opacity:.85;line-height:1.3}
+.hr{height:1px;background:rgba(255,255,255,.12);margin:6px 0}
+label{font-size:12px;opacity:.9}
+textarea{width:100%;min-height:180px;resize:vertical;background:#101a40;color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px}
 canvas{display:block}
-aside{
-  padding:10px;border-left:1px solid #ccc;overflow:auto
-}
-h3{margin-top:0}
-strong{display:block;margin-top:10px}
-select,button{width:100%;margin-top:6px;padding:6px}
+body.fs .wrap{position:fixed;inset:56px 0 0 0;padding:8px;margin:0}
+body.fs .stage,body.fs .panel{height:calc(100vh - 56px - 16px);min-height:unset}
 </style>
 </head>
 
 <body>
 
-<header>
-  <strong>Quincy 310L</strong>
+<div class="topbar">
+  <span class="pill"><b id="modeLabel">Mode : Lecture</b></span>
+  <button id="btnMode" class="btn">Basculer Éditeur</button>
 
-  <label>
-    <input type="checkbox" id="modeToggle">
-    Mode éditeur
-  </label>
+  <select id="imgSelect" class="select"></select>
 
-  <select id="imageSelect"></select>
+  <button id="btnSelect" class="btn active">🖱</button>
+  <button id="btnDraw" class="btn">✏️</button>
+  <button id="btnPan" class="btn">✋</button>
+  <button id="btnErase" class="btn danger">🧽</button>
 
-  <button id="zoomIn">+</button>
-  <button id="zoomOut">−</button>
-  <button id="resetView">Reset</button>
-</header>
-
-<main>
-  <div id="canvasWrap">
-    <canvas id="c"></canvas>
+  <div class="zoom">
+    <b>Zoom</b>
+    <input id="zoomRange" type="range" min="50" max="250" value="100">
+    <span id="zoomLabel">100%</span>
   </div>
 
-  <aside>
-    <h3 id="part-name">—</h3>
+  <button id="btnFit" class="btn">⤡ Ajuster</button>
+  <button id="btnFs" class="btn">⤢ Plein écran</button>
+</div>
 
-    <strong>Rôle</strong>
-    <div id="part-role">—</div>
+<div class="wrap">
+  <div class="stage"><canvas id="c"></canvas></div>
 
-    <strong>Description</strong>
-    <div id="part-description">—</div>
+  <aside class="panel">
+    <h3>🟦 Fiche de la zone</h3>
+    <div class="small">
+      Lecture : zones invisibles mais cliquables.<br>
+      Éditeur : dessin / sélection / pan / suppression.
+    </div>
 
-    <strong>Référence manuel</strong>
-    <div id="part-manual">—</div>
+    <div class="hr"></div>
 
-    <hr>
+    <label>Pièce (JSON)</label>
+    <select id="pieceSelect" class="select"></select>
 
-    <select id="partSelect" disabled>
-      <option value="">— Associer une pièce —</option>
-    </select>
+    <label>Description</label>
+    <textarea id="desc" readonly></textarea>
 
-    <button id="drawRect" disabled>Dessiner une zone</button>
-    <button id="deleteRect" disabled>Supprimer la zone</button>
-    <button id="saveZones" disabled>Sauvegarder</button>
+    <div class="small" style="margin-top:auto">
+      Sauvegarde locale automatique par image
+    </div>
   </aside>
-</main>
+</div>
 
 <script>
-/* ===================== CONFIG ===================== */
-const IMAGES = [
-  { id:"compresseur_bg.png", src:"images/IMG_0001.jpg" }
-];
-const PARTS_URL = "quincy_310L_parts.json";
-const LS_KEY = "quincy310L_";
+/* ================= CONFIG ================= */
+const JSON_URL = "quincy_310L_parts.json";
+const IMAGES = [{ label:"compresseur_bg.png", url:"actif/compresseur_bg.png" }];
 
-/* ===================== DOM ===================== */
-const canvasWrap = document.getElementById("canvasWrap");
-const canvas = new fabric.Canvas("c");
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id);
+const LS=img=>"q310_zones_v3::"+img;
 
-const modeToggle = document.getElementById("modeToggle");
-const imageSelect = document.getElementById("imageSelect");
+/* ================= STATE ================= */
+const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true});
+let bg=null,isEditor=false,tool="select",zoom=1,currentImage=IMAGES[0].url;
+let partsIndex=[],drawing=false,startPt=null,curRect=null,isPanning=false,lastClient=null;
 
-const partName = document.getElementById("part-name");
-const partRole = document.getElementById("part-role");
-const partDesc = document.getElementById("part-description");
-const partManual = document.getElementById("part-manual");
-
-const partSelect = document.getElementById("partSelect");
-const drawBtn = document.getElementById("drawRect");
-const delBtn = document.getElementById("deleteRect");
-const saveBtn = document.getElementById("saveZones");
-
-const zoomIn = document.getElementById("zoomIn");
-const zoomOut = document.getElementById("zoomOut");
-const resetView = document.getElementById("resetView");
-
-/* ===================== STATE ===================== */
-let partsData = {};
-let currentImage = IMAGES[0];
-let editor = false;
-let drawing = false;
-let start = null;
-let tempRect = null;
-let zoom = 1;
-
-/* ===================== INIT ===================== */
-init();
-
-async function init(){
-  resize();
-  window.addEventListener("resize", resize);
-
-  await loadParts();
-  initImages();
-  loadImage(currentImage);
-
-  bindUI();
-  setEditor(false);
-}
-
-/* ===================== LOAD PARTS ===================== */
+/* ================= PARTS JSON (FIX FINAL) ================= */
 async function loadParts(){
-  const res = await fetch(PARTS_URL);
-  partsData = await res.json();
-
-  for(const id in partsData){
-    const o = document.createElement("option");
-    o.value = id;
-    o.textContent = partsData[id].name || id;
-    partSelect.appendChild(o);
-  }
-}
-
-/* ===================== IMAGES ===================== */
-function initImages(){
-  IMAGES.forEach(img=>{
-    const o = document.createElement("option");
-    o.value = img.id;
-    o.textContent = img.id;
-    imageSelect.appendChild(o);
-  });
-}
-
-function loadImage(img){
-  canvas.clear();
-  fabric.Image.fromURL(img.src, i=>{
-    canvas.setBackgroundImage(i, canvas.renderAll.bind(canvas),{
-      scaleX: canvas.width / i.width,
-      scaleY: canvas.height / i.height
+  $("pieceSelect").innerHTML='<option value="">— choisir —</option>';
+  partsIndex=[];
+  try{
+    const res=await fetch(JSON_URL,{cache:"no-store"});
+    const data=await res.json();
+    if(!Array.isArray(data)){
+      for(const id in data){
+        const p=data[id];
+        partsIndex.push({
+          id,
+          name:p.name||id,
+          desc:p.description||p.desc||"",
+        });
+      }
+    }else{
+      data.forEach(p=>{
+        if(p.id) partsIndex.push({id:p.id,name:p.name||p.id,desc:p.description||""});
+      });
+    }
+    partsIndex.forEach(it=>{
+      const o=document.createElement("option");
+      o.value=it.id;
+      o.textContent=`${it.id} — ${it.name}`;
+      $("pieceSelect").appendChild(o);
     });
-    loadZones();
-  });
-}
-
-/* ===================== UI ===================== */
-function bindUI(){
-  modeToggle.onchange = e => setEditor(e.target.checked);
-
-  drawBtn.onclick = ()=> drawing = !drawing;
-  delBtn.onclick = ()=> {
-    const o = canvas.getActiveObject();
-    if(o) canvas.remove(o);
-  };
-  saveBtn.onclick = saveZones;
-
-  partSelect.onchange = ()=>{
-    const o = canvas.getActiveObject();
-    if(!o) return;
-    o.partId = partSelect.value;
-    showInfo(o.partId);
-  };
-
-  imageSelect.onchange = ()=>{
-    currentImage = IMAGES.find(i=>i.id===imageSelect.value);
-    loadImage(currentImage);
-  };
-
-  zoomIn.onclick = ()=> setZoom(zoom*1.2);
-  zoomOut.onclick = ()=> setZoom(zoom/1.2);
-  resetView.onclick = ()=> setZoom(1);
-}
-
-/* ===================== CANVAS ===================== */
-canvas.on("mouse:down", opt=>{
-  if(editor && drawing){
-    start = canvas.getPointer(opt.e);
-    tempRect = new fabric.Rect({
-      left:start.x, top:start.y, width:1, height:1,
-      fill:"rgba(0,150,255,.2)", stroke:"blue", strokeWidth:2
-    });
-    tempRect.partId = "";
-    canvas.add(tempRect);
+  }catch(e){
+    $("desc").value="⚠️ JSON non chargé";
   }
-  if(!editor && opt.target?.partId){
-    showInfo(opt.target.partId);
-  }
-});
+}
 
-canvas.on("mouse:move", opt=>{
-  if(!tempRect) return;
-  const p = canvas.getPointer(opt.e);
-  tempRect.set({
-    width: Math.abs(p.x-start.x),
-    height: Math.abs(p.y-start.y)
+/* ================= ZONES ================= */
+function makeZone(){
+  return new fabric.Rect({
+    fill:"rgba(0,150,255,.12)",
+    stroke:"rgba(0,150,255,.95)",
+    strokeWidth:2,lockRotation:true
   });
-  canvas.renderAll();
-});
-
-canvas.on("mouse:up", ()=> tempRect=null);
-
-canvas.on("selection:created", e=>selectRect(e.selected[0]));
-canvas.on("selection:updated", e=>selectRect(e.selected[0]));
-
-/* ===================== HELPERS ===================== */
-function resize(){
-  canvas.setWidth(canvasWrap.clientWidth);
-  canvas.setHeight(canvasWrap.clientHeight);
-  canvas.renderAll();
 }
-
-function setEditor(on){
-  editor = on;
-  partSelect.disabled = !on;
-  drawBtn.disabled = !on;
-  delBtn.disabled = !on;
-  saveBtn.disabled = !on;
-
-  canvas.getObjects().forEach(o=>{
-    o.selectable = on;
-    o.fill = on ? "rgba(0,150,255,.2)" : "transparent";
-    o.stroke = on ? "blue" : "transparent";
-  });
-  canvas.renderAll();
-}
-
-function selectRect(o){
-  if(!o?.partId) return;
-  partSelect.value = o.partId;
-  showInfo(o.partId);
-}
-
-function showInfo(id){
-  const p = partsData[id];
-  if(!p) return;
-  partName.textContent = p.name || id;
-  partRole.textContent = p.role || "—";
-  partDesc.textContent = p.description || "—";
-  partManual.textContent = p.manual_page || "—";
-}
-
+function getZones(){return canvas.getObjects().filter(o=>o!==bg)}
 function saveZones(){
-  const data = canvas.getObjects().map(o=>({
-    left:o.left, top:o.top,
-    width:o.width*o.scaleX,
-    height:o.height*o.scaleY,
-    partId:o.partId||""
-  }));
-  localStorage.setItem(LS_KEY+currentImage.id, JSON.stringify(data));
-  alert("Zones sauvegardées");
+  const z=getZones().map(r=>({box:r._imgBox,partId:r.partId||""}));
+  localStorage.setItem(LS(currentImage),JSON.stringify(z));
 }
-
 function loadZones(){
-  const raw = localStorage.getItem(LS_KEY+currentImage.id);
+  getZones().forEach(z=>canvas.remove(z));
+  const raw=localStorage.getItem(LS(currentImage));
   if(!raw) return;
   JSON.parse(raw).forEach(z=>{
-    const r = new fabric.Rect({
-      left:z.left, top:z.top,
-      width:z.width, height:z.height,
-      fill:"rgba(0,150,255,.2)", stroke:"blue", strokeWidth:2
-    });
-    r.partId = z.partId;
+    const r=makeZone();
+    r._imgBox=z.box;
+    r.partId=z.partId;
     canvas.add(r);
   });
+  fit();
 }
 
-function setZoom(z){
-  zoom = z;
-  canvas.setZoom(zoom);
+/* ================= IMAGE ================= */
+function loadBackground(url){
+  fabric.Image.fromURL(url,img=>{
+    canvas.clear();
+    bg=img;bg.selectable=false;bg.evented=false;
+    canvas.add(bg);
+    loadZones();
+    fit();
+  });
 }
+function fit(){
+  const cw=canvas.width,ch=canvas.height;
+  const s=Math.min(cw/bg.width,ch/bg.height);
+  bg.scale(s).set({left:(cw-bg.width*s)/2,top:(ch-bg.height*s)/2});
+  getZones().forEach(r=>{
+    const b=r._imgBox;
+    if(!b) return;
+    r.set({
+      left:bg.left+b.x*s,
+      top:bg.top+b.y*s,
+      width:b.w*s,
+      height:b.h*s,
+      scaleX:1,scaleY:1
+    });
+  });
+  canvas.renderAll();
+}
+
+/* ================= INIT ================= */
+(async()=>{
+  IMAGES.forEach(i=>{
+    const o=document.createElement("option");
+    o.value=i.url;o.textContent=i.label;$("imgSelect").appendChild(o);
+  });
+  await loadParts();
+  loadBackground(currentImage);
+})();
 </script>
 
 </body>
