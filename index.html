@@ -8,107 +8,21 @@
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
 <style>
-:root { color-scheme: dark; }
-* { box-sizing: border-box; }
+html,body{margin:0;background:#0c132e;color:#eaf1ff;font-family:system-ui}
+.topbar{display:flex;gap:8px;align-items:center;padding:10px;background:#0f1a3f}
+.btn{padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#1b2553;color:#fff;cursor:pointer}
+.wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
+.stage{position:relative;background:#0b1536;border-radius:12px;overflow:hidden;height:65vh}
+.panel{background:#0f1a44;border-radius:12px;padding:12px}
+canvas{display:block}
+.fs-btn{position:absolute;right:10px;bottom:10px;border-radius:999px}
 
-html, body {
-  margin: 0;
-  background: #0c132e;
-  color: #eaf1ff;
-  font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
-}
+body.fs-mode{overflow:hidden;background:#020617}
+body.fs-mode .topbar{display:none}
+body.fs-mode .wrap{position:fixed;inset:0;padding:0;margin:0;grid-template-columns:70% 30%}
+body.fs-mode .stage,body.fs-mode .panel{border-radius:0;height:100vh}
 
-/* ===== TOP BAR ===== */
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #0f1a3f;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-}
-
-/* ===== BUTTONS ===== */
-.btn {
-  padding: 7px 11px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: #1b2553;
-  color: #eaf1ff;
-  cursor: pointer;
-}
-
-/* ===== LAYOUT ===== */
-.wrap {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 12px;
-  padding: 12px;
-}
-
-.stage {
-  position: relative;
-  background: #0b1536;
-  border-radius: 12px;
-  overflow: hidden;
-  min-height: 65vh;
-}
-
-.panel {
-  background: #0f1a44;
-  border-radius: 12px;
-  padding: 12px;
-}
-
-/* ===== CANVAS ===== */
-canvas {
-  display: block;
-}
-
-/* ===== FULLSCREEN BUTTON ===== */
-.fs-btn {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(15,20,50,.85);
-  border: 1px solid rgba(255,255,255,.35);
-  color: #fff;
-  cursor: pointer;
-  z-index: 10;
-}
-
-/* ===== READ ONLY ===== */
-.readonly {
-  pointer-events: none;
-  opacity: .85;
-  background: #0a1433;
-}
-
-/* ===== FULLSCREEN MODE ===== */
-body.fs-mode {
-  overflow: hidden;
-  background: #020617;
-}
-
-body.fs-mode .topbar {
-  display: none;
-}
-
-body.fs-mode .wrap {
-  position: fixed;
-  inset: 0;
-  padding: 0;
-  margin: 0;
-  grid-template-columns: 70% 30%;
-}
-
-body.fs-mode .stage,
-body.fs-mode .panel {
-  border-radius: 0;
-  height: 100vh;
-}
+.readonly{pointer-events:none;opacity:.85}
 </style>
 </head>
 
@@ -117,6 +31,11 @@ body.fs-mode .panel {
 <div class="topbar">
   <b id="modeLabel">Lecture</b>
   <button id="toggleMode" class="btn">Passer en Éditeur</button>
+  <button class="btn" onclick="tool='pan'">✋ Main</button>
+  <button class="btn" onclick="tool='draw'">✏️ Dessiner</button>
+  <button class="btn" onclick="tool='select'">🖱️ Sélection</button>
+  <button id="btnDelete" class="btn">🗑️ Supprimer</button>
+  Zoom <input id="zoom" type="range" min="25" max="300" value="100">
 </div>
 
 <div class="wrap">
@@ -127,317 +46,158 @@ body.fs-mode .panel {
 
   <aside class="panel">
     <h3>Description</h3>
-    <textarea id="desc" rows="10"></textarea>
+    <textarea id="desc" rows="12"></textarea>
   </aside>
 </div>
 
+<script>
+const BG_URL="actif/compresseur_bg.png";
+const JSON_URL="quincy_310L_parts.json";
+const LS_KEY="q310_hotspots_v1";
+const EDIT_PW="PROF";
 
+const canvas=new fabric.Canvas("c",{selection:false});
+let bgImg,isReading=true,parts=[],tool="pan";
+let drawing=false,start=null,temp=null,pan=false,last=null;
 
-  <script>
-/* ================= CONFIG ================= */
-const BG_URL = "actif/compresseur_bg.png";
-const PARTS_JSON_URL = "quincy_310L_parts.json";
-const LS_KEY = "q310_hotspots_v1";
-const EDIT_PW = "PROF";
-
-/* ================= CANVAS ================= */
-const canvas = new fabric.Canvas("c", { selection: false });
-let bgImg = null;
-let isReading = true;
-let partsData = []; // [{id, title, desc...}] selon ton JSON
-
-/* ================= RESIZE + FIT ================= */
+/* ===== Resize & Fit ===== */
 function resizeCanvas(){
-  const stage = document.querySelector(".stage");
-
-  const w = stage.clientWidth;
-  const h = stage.clientHeight || Math.round(window.innerHeight * 0.65);
-
-  canvas.setWidth(w);
-  canvas.setHeight(h);
-
-  if (bgImg) fitBackground();
-  canvas.requestRenderAll();
+  const s=document.querySelector(".stage");
+  canvas.setWidth(s.clientWidth);
+  canvas.setHeight(s.clientHeight);
+  fitBG();
 }
-
-
-function fitBackground(){
-  if(!bgImg) return;
-
+function fitBG(){
+  if(!bgImg)return;
   canvas.setViewportTransform([1,0,0,1,0,0]);
-  canvas.setZoom(1);
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-  const iw = bgImg.width;
-  const ih = bgImg.height;
-
-  const scale = Math.min(cw/iw, ch/ih);
-  bgImg.scale(scale);
-  bgImg.set({
-    left:(cw - iw*scale)/2,
-    top:(ch - ih*scale)/2,
-    selectable:false,
-    evented:false
-  });
-  canvas.sendToBack(bgImg);
-}
-
-/* ================= LOAD BACKGROUND ================= */
-function loadBackground(){
-  return new Promise((resolve, reject) => {
-    fabric.Image.fromURL(
-      BG_URL,
-      img => {
-        bgImg = img;
-        bgImg.objectCaching = false;
-        bgImg.selectable = false;
-        bgImg.evented = false;
-        canvas.add(bgImg);
-        fitBackground();
-        canvas.requestRenderAll();
-        resolve();
-      },
-      { crossOrigin: "anonymous" }
-    );
-  });
-}
-
-/* ================= PARTS JSON ================= */
-async function loadPartsData(){
-  try{
-    const res = await fetch(PARTS_JSON_URL, { cache: "no-store" });
-    if(!res.ok) throw new Error("JSON introuvable: " + PARTS_JSON_URL);
-    const data = await res.json();
-
-    // Accepte soit un tableau direct, soit {parts:[...]}
-    partsData = Array.isArray(data) ? data : (data.parts || []);
-    console.log("✅ Parts chargées:", partsData.length);
-  }catch(err){
-    console.error("❌ Erreur chargement JSON:", err);
-  }
-}
-
-/* ================= HOTSPOTS (RECTANGLES) ================= */
-let drawing = false;
-let startX = 0, startY = 0;
-let currentRect = null;
-
-function createRect(x, y){
-  const r = new fabric.Rect({
-    left: x,
-    top: y,
-    width: 1,
-    height: 1,
-    fill: "rgba(255,0,0,0.18)",
-    stroke: "red",
-    strokeWidth: 2,
-    selectable: true,
-    hasControls: true,
-    lockRotation: true
-  });
-
-  // meta pour association JSON
-  r.partId = "";
-  return r;
-}
-
-canvas.on("mouse:down", opt => {
-  if(isReading) return;
-
-  const p = canvas.getPointer(opt.e);
-  drawing = true;
-  startX = p.x;
-  startY = p.y;
-
-  currentRect = createRect(startX, startY);
-  canvas.add(currentRect);
-});
-
-canvas.on("mouse:move", opt => {
-  if(!drawing || !currentRect) return;
-
-  const p = canvas.getPointer(opt.e);
-  currentRect.set({
-    width: Math.abs(p.x - startX),
-    height: Math.abs(p.y - startY),
-    left: Math.min(p.x, startX),
-    top: Math.min(p.y, startY)
-  });
-  canvas.requestRenderAll();
-});
-
-canvas.on("mouse:up", () => {
-  if(!drawing) return;
-  drawing = false;
-
-  // Si rectangle trop petit, on l'enlève
-  const w = currentRect.width * currentRect.scaleX;
-  const h = currentRect.height * currentRect.scaleY;
-  if(w < 8 || h < 8){
-    canvas.remove(currentRect);
-    currentRect = null;
-    return;
-  }
-
-  // Associer une pièce (Option A)
-  const pid = prompt("Associer à quelle pièce? (partId exact du JSON)");
-  if(pid !== null) currentRect.partId = pid.trim();
-
-  currentRect = null;
-  saveHotspots();
-});
-
-/* ================= CLICK (Lecture) ================= */
-canvas.on("mouse:down", opt => {
-  if(!isReading) return;
-  const t = opt.target;
-  if(!t || t === bgImg) return;
-
-  const pid = (t.partId || "").trim();
-  const box = document.getElementById("desc");
-
-  if(!pid){
-    box.value = "(Aucune pièce associée)";
-    return;
-  }
-
-  // Cherche dans JSON (id ou partId selon ton fichier)
-  const found =
-    partsData.find(p => (p.id+"") === pid) ||
-    partsData.find(p => (p.partId+"") === pid);
-
-  if(!found){
-    box.value = `Pièce introuvable dans JSON: ${pid}`;
-    return;
-  }
-
-  // Affiche
-  const title = found.title || found.nom || found.name || pid;
-  const desc  = found.desc || found.description || found.texte || "";
-  box.value = `${title}\n\n${desc}`.trim();
-});
-
-/* ================= SAVE/LOAD ================= */
-function saveHotspots(){
-  const zones = canvas.getObjects()
-    .filter(o => o !== bgImg)
-    .map(o => ({
-      left: o.left,
-      top: o.top,
-      width: o.width * o.scaleX,
-      height: o.height * o.scaleY,
-      partId: (o.partId || "")
-    }));
-
-  localStorage.setItem(LS_KEY, JSON.stringify(zones));
-  console.log("💾 Hotspots sauvés:", zones.length);
-}
-
-function clearHotspots(){
-  canvas.getObjects().filter(o => o !== bgImg).forEach(o => canvas.remove(o));
-  localStorage.removeItem(LS_KEY);
+  const cw=canvas.width,ch=canvas.height;
+  const sc=Math.min(cw/bgImg.width,ch/bgImg.height);
+  bgImg.scale(sc);
+  bgImg.set({left:(cw-bgImg.width*sc)/2,top:(ch-bgImg.height*sc)/2});
   canvas.requestRenderAll();
 }
 
-function loadHotspots(){
-  const raw = localStorage.getItem(LS_KEY);
-  if(!raw) return;
+/* ===== Load ===== */
+async function loadAll(){
+  parts=await fetch(JSON_URL).then(r=>r.json());
+  fabric.Image.fromURL(BG_URL,img=>{
+    bgImg=img;
+    img.selectable=false;
+    canvas.add(img);
+    fitBG();
+    loadZones();
+  });
+}
 
-  const zones = JSON.parse(raw);
-  zones.forEach(z => {
-    const r = new fabric.Rect({
-      left: z.left,
-      top: z.top,
-      width: z.width,
-      height: z.height,
-      fill: "rgba(255,0,0,0.18)",
-      stroke: "red",
-      strokeWidth: 2,
-      selectable: !isReading,
-      hasControls: !isReading,
-      lockRotation: true
+/* ===== Zones ===== */
+function saveZones(){
+  const z=canvas.getObjects().filter(o=>o!==bgImg).map(o=>({
+    x:o.left,y:o.top,w:o.width*o.scaleX,h:o.height*o.scaleY,id:o.partId
+  }));
+  localStorage.setItem(LS_KEY,JSON.stringify(z));
+}
+function loadZones(){
+  const raw=localStorage.getItem(LS_KEY);
+  if(!raw)return;
+  JSON.parse(raw).forEach(z=>{
+    const r=new fabric.Rect({
+      left:z.x,top:z.y,width:z.w,height:z.h,
+      fill:"rgba(0,150,255,.25)",stroke:"#0096ff",strokeWidth:2
     });
-    r.partId = z.partId || "";
+    r.partId=z.id;
     canvas.add(r);
   });
-
-  canvas.requestRenderAll();
-  console.log("📥 Hotspots chargés:", zones.length);
 }
 
-/* Sauvegarder aussi si on déplace / redimensionne */
-canvas.on("object:modified", () => saveHotspots());
-
-/* ================= MODE LECTURE/EDITEUR ================= */
-function applyLecture(on){
-  isReading = on;
-
-  document.getElementById("modeLabel").textContent = on ? "Lecture" : "Éditeur";
-  document.getElementById("toggleMode").textContent = on ? "Passer en Éditeur" : "Passer en Lecture";
-
-  const d = document.getElementById("desc");
-  d.readOnly = on;
-  d.classList.toggle("readonly", on);
-
-  canvas.getObjects().forEach(o => {
-    if(o === bgImg) return;
-    o.selectable = !on;
-    o.evented = !on;
-    o.hasControls = !on;
+/* ===== Tools ===== */
+canvas.on("mouse:down",o=>{
+  if(tool==="pan"){
+    pan=true;last={x:o.e.clientX,y:o.e.clientY};
+    return;
+  }
+  if(isReading||tool!=="draw")return;
+  const p=canvas.getPointer(o.e);
+  drawing=true;start=p;
+  temp=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,
+    fill:"rgba(0,150,255,.25)",stroke:"#0096ff",strokeWidth:2});
+  canvas.add(temp);
+});
+canvas.on("mouse:move",o=>{
+  if(pan){
+    canvas.relativePan(new fabric.Point(o.e.clientX-last.x,o.e.clientY-last.y));
+    last={x:o.e.clientX,y:o.e.clientY};
+    return;
+  }
+  if(!drawing||!temp)return;
+  const p=canvas.getPointer(o.e);
+  temp.set({
+    left:Math.min(p.x,start.x),
+    top:Math.min(p.y,start.y),
+    width:Math.abs(p.x-start.x),
+    height:Math.abs(p.y-start.y)
   });
-
-  canvas.discardActiveObject();
   canvas.requestRenderAll();
+});
+canvas.on("mouse:up",()=>{
+  pan=false;
+  if(!drawing)return;
+  drawing=false;
+  const pid=prompt("ID de la pièce:");
+  if(!pid){canvas.remove(temp);return;}
+  temp.partId=pid.trim();
+  temp=null;
+  saveZones();
+});
+
+/* ===== Delete ===== */
+document.getElementById("btnDelete").onclick=()=>{
+  if(isReading)return;
+  const o=canvas.getActiveObject();
+  if(o&&o!==bgImg){canvas.remove(o);saveZones();}
+};
+
+/* ===== Click Lecture ===== */
+canvas.on("mouse:down",o=>{
+  if(!isReading||!o.target||o.target===bgImg)return;
+  const p=parts.find(x=>x.id===o.target.partId);
+  document.getElementById("desc").value=p?`${p.nom}\n\n${p.desc}`:"Pièce inconnue";
+});
+
+/* ===== Zoom ===== */
+document.getElementById("zoom").oninput=e=>{
+  canvas.zoomToPoint(
+    new fabric.Point(canvas.width/2,canvas.height/2),
+    e.target.value/100
+  );
+};
+
+/* ===== Mode ===== */
+function applyLecture(on){
+  isReading=on;
+  document.getElementById("modeLabel").textContent=on?"Lecture":"Éditeur";
+  document.getElementById("desc").readOnly=on;
+  document.getElementById("desc").classList.toggle("readonly",on);
 }
-
-document.getElementById("toggleMode").addEventListener("click", () => {
+document.getElementById("toggleMode").onclick=()=>{
   if(isReading){
-    const pw = prompt("Mot de passe Éditeur:");
-    if(pw !== EDIT_PW) return;
+    if(prompt("Mot de passe")!==EDIT_PW)return;
     applyLecture(false);
-  }else{
-    applyLecture(true);
-  }
+  }else applyLecture(true);
+};
+
+/* ===== Fullscreen ===== */
+document.getElementById("btnFsToggle").onclick=()=>{
+  document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+};
+document.addEventListener("fullscreenchange",()=>{
+  document.body.classList.toggle("fs-mode",!!document.fullscreenElement);
+  setTimeout(resizeCanvas,80);
 });
 
-/* ================= FULLSCREEN (UNIQUE) ================= */
-const fsBtn = document.getElementById("btnFsToggle");
-
-fsBtn.addEventListener("click", () => {
-  const root = document.documentElement;
-
-  if(!document.fullscreenElement){
-    root.requestFullscreen().catch(err => {
-      alert("Plein écran impossible");
-      console.error(err);
-    });
-  }else{
-    document.exitFullscreen();
-  }
-});
-
-document.addEventListener("fullscreenchange", () => {
-  document.body.classList.toggle("fs-mode", !!document.fullscreenElement);
-  setTimeout(() => {
-    resizeCanvas();
-  }, 80);
-});
-
-/* écouteur global */
-window.addEventListener("resize", resizeCanvas);
-
-/* init unique */
-(async function init(){
-  resizeCanvas();
-  await loadPartsData();
-  await loadBackground();
-  resizeCanvas();   // IMPORTANT
-  applyLecture(true);
-  loadHotspots();
-})();
-
-
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
+loadAll();
+applyLecture(true);
 </script>
 
 </body>
