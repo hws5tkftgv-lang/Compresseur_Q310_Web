@@ -10,80 +10,51 @@
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
-html,body{margin:0;background:#0c132e;color:#eaf1ff;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+html,body{margin:0;background:#0c132e;color:#eaf1ff;font-family:system-ui}
 
-/* TOP BAR */
 .topbar{
- display:grid;
- grid-template-columns:auto auto 1fr 240px auto auto auto auto;
- gap:10px;
- align-items:center;
- padding:10px;
- background:#0f1a3f;
- border-bottom:1px solid rgba(255,255,255,.1)
+ display:flex;gap:10px;align-items:center;
+ padding:10px;background:#0f1a3f;border-bottom:1px solid rgba(255,255,255,.1)
 }
 .btn{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#1b2553;color:#fff;cursor:pointer}
 .btn.primary{background:#0078ff}
-.btn.tiny{border-radius:999px}
 .select,input,textarea{
  background:#101a40;color:#fff;border:1px solid rgba(255,255,255,.2);
  border-radius:8px;padding:6px 8px
 }
-.zoomwrap{display:flex;gap:8px;align-items:center}
+.zoomwrap{display:flex;gap:6px;align-items:center}
 
-/* LAYOUT */
 .wrap{
- display:grid;
- grid-template-columns:1fr 360px;
- gap:10px;
- padding:10px
+ display:grid;grid-template-columns:1fr 360px;gap:10px;padding:10px
 }
-.stage{
- position:relative;
- background:#0b1536;
- border-radius:12px;
- overflow:hidden;
- min-height:75vh
-}
-.panel{
- background:#0f1a44;
- border-radius:12px;
- padding:10px;
- display:flex;
- flex-direction:column;
- gap:8px
-}
+.stage{position:relative;background:#0b1536;border-radius:12px;overflow:hidden}
+.panel{background:#0f1a44;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
 canvas{display:block}
 
-/* FULLSCREEN */
-body.fs-mode{background:#020617;overflow:hidden}
+body.fs-mode{overflow:hidden}
 body.fs-mode .wrap{
- position:fixed;inset:0;
- padding:8px;
+ position:fixed;inset:0;padding:8px;
  grid-template-columns:70% 30%
 }
-body.fs-mode .stage,body.fs-mode .panel{height:calc(100vh - 56px)}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
- <b id="modeLabel">Mode : Lecture</b>
- <button id="toggleMode" class="btn">Passer en Éditeur</button>
-
- <select id="imgSelect" class="select"></select>
+ <b id="modeLabel">Lecture</b>
+ <button id="toggleMode" class="btn">Éditeur</button>
 
  <div class="zoomwrap">
-  <b>Zoom</b>
+  Zoom
   <input id="zoomRange" type="range" min="25" max="250" value="100">
   <span id="zoomLabel">100%</span>
  </div>
 
- <button id="btnHand" class="btn tiny">✋</button>
- <button id="btnRect" class="btn tiny primary">▭</button>
- <button id="btnFit" class="btn tiny">⤡</button>
- <button id="btnFs" class="btn tiny">⤢</button>
+ <button id="btnHand" class="btn">✋</button>
+ <button id="btnRect" class="btn primary">▭ Zone</button>
+ <button id="btnFit" class="btn">⤡</button>
+ <button id="btnFs" class="btn">⤢</button>
 </div>
 
 <div class="wrap">
@@ -92,207 +63,165 @@ body.fs-mode .stage,body.fs-mode .panel{height:calc(100vh - 56px)}
  </div>
 
  <aside class="panel">
-  <b>Fiche de la zone</b>
-
+  <b>Zone</b>
   <select id="pieceSelect" class="select"></select>
-  <input id="fName" class="input" placeholder="Nom">
-  <input id="fRole" class="input" placeholder="Rôle">
-  <textarea id="fDesc" class="input" placeholder="Description"></textarea>
-
+  <input id="fName" placeholder="Nom">
+  <textarea id="fDesc" placeholder="Description"></textarea>
   <button id="btnApply" class="btn primary">Appliquer</button>
-  <button id="btnDelete" class="btn">Supprimer zone</button>
+  <button id="btnDelete" class="btn">Supprimer</button>
  </aside>
 </div>
 
 <script>
-/* ================= CONFIG ================= */
+/* CONFIG */
 const EDIT_PW="PROF";
-const PARTS_JSON_URL="quincy_310L_parts.json";
-const IMAGES=[{label:"compresseur_bg.png",url:"actif/compresseur_bg.png"}];
-const LSKEY=u=>"zones::"+u;
+const IMAGE_URL="actif/compresseur_bg.png";
+const PARTS_JSON="quincy_310L_parts.json";
 
-/* ================= CANVAS ================= */
-const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true});
-let bgImg=null,isReading=true,currentZoom=1;
-const MIN_ZOOM=.25,MAX_ZOOM=3;
+/* CANVAS */
+const canvas=new fabric.Canvas("c",{selection:false});
+let bgImg=null,currentZoom=1,isReading=true;
+const TOOL={HAND:0,RECT:1}; let tool=TOOL.RECT;
 
-/* ================= ZOOM ================= */
-function updateZoomUI(){
- const p=Math.round(currentZoom*100);
- zoomRange.value=p;zoomLabel.textContent=p+"%";
-}
-function applyZoom(z,pt=null){
- currentZoom=Math.min(MAX_ZOOM,Math.max(MIN_ZOOM,z));
+/* UI */
+const zoomRange=zoomLabel.previousElementSibling;
+const pieceSelect=document.getElementById("pieceSelect");
+
+/* ZOOM */
+function applyZoom(z,pt){
+ currentZoom=Math.max(.25,Math.min(3,z));
  const p=pt||new fabric.Point(canvas.getWidth()/2,canvas.getHeight()/2);
  canvas.zoomToPoint(p,currentZoom);
- updateZoomUI();canvas.requestRenderAll();
+ zoomRange.value=Math.round(currentZoom*100);
+ zoomLabel.textContent=zoomRange.value+"%";
 }
-function zoomToFit(){
- canvas.setViewportTransform([1,0,0,1,0,0]);
- currentZoom=1;updateZoomUI();
- fitBackground();applyZoom(1);
-}
+zoomRange.oninput=e=>applyZoom(e.target.value/100);
 
-/* ================= RESIZE ================= */
-function resizeCanvas(){
+/* RESIZE */
+function resize(){
  const s=document.querySelector(".stage");
  canvas.setWidth(s.clientWidth);
  canvas.setHeight(s.clientHeight);
- fitBackground();canvas.requestRenderAll();
+ fitBg();
 }
+window.addEventListener("resize",resize);
 
-/* ================= BACKGROUND ================= */
-function fitBackground(){
+/* BACKGROUND */
+function fitBg(){
  if(!bgImg)return;
  const cw=canvas.getWidth(),ch=canvas.getHeight();
- const iw=bgImg.width,ih=bgImg.height;
- const scale=Math.min(cw/iw,ch/ih);
+ const s=Math.min(cw/bgImg.width,ch/bgImg.height);
  bgImg.set({
-  left:(cw-iw*scale)/2,
-  top:(ch-ih*scale)/2,
-  scaleX:scale,scaleY:scale,
-  selectable:false,evented:false
+  left:(cw-bgImg.width*s)/2,
+  top:(ch-bgImg.height*s)/2,
+  scaleX:s,scaleY:s
  });
  canvas.sendToBack(bgImg);
  canvas.getObjects("rect").forEach(r=>{
-  if(!r._imgBox)return;
+  if(!r._img)return;
   r.set({
-   left:bgImg.left+r._imgBox.x*bgImg.scaleX,
-   top:bgImg.top+r._imgBox.y*bgImg.scaleY,
-   width:r._imgBox.w*bgImg.scaleX,
-   height:r._imgBox.h*bgImg.scaleY,
-   scaleX:1,scaleY:1
+   left:bgImg.left+r._img.x*s,
+   top:bgImg.top+r._img.y*s,
+   width:r._img.w*s,
+   height:r._img.h*s
   });
-  r.setCoords();
  });
-}
-function loadBackground(url){
- return new Promise(res=>{
-  if(bgImg)canvas.remove(bgImg);
-  fabric.Image.fromURL(url,img=>{
-   bgImg=img;canvas.add(bgImg);
-   zoomToFit();res();
-  },{crossOrigin:"anonymous"});
- });
+ canvas.requestRenderAll();
 }
 
-/* ================= JSON ================= */
-let parts=[];
-fetch(PARTS_JSON_URL).then(r=>r.json()).then(d=>{
- parts=(Array.isArray(d)?d:d.parts||[]).map(p=>({
-  id:String(p.id||p.partId||""),name:p.name||p.title||"",desc:p.desc||"",role:p.role||""
- })).filter(p=>p.id);
- pieceSelect.innerHTML='<option value="">— choisir —</option>';
- parts.forEach(p=>{
+/* LOAD IMAGE */
+fabric.Image.fromURL(IMAGE_URL,img=>{
+ bgImg=img;
+ img.selectable=false;
+ canvas.add(img);
+ resize();
+},{crossOrigin:"anonymous"});
+
+/* LOAD PARTS */
+fetch(PARTS_JSON).then(r=>r.json()).then(d=>{
+ d.forEach(p=>{
   const o=document.createElement("option");
-  o.value=p.id;o.textContent=p.id+" — "+p.name;
+  o.value=p.id;o.textContent=p.id+" – "+p.name;
   pieceSelect.appendChild(o);
  });
 });
 
-/* ================= ZONES ================= */
-function saveZones(){
- const z=canvas.getObjects("rect").map(r=>{
-  r._imgBox={
-   x:(r.left-bgImg.left)/bgImg.scaleX,
-   y:(r.top-bgImg.top)/bgImg.scaleY,
-   w:r.width/bgImg.scaleX,
-   h:r.height/bgImg.scaleY
-  };
-  return{imgBox:r._imgBox,partId:r.partId||"",name:r.metaName||"",role:r.metaRole||"",desc:r.metaDesc||""};
- });
- localStorage.setItem(LSKEY(imgSelect.value),JSON.stringify(z));
-}
-function loadZones(){
- canvas.getObjects("rect").forEach(r=>canvas.remove(r));
- const raw=localStorage.getItem(LSKEY(imgSelect.value));
- if(!raw)return;
- JSON.parse(raw).forEach(z=>{
-  const r=new fabric.Rect({
-   left:0,top:0,width:10,height:10,
-   fill:"rgba(0,140,255,.1)",stroke:"rgba(0,140,255,.9)",strokeWidth:2
-  });
-  Object.assign(r,{_imgBox:z.imgBox,partId:z.partId,metaName:z.name,metaRole:z.role,metaDesc:z.desc});
-  canvas.add(r);
- });
- fitBackground();
-}
-
-/* ================= TOOLS ================= */
-const TOOL={HAND:"hand",RECT:"rect"};
-let tool=TOOL.RECT,isPanning=false,last={x:0,y:0},drawing=false,start={x:0,y:0},cur=null;
-
-btnHand.onclick=()=>tool=TOOL.HAND;
-btnRect.onclick=()=>tool=TOOL.RECT;
+/* DRAW RECT */
+let drawing=false,start={},rect=null;
 
 canvas.on("mouse:down",o=>{
- if(tool===TOOL.HAND){isPanning=true;last={x:o.e.clientX,y:o.e.clientY};return;}
  if(isReading||tool!==TOOL.RECT||o.target)return;
  const p=canvas.getPointer(o.e,true);
  drawing=true;start=p;
- cur=new fabric.Rect({left:p.x,top:p.y,width:1,height:1,fill:"rgba(0,140,255,.1)",stroke:"rgba(0,140,255,.9)",strokeWidth:2});
- canvas.add(cur);canvas.setActiveObject(cur);
+ rect=new fabric.Rect({
+  left:p.x,top:p.y,width:1,height:1,
+  fill:"rgba(0,140,255,.1)",
+  stroke:"rgba(0,140,255,.9)",strokeWidth:2
+ });
+ canvas.add(rect);
+ canvas.setActiveObject(rect);
 });
+
 canvas.on("mouse:move",o=>{
- if(isPanning){
-  const v=canvas.viewportTransform;
-  v[4]+=o.e.clientX-last.x;v[5]+=o.e.clientY-last.y;
-  canvas.setViewportTransform(v);last={x:o.e.clientX,y:o.e.clientY};return;
- }
- if(!drawing||!cur)return;
+ if(!drawing)return;
  const p=canvas.getPointer(o.e,true);
- cur.set({left:Math.min(p.x,start.x),top:Math.min(p.y,start.y),width:Math.abs(p.x-start.x),height:Math.abs(p.y-start.y)});
+ rect.set({
+  left:Math.min(start.x,p.x),
+  top:Math.min(start.y,p.y),
+  width:Math.abs(p.x-start.x),
+  height:Math.abs(p.y-start.y)
+ });
  canvas.requestRenderAll();
 });
+
 canvas.on("mouse:up",()=>{
- isPanning=false;
- if(!drawing||!cur)return;
+ if(!drawing)return;
  drawing=false;
- if(cur.width<8||cur.height<8){canvas.remove(cur);cur=null;return;}
- saveZones();cur=null;
+ rect._img={
+  x:(rect.left-bgImg.left)/bgImg.scaleX,
+  y:(rect.top-bgImg.top)/bgImg.scaleY,
+  w:rect.width/bgImg.scaleX,
+  h:rect.height/bgImg.scaleY
+ };
+ pieceSelect.focus(); // 🔑 OUVERTURE AUTO
 });
 
-/* ================= ZOOM UI ================= */
-zoomRange.oninput=()=>applyZoom(zoomRange.value/100);
-btnFit.onclick=zoomToFit;
-canvas.on("mouse:wheel",o=>{
- if(!o.e.ctrlKey)return;
- o.e.preventDefault();
- let z=currentZoom*(0.999**o.e.deltaY);
- const p=canvas.getPointer(o.e,true);
- applyZoom(z,new fabric.Point(p.x,p.y));
-},{passive:false});
+/* APPLY */
+btnApply.onclick=()=>{
+ const r=canvas.getActiveObject();
+ if(!r)return;
+ r.partId=pieceSelect.value;
+};
 
-/* ================= FULLSCREEN ================= */
+/* DELETE */
+btnDelete.onclick=()=>{
+ const r=canvas.getActiveObject();
+ if(r)canvas.remove(r);
+};
+
+/* TOOLS */
+btnHand.onclick=()=>tool=TOOL.HAND;
+btnRect.onclick=()=>tool=TOOL.RECT;
+
+/* FULLSCREEN */
 btnFs.onclick=()=>{
  if(!document.fullscreenElement)document.documentElement.requestFullscreen();
  else document.exitFullscreen();
 };
 document.addEventListener("fullscreenchange",()=>{
  document.body.classList.toggle("fs-mode",!!document.fullscreenElement);
- setTimeout(()=>{resizeCanvas();applyZoom(currentZoom)},120);
+ setTimeout(()=>{resize();applyZoom(currentZoom)},120);
 });
 
-/* ================= MODE ================= */
+/* MODE */
 toggleMode.onclick=()=>{
- if(isReading){
-  if(prompt("Mot de passe")!==EDIT_PW)return;
-  isReading=false;
- }else isReading=true;
- modeLabel.textContent=isReading?"Mode : Lecture":"Mode : Éditeur";
+ if(isReading && prompt("Mot de passe")!==EDIT_PW)return;
+ isReading=!isReading;
+ modeLabel.textContent=isReading?"Lecture":"Éditeur";
 };
 
-/* ================= IMAGE ================= */
-imgSelect.innerHTML=IMAGES.map(i=>`<option value="${i.url}">${i.label}</option>`).join("");
-imgSelect.onchange=async()=>{await loadBackground(imgSelect.value);loadZones()};
-window.addEventListener("resize",resizeCanvas);
-
-/* ================= INIT ================= */
-(async()=>{
- await loadBackground(IMAGES[0].url);
- loadZones();
- resizeCanvas();
-})();
+/* INIT */
+resize();
 </script>
 
 </body>
