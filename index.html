@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Quincy 310L – Zones interactives</title>
+<title>Quincy 310L – Zones pédagogiques</title>
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
@@ -18,10 +18,8 @@ html,body{
   font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* ===== BARRE OUTILS ===== */
+/* ===== BARRE HAUTE ===== */
 .topbar{
-  position:relative;
-  z-index:1000;
   display:flex;
   align-items:center;
   gap:8px;
@@ -36,21 +34,16 @@ html,body{
   background:#1b2553;
   color:#eaf1ff;
   cursor:pointer;
-  font-size:13px;
 }
 .btn.active{background:#0078ff}
-.btn.icon{font-size:16px;padding:6px 10px}
 
-.zoomwrap{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  border-radius:10px;
-  background:#121c45;
+.select{
+  background:#101a40;
+  color:#eaf1ff;
   border:1px solid rgba(255,255,255,.15);
+  border-radius:6px;
+  padding:6px;
 }
-.zoomwrap input{width:140px}
 
 /* ===== LAYOUT ===== */
 .wrap{
@@ -60,7 +53,6 @@ html,body{
   padding:12px;
 }
 .stage{
-  position:relative;
   background:#0b1536;
   border-radius:12px;
   overflow:hidden;
@@ -70,21 +62,7 @@ html,body{
   background:#0f1a44;
   border-radius:12px;
   padding:12px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
 }
-
-/* ===== FORM ===== */
-select,input,textarea{
-  width:100%;
-  background:#101a40;
-  color:#eaf1ff;
-  border:1px solid rgba(255,255,255,.15);
-  border-radius:6px;
-  padding:6px 8px;
-}
-textarea{min-height:90px}
 
 /* ===== FULLSCREEN ===== */
 body.fs .wrap{
@@ -98,26 +76,17 @@ canvas{display:block}
 
 <body>
 
-<!-- ===== TOOLBAR ===== -->
 <div class="topbar">
   <b id="modeLabel">Mode : Lecture</b>
   <button id="btnMode" class="btn">Éditeur</button>
 
-  <div class="zoomwrap">
-    <b>Zoom</b>
-    <input id="zoomRange" type="range" min="50" max="250" value="100">
-    <span id="zoomTxt">100%</span>
-  </div>
+  <select id="imgSelect" class="select"></select>
 
-  <button id="btnSelect" class="btn icon active">🖱</button>
-  <button id="btnDraw"   class="btn icon">✏️</button>
-  <button id="btnErase"  class="btn icon">🧽</button>
-  <button id="btnHand"   class="btn icon">✋</button>
-  <button id="btnFit"    class="btn icon">⤡</button>
-  <button id="btnFs"     class="btn icon">⛶</button>
+  <button id="btnSelect" class="btn active">🖱 Sélection</button>
+  <button id="btnDraw" class="btn">✏️ Crayon</button>
+  <button id="btnErase" class="btn">🧽 Effacer</button>
 </div>
 
-<!-- ===== MAIN ===== -->
 <div class="wrap">
   <div class="stage">
     <canvas id="c"></canvas>
@@ -125,93 +94,106 @@ canvas{display:block}
 
   <aside class="panel">
     <h3>Zone</h3>
-
     <label>Pièce</label>
-    <select id="pieceSelect">
-      <option value="">— choisir —</option>
-    </select>
-
-    <label>Nom</label>
-    <input id="fName">
-
+    <select id="pieceSelect" class="select"></select>
     <label>Description</label>
-    <textarea id="fDesc"></textarea>
-
-    <button id="btnApply" class="btn active">Appliquer</button>
+    <textarea id="desc" style="width:100%;height:120px"></textarea>
   </aside>
 </div>
 
 <script>
-/* ===== CONFIG ===== */
-const IMG_URL = "actif/compresseur_bg.png";
-const JSON_URL = "quincy_310L_parts.json";
+/* ================= CONFIG ================= */
+const IMAGES=[
+  {label:"Compresseur",url:"actif/compresseur_bg.png"},
+  {label:"Vue moteur",url:"actif/vue_moteur.png"},
+  {label:"Vue pompe",url:"actif/vue_pompe.png"}
+];
+const JSON_URL="quincy_310L_parts.json";
 
-/* ===== CANVAS ===== */
-const canvas = new fabric.Canvas("c",{selection:false});
-let bg=null, tool="select", isEditor=false;
-let drawing=false,start={},currentRect=null;
+/* ================= CANVAS ================= */
+const canvas=new fabric.Canvas("c");
+let bg=null,isEditor=false,tool="select",currentImage=IMAGES[0].url;
 
-/* ===== UI ===== */
+/* ================= UTILS ================= */
 const $=id=>document.getElementById(id);
-const btns={select:$("btnSelect"),draw:$("btnDraw"),erase:$("btnErase"),hand:$("btnHand")};
+const LS_KEY=url=>"zones_"+url;
 
-/* ===== TOOLS ===== */
-function setTool(t){
-  tool=t;
-  Object.keys(btns).forEach(k=>btns[k].classList.remove("active"));
-  if(btns[t]) btns[t].classList.add("active");
-  canvas.defaultCursor = t==="hand"?"grab":t==="draw"?"crosshair":"default";
+/* ================= IMAGE ================= */
+function loadImage(url){
+  canvas.clear();
+  fabric.Image.fromURL(url,img=>{
+    bg=img;
+    bg.selectable=false;
+    canvas.add(bg);
+    fit();
+    loadZones();
+  });
+}
+function fit(){
+  canvas.setWidth(document.querySelector(".stage").clientWidth);
+  canvas.setHeight(document.querySelector(".stage").clientHeight);
+  const s=Math.min(canvas.width/bg.width,canvas.height/bg.height);
+  bg.scale(s);
+  bg.left=(canvas.width-bg.width*s)/2;
+  bg.top =(canvas.height-bg.height*s)/2;
+  canvas.sendToBack(bg);
 }
 
-/* ===== IMAGE ===== */
-fabric.Image.fromURL(IMG_URL,img=>{
-  bg=img;
-  bg.selectable=false;
-  canvas.add(bg);
-  resize();
-});
-
-/* ===== ZOOM ===== */
-function applyZoom(p){
-  const z=p/100;
-  const c=new fabric.Point(canvas.width/2,canvas.height/2);
-  canvas.zoomToPoint(c,z);
-  $("zoomTxt").textContent=p+"%";
+/* ================= ZONES ================= */
+function saveZones(){
+  const z=canvas.getObjects().filter(o=>o!==bg).map(r=>({
+    l:r.left,t:r.top,w:r.width,h:r.height,p:r.partId||""
+  }));
+  localStorage.setItem(LS_KEY(currentImage),JSON.stringify(z));
 }
-$("zoomRange").oninput=e=>applyZoom(e.target.value);
+function loadZones(){
+  const raw=localStorage.getItem(LS_KEY(currentImage));
+  if(!raw)return;
+  JSON.parse(raw).forEach(z=>{
+    const r=new fabric.Rect({
+      left:z.l,top:z.t,width:z.w,height:z.h,
+      fill:"rgba(0,150,255,.2)",stroke:"#09f",strokeWidth:2
+    });
+    r.partId=z.p;
+    canvas.add(r);
+  });
+  applyMode();
+}
 
-/* ===== RESIZE ===== */
-function resize(){
-  const s=document.querySelector(".stage");
-  canvas.setWidth(s.clientWidth);
-  canvas.setHeight(s.clientHeight);
-  if(bg){
-    const sc=Math.min(canvas.width/bg.width,canvas.height/bg.height);
-    bg.scale(sc);
-    bg.left=(canvas.width-bg.width*sc)/2;
-    bg.top =(canvas.height-bg.height*sc)/2;
-    canvas.sendToBack(bg);
-  }
+/* ================= MODES ================= */
+function applyMode(){
+  canvas.getObjects().forEach(o=>{
+    if(o===bg)return;
+    o.selectable=isEditor;
+    o.evented=true;
+    o.opacity=isEditor?1:0;
+  });
   canvas.requestRenderAll();
 }
-window.addEventListener("resize",resize);
 
-/* ===== DRAW RECT ===== */
+$("btnMode").onclick=()=>{
+  isEditor=!isEditor;
+  $("modeLabel").textContent=isEditor?"Mode : Éditeur":"Mode : Lecture";
+  applyMode();
+};
+
+/* ================= DRAW ================= */
+let drawing=false,start={},rect=null;
+
 canvas.on("mouse:down",e=>{
-  if(!isEditor||tool!=="draw") return;
-  const p=canvas.getPointer(e.e,true);
+  if(!isEditor||tool!=="draw")return;
+  const p=canvas.getPointer(e.e);
   drawing=true;start=p;
-  currentRect=new fabric.Rect({
+  rect=new fabric.Rect({
     left:p.x,top:p.y,width:1,height:1,
-    fill:"rgba(0,140,255,.2)",
-    stroke:"#0af",strokeWidth:2
+    fill:"rgba(0,150,255,.2)",stroke:"#09f",strokeWidth:2
   });
-  canvas.add(currentRect);
+  canvas.add(rect);
 });
 canvas.on("mouse:move",e=>{
-  if(!drawing) return;
-  const p=canvas.getPointer(e.e,true);
-  currentRect.set({
+  if(!drawing)return;
+  const p=canvas.getPointer(e.e);
+  rect.set({
     left:Math.min(p.x,start.x),
     top:Math.min(p.y,start.y),
     width:Math.abs(p.x-start.x),
@@ -220,58 +202,42 @@ canvas.on("mouse:move",e=>{
   canvas.requestRenderAll();
 });
 canvas.on("mouse:up",()=>{
-  if(!drawing) return;
+  if(!drawing)return;
   drawing=false;
-  canvas.setActiveObject(currentRect);
-  $("pieceSelect").focus(); // 🔑 ouvre la fiche automatiquement
-  currentRect=null;
+  canvas.setActiveObject(rect);
+  rect=null;
+  saveZones();
 });
 
-/* ===== PAN ===== */
-let pan=false,last={};
-canvas.on("mouse:down",e=>{
-  if(tool!=="hand") return;
-  pan=true; last={x:e.e.clientX,y:e.e.clientY};
-});
-canvas.on("mouse:move",e=>{
-  if(!pan) return;
-  const v=canvas.viewportTransform;
-  v[4]+=e.e.clientX-last.x;
-  v[5]+=e.e.clientY-last.y;
-  last={x:e.e.clientX,y:e.e.clientY};
-  canvas.setViewportTransform(v);
-});
-canvas.on("mouse:up",()=>pan=false);
-
-/* ===== ERASE ===== */
+/* ================= BUTTONS ================= */
+$("btnSelect").onclick=()=>tool="select";
+$("btnDraw").onclick=()=>tool="draw";
 $("btnErase").onclick=()=>{
-  if(!isEditor) return;
   const o=canvas.getActiveObject();
-  if(o && o!==bg) canvas.remove(o);
+  if(o&&o!==bg){canvas.remove(o);saveZones();}
 };
 
-/* ===== MODE ===== */
-$("btnMode").onclick=()=>{
-  isEditor=!isEditor;
-  $("modeLabel").textContent=isEditor?"Mode : Éditeur":"Mode : Lecture";
-  setTool("select");
+/* ================= IMAGES ================= */
+IMAGES.forEach(i=>{
+  const o=document.createElement("option");
+  o.value=i.url;o.textContent=i.label;
+  $("imgSelect").appendChild(o);
+});
+$("imgSelect").onchange=e=>{
+  currentImage=e.target.value;
+  loadImage(currentImage);
 };
 
-/* ===== BUTTONS ===== */
-$("btnSelect").onclick=()=>setTool("select");
-$("btnDraw").onclick  =()=>setTool("draw");
-$("btnHand").onclick  =()=>setTool("hand");
-$("btnFit").onclick   =()=>{canvas.setViewportTransform([1,0,0,1,0,0]);applyZoom(100);resize()};
-$("btnFs").onclick    =()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-
-/* ===== JSON ===== */
+/* ================= INIT ================= */
 fetch(JSON_URL).then(r=>r.json()).then(d=>{
   d.forEach(p=>{
     const o=document.createElement("option");
-    o.value=p.id;o.textContent=p.id+" — "+p.name;
+    o.value=p.id;o.textContent=p.id+" - "+p.name;
     $("pieceSelect").appendChild(o);
   });
 });
+loadImage(currentImage);
+window.addEventListener("resize",fit);
 </script>
 
 </body>
