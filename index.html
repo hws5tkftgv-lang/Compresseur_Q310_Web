@@ -149,11 +149,17 @@ let partsData = []; // [{id, title, desc...}] selon ton JSON
 /* ================= RESIZE + FIT ================= */
 function resizeCanvas(){
   const stage = document.querySelector(".stage");
-  canvas.setWidth(stage.clientWidth);
-  canvas.setHeight(stage.clientHeight);
-  fitBackground();
+
+  const w = stage.clientWidth;
+  const h = stage.clientHeight || Math.round(window.innerHeight * 0.65);
+
+  canvas.setWidth(w);
+  canvas.setHeight(h);
+
+  if (bgImg) fitBackground();
   canvas.requestRenderAll();
 }
+
 
 function fitBackground(){
   if(!bgImg) return;
@@ -418,16 +424,19 @@ document.addEventListener("fullscreenchange", () => {
   }, 80);
 });
 
-/* ================= INIT ================= */
+/* écouteur global */
 window.addEventListener("resize", resizeCanvas);
 
+/* init unique */
 (async function init(){
   resizeCanvas();
   await loadPartsData();
   await loadBackground();
+  resizeCanvas();   // IMPORTANT
   applyLecture(true);
   loadHotspots();
 })();
+
 
 </script>
 
