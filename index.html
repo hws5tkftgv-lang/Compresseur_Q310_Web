@@ -56,6 +56,32 @@
     background:#0b1536; border-radius:12px; overflow:hidden;
     min-height:78vh; position:relative;
   }
+
+  /* Media layer + Canvas overlay */
+  .media-layer, #c{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+  }
+  .media-layer{
+    transform-origin:0 0;
+    pointer-events:none; /* le canvas gère les clics */
+  }
+  #imgLayer, #videoLayer{
+    position:absolute;
+    left:0; top:0;
+    width:0; height:0;
+    display:none;
+    pointer-events:none;
+    border:none;
+  }
+  #videoLayer{
+    display:none;
+    pointer-events:auto; /* on veut les controls */
+  }
+  .video-controls-on #videoLayer{
+    pointer-events:auto;
+  }
+
   .panel{
     background:#0f1a44; border-radius:12px; padding:12px;
     display:flex; flex-direction:column; gap:10px;
@@ -73,7 +99,6 @@
     padding:10px;
   }
   textarea{ min-height:90px; resize:vertical; }
-  canvas{ display:block; }
 
   body.fs .wrap{
     position:fixed; inset:56px 0 0 0;
@@ -110,7 +135,11 @@
 </div>
 
 <div class="wrap">
-  <div class="stage">
+  <div class="stage" id="stage">
+    <div class="media-layer" id="mediaLayer">
+      <img id="imgLayer" alt="">
+      <video id="videoLayer" controls playsinline></video>
+    </div>
     <canvas id="c"></canvas>
   </div>
 
@@ -168,9 +197,7 @@ const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 /* ✅ Fond référence par défaut (premier) */
 const IMAGES = [
   { label:"Fond référence", url:"actif/compresseur_bg.png" },
-   // 🎥 VIDEO (AJOUT ICI)
   { label:"Animation – Compresseur 2 stages", url:"video:actif/compresseur 2 stages.mp4" },
-
   { label:"Vue générale", url:"actif/VUE_GENERAL.jpeg" },
   { label:"Vue générale 2", url:"actif/VUE_GENERAL_2.jpeg" },
   { label:"Vue côté", url:"actif/VUE_1.jpeg" },
@@ -182,12 +209,12 @@ const IMAGES = [
   { label:"Vers réservoir", url:"actif/VERS_RESERVOIR.jpeg" },
   { label:"Poulie", url:"actif/POULIE.jpeg" },
   { label:"Filtre air", url:"actif/FILTRE_AIR_COUVERCLE.jpeg" },
-  { label:"Soupape unloader", url:"actif/SOUPAPE_UNLOADER.jpeg" },
+  { label:"Soupape unloader", url:"actif/SOUPAPE_UNLOADER.jpeg" }
 ];
 
 /* ================= HELPERS ================= */
 const $ = (id)=>document.getElementById(id);
-const LS_ZONES = (imgUrl)=>"q310_zones_v3::"+imgUrl;
+const LS_ZONES = (mediaKey)=>"q310_zones_v4::"+mediaKey;
 
 function slugify(s){
   return (s||"")
@@ -198,24 +225,151 @@ function slugify(s){
 }
 
 /* ================= STATE ================= */
-const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true });
+let canvas = null;
 
-let bg = null;
 let isEditor = false;
 let tool = "select";          // select | draw | pan
 let zoom = 1;
-let currentImage = IMAGES[0].url;
 
-/* Parts: base JSON + custom local */
-let partsBase = [];     // array {id, nom, role, desc, circuit}
-let partsCustom = {};   // map id -> part
-let partsMerged = [];   // array merged
+let currentMedia = IMAGES[0].url; // string (peut commencer par "video:")
+let currentMediaKey = currentMedia; // utilisé pour LS (unique)
 
-/* Drawing */
+let mediaType = "image"; // image | video
+let mediaNaturalW = 0;
+let mediaNaturalH = 0;
+let mediaLeft = 0;
+let mediaTop = 0;
+let mediaScale = 1;
+
+const stageEl = $("stage");
+const mediaLayer = $("mediaLayer");
+const imgEl = $("imgLayer");
+const videoEl = $("videoLayer");
+
 let drawing=false, startPt=null, curRect=null;
-
-/* Panning */
 let isPanning=false, lastClient=null;
+
+let partsBase = [];
+let partsCustom = {};
+let partsMerged = [];
+
+/* ================= CANVAS INIT ================= */
+function ensureCanvas(){
+  if(canvas) return;
+
+  canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true });
+  canvas.defaultCursor = "pointer";
+
+  // events (UNE FOIS)
+  canvas.on("object:modified", (e)=>{
+    if(!e.target) return;
+    saveZones();
+  });
+
+  // Click zone : affiche fiche dans tous les modes
+  canvas.on("mouse:down", (opt)=>{
+    const t = opt.target;
+    if(!t) return;
+    if(tool==="pan") return;
+    if(t.type === "rect"){
+      setPanelForZone(t);
+      if(isEditor && tool==="select"){
+        canvas.setActiveObject(t);
+      }
+    }
+  });
+
+  // Draw start
+  canvas.on("mouse:down", (opt)=>{
+    if(!isEditor) return;
+    if(tool!=="draw") return;
+    if(opt.target) return; // clique sur objet existant
+
+    drawing = true;
+    startPt = canvas.getPointer(opt.e, true);
+    curRect = makeZoneRect();
+    curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
+    canvas.add(curRect);
+    canvas.setActiveObject(curRect);
+  });
+
+  // Move (draw + pan)
+  canvas.on("mouse:move", (opt)=>{
+    if(drawing && curRect){
+      const p = canvas.getPointer(opt.e, true);
+      const left = Math.min(p.x, startPt.x);
+      const top  = Math.min(p.y, startPt.y);
+      const w = Math.abs(p.x - startPt.x);
+      const h = Math.abs(p.y - startPt.y);
+      curRect.set({ left, top, width:w, height:h, scaleX:1, scaleY:1 });
+      curRect.setCoords();
+      canvas.requestRenderAll();
+    }
+
+    if(isPanning){
+      const e = opt.e;
+      const vpt = canvas.viewportTransform;
+      vpt[4] += (e.clientX - lastClient.x);
+      vpt[5] += (e.clientY - lastClient.y);
+      lastClient = {x:e.clientX, y:e.clientY};
+      canvas.setViewportTransform(vpt);
+      syncMediaTransformToCanvas();
+      canvas.requestRenderAll();
+    }
+  });
+
+  // Mouse up
+  canvas.on("mouse:up", ()=>{
+    if(drawing && curRect){
+      drawing = false;
+
+      if(curRect.width < 10 || curRect.height < 10){
+        canvas.remove(curRect);
+        curRect = null;
+        canvas.requestRenderAll();
+        return;
+      }
+
+      updateImgBoxFromRect(curRect);
+      curRect.partId = "";
+      saveZones();
+
+      setPanelForZone(curRect);
+      $("pieceSelect").focus();
+
+      curRect = null;
+    }
+
+    if(isPanning){
+      isPanning = false;
+      canvas.defaultCursor = (tool==="pan") ? "grab" : (tool==="draw" ? "crosshair" : "pointer");
+    }
+  });
+
+  // Pan start
+  canvas.on("mouse:down", (opt)=>{
+    if(tool!=="pan") return;
+    isPanning = true;
+    lastClient = { x:opt.e.clientX, y:opt.e.clientY };
+    canvas.defaultCursor = "grabbing";
+  });
+
+  // Curseur stable
+  canvas.on("mouse:over", ()=>{
+    if(tool==="pan") canvas.defaultCursor = isPanning ? "grabbing" : "grab";
+    else if(tool==="draw") canvas.defaultCursor = "crosshair";
+    else canvas.defaultCursor = "pointer";
+  });
+
+  // Zoom ctrl+wheel
+  canvas.on("mouse:wheel", (opt)=>{
+    const e = opt.e;
+    if(!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault(); e.stopPropagation();
+    const delta = e.deltaY;
+    setZoom( zoom * (0.999 ** delta) );
+  });
+}
 
 /* ================= TOOLS UI ================= */
 function setActiveTool(t){
@@ -223,162 +377,97 @@ function setActiveTool(t){
   $("btnSelect").classList.toggle("active", t==="select");
   $("btnDraw").classList.toggle("active", t==="draw");
   $("btnPan").classList.toggle("active", t==="pan");
+  if(!canvas) return;
   canvas.defaultCursor = (t==="pan") ? "grab" : (t==="draw" ? "crosshair" : "pointer");
 }
 
-/* ================= CANVAS SIZE ================= */
-function resizeCanvas(){
-  const stage = document.querySelector(".stage");
-  canvas.setWidth(stage.clientWidth);
-  canvas.setHeight(stage.clientHeight);
-  if(bg) fitBackgroundAndZones();
-  canvas.requestRenderAll();
-}
-window.addEventListener("resize", resizeCanvas);
+/* ================= MEDIA LAYOUT (fit) ================= */
+function applyMediaBaseFit(){
+  if(!mediaNaturalW || !mediaNaturalH) return;
 
-/* ================= IMAGE LOAD ================= */
-function loadBackground(url){
-  return new Promise((resolve)=>{
-    fabric.Image.fromURL(url, (img)=>{
-      canvas.clear();
-      bg = img;
-      bg.selectable = false;
-      bg.evented = false;
-      bg.objectCaching = false;
-      canvas.add(bg);
+  const cw = stageEl.clientWidth;
+  const ch = stageEl.clientHeight;
 
-      resetViewToFit();
-      loadZones();
-      applyModeVisibility();
-      resolve();
-    }, { crossOrigin:"anonymous" });
-  });
-}
-function showMedia(url){
-  const stage = document.querySelector(".stage");
-  stage.innerHTML = "";
+  const base = Math.min(cw / mediaNaturalW, ch / mediaNaturalH);
+  mediaScale = base;
+  mediaLeft = (cw - mediaNaturalW * base) / 2;
+  mediaTop  = (ch - mediaNaturalH * base) / 2;
 
-  // ===== CAS VIDÉO =====
-  if(url.startsWith("video:")){
-    const video = document.createElement("video");
-    video.src = url.replace("video:","");
-    video.controls = true;
-    video.loop = true;
-    video.style.width = "100%";
-    video.style.height = "100%";
-    video.style.objectFit = "contain";
-    stage.appendChild(video);
+  // taille/position réelle du média (avant zoom/pan)
+  const w = mediaNaturalW * base;
+  const h = mediaNaturalH * base;
 
-    // désactiver outils de zones
-    document.querySelectorAll(".btn").forEach(b=>{
-      if(b.id !== "btnFs") b.disabled = true;
-    });
-    return;
+  if(mediaType === "image"){
+    imgEl.style.left = mediaLeft + "px";
+    imgEl.style.top  = mediaTop  + "px";
+    imgEl.style.width = w + "px";
+    imgEl.style.height = h + "px";
+  } else {
+    videoEl.style.left = mediaLeft + "px";
+    videoEl.style.top  = mediaTop  + "px";
+    videoEl.style.width = w + "px";
+    videoEl.style.height = h + "px";
   }
 
-  // ===== CAS IMAGE (COMPORTEMENT ACTUEL) =====
-  const canvasEl = document.createElement("canvas");
-  canvasEl.id = "c";
-  stage.appendChild(canvasEl);
+  // replacer zones selon leurs coords image
+  fitZonesToMedia();
 
-  document.querySelectorAll(".btn").forEach(b=>b.disabled=false);
-
-  // recréer canvas Fabric (comme avant)
-  window.canvas = new fabric.Canvas("c", {
-    selection:false,
-    preserveObjectStacking:true
-  });
-
-  loadBackground(url);
+  // sync transform (zoom/pan)
+  syncMediaTransformToCanvas();
 }
 
-/* ================= FIT + VIEW ================= */
+/* ================= CANVAS SIZE ================= */
+function resizeAll(){
+  ensureCanvas();
+  const cw = stageEl.clientWidth;
+  const ch = stageEl.clientHeight;
+  canvas.setWidth(cw);
+  canvas.setHeight(ch);
+  applyMediaBaseFit();
+  canvas.requestRenderAll();
+}
+
+window.addEventListener("resize", resizeAll);
+
+/* ================= VIEWPORT / TRANSFORM SYNC ================= */
+function syncMediaTransformToCanvas(){
+  if(!canvas) return;
+  const v = canvas.viewportTransform || [1,0,0,1,0,0];
+  mediaLayer.style.transform = `matrix(${v[0]},${v[1]},${v[2]},${v[3]},${v[4]},${v[5]})`;
+}
+
 function resetViewToFit(){
+  if(!canvas) return;
   canvas.setViewportTransform([1,0,0,1,0,0]);
   zoom = 1;
   $("zoomRange").value = "100";
   $("zoomLabel").textContent = "100%";
-  fitBackgroundAndZones();
+  syncMediaTransformToCanvas();
+  applyMediaBaseFit();
 }
 
-/* Fit bg + reposition zones from _imgBox (coords image) */
-function fitBackgroundAndZones(){
-  if(!bg) return;
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-
-  const iw = bg._originalElement ? bg._originalElement.naturalWidth : bg.width;
-  const ih = bg._originalElement ? bg._originalElement.naturalHeight : bg.height;
-
-  const baseScale = Math.min(cw/iw, ch/ih);
-
-  bg.set({
-    originX:"left", originY:"top",
-    left:(cw - iw*baseScale)/2,
-    top:(ch - ih*baseScale)/2,
-    scaleX:baseScale, scaleY:baseScale
-  });
-  canvas.sendToBack(bg);
-
-  getZones().forEach(r=>{
-    if(!r._imgBox) return;
-    const z = r._imgBox;
-    r.set({
-      left: bg.left + z.x * bg.scaleX,
-      top:  bg.top  + z.y * bg.scaleY,
-      width: z.w * bg.scaleX,
-      height:z.h * bg.scaleY,
-      scaleX:1, scaleY:1
-    });
-    r.setCoords();
-  });
-}
-
-/* ================= ZONES SAVE/LOAD ================= */
-function getZones(){
-  return canvas.getObjects().filter(o=>o!==bg && o.type==="rect");
-}
-
-function updateImgBoxFromRect(r){
-  const x = (r.left - bg.left) / bg.scaleX;
-  const y = (r.top  - bg.top ) / bg.scaleY;
-  const w = (r.width  * r.scaleX) / bg.scaleX;
-  const h = (r.height * r.scaleY) / bg.scaleY;
-  r._imgBox = {x,y,w,h};
-}
-
-function saveZones(){
-  if(!bg) return;
-  const zones = getZones().map(r=>{
-    updateImgBoxFromRect(r);
-    return { imgBox:r._imgBox, partId:(r.partId||"") };
-  });
-  localStorage.setItem(LS_ZONES(currentImage), JSON.stringify(zones));
-}
-
-function loadZones(){
-  getZones().forEach(r=>canvas.remove(r));
-  const raw = localStorage.getItem(LS_ZONES(currentImage));
-  if(!raw) return;
-  let zones;
-  try{ zones = JSON.parse(raw); }catch{ return; }
-  zones.forEach(z=>{
-    const r = makeZoneRect();
-    r.partId = z.partId || "";
-    r._imgBox = z.imgBox || null;
-    canvas.add(r);
-  });
-  fitBackgroundAndZones();
+/* ================= ZOOM ================= */
+function setZoom(z){
+  if(!canvas) return;
+  zoom = Math.max(0.5, Math.min(3, z));
+  const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+  canvas.zoomToPoint(center, zoom);
+  $("zoomRange").value = String(Math.round(zoom*100));
+  $("zoomLabel").textContent = Math.round(zoom*100) + "%";
+  syncMediaTransformToCanvas();
   canvas.requestRenderAll();
 }
 
-canvas.on("object:modified", (e)=>{
-  if(!e.target || e.target===bg) return;
-  saveZones();
+$("zoomRange").addEventListener("input", ()=>{
+  setZoom(parseInt($("zoomRange").value,10)/100);
 });
 
-/* ================= ZONE LOOK ================= */
+/* ================= ZONES ================= */
+function getZones(){
+  if(!canvas) return [];
+  return canvas.getObjects().filter(o=>o && o.type==="rect");
+}
+
 function makeZoneRect(){
   const r = new fabric.Rect({
     left:0, top:0, width:50, height:50,
@@ -389,19 +478,135 @@ function makeZoneRect(){
     objectCaching:false
   });
   r.partId = "";
-  r._imgBox = null;
+  r._imgBox = null; // coords image
   return r;
 }
 
+function updateImgBoxFromRect(r){
+  // coords dans l'image (indépendant du zoom/pan)
+  const x = (r.left - mediaLeft) / mediaScale;
+  const y = (r.top  - mediaTop ) / mediaScale;
+  const w = (r.width  * r.scaleX) / mediaScale;
+  const h = (r.height * r.scaleY) / mediaScale;
+  r._imgBox = {x,y,w,h};
+}
+
+function fitZonesToMedia(){
+  getZones().forEach(r=>{
+    if(!r._imgBox) return;
+    const z = r._imgBox;
+    r.set({
+      left: mediaLeft + z.x * mediaScale,
+      top:  mediaTop  + z.y * mediaScale,
+      width: z.w * mediaScale,
+      height:z.h * mediaScale,
+      scaleX:1, scaleY:1
+    });
+    r.setCoords();
+  });
+}
+
+function saveZones(){
+  if(!canvas) return;
+  const zones = getZones().map(r=>{
+    updateImgBoxFromRect(r);
+    return { imgBox:r._imgBox, partId:(r.partId||"") };
+  });
+  localStorage.setItem(LS_ZONES(currentMediaKey), JSON.stringify(zones));
+}
+
+function loadZones(){
+  if(!canvas) return;
+  getZones().forEach(r=>canvas.remove(r));
+
+  const raw = localStorage.getItem(LS_ZONES(currentMediaKey));
+  if(!raw) { canvas.requestRenderAll(); return; }
+
+  let zones;
+  try{ zones = JSON.parse(raw); }catch{ return; }
+
+  zones.forEach(z=>{
+    const r = makeZoneRect();
+    r.partId = z.partId || "";
+    r._imgBox = z.imgBox || null;
+    canvas.add(r);
+  });
+
+  fitZonesToMedia();
+  canvas.requestRenderAll();
+}
+
+/* ================= MODE VISIBILITY ================= */
 function applyModeVisibility(){
   getZones().forEach(r=>{
-    r.opacity = isEditor ? 1 : 0;  // lecture invisible
+    r.opacity = isEditor ? 1 : 0;
     r.evented = true;
-    r.selectable = isEditor;       // sélectionnable seulement en éditeur
+    r.selectable = isEditor;
   });
   canvas.discardActiveObject();
   canvas.requestRenderAll();
   $("modeLabel").textContent = isEditor ? "Mode : Éditeur" : "Mode : Lecture";
+}
+
+/* ================= MEDIA SWITCH ================= */
+async function showMedia(url){
+  ensureCanvas();
+
+  currentMedia = url;
+  currentMediaKey = url; // unique par média (video:... ou actif/...)
+  mediaType = url.startsWith("video:") ? "video" : "image";
+
+  // stop/clear previous
+  imgEl.style.display = "none";
+  videoEl.style.display = "none";
+  videoEl.pause();
+  videoEl.removeAttribute("src");
+  videoEl.load();
+
+  // reset view for each media
+  resetViewToFit();
+
+  // load media
+  if(mediaType === "image"){
+    imgEl.src = url;
+    imgEl.onload = ()=>{
+      mediaNaturalW = imgEl.naturalWidth || 0;
+      mediaNaturalH = imgEl.naturalHeight || 0;
+      imgEl.style.display = "block";
+      applyMediaBaseFit();
+      loadZones();
+      applyModeVisibility();
+    };
+    imgEl.onerror = ()=>{
+      clearPanel();
+      alert("Image introuvable: " + url);
+    };
+  } else {
+    const src = url.replace("video:","");
+    videoEl.src = src;
+    videoEl.loop = true;
+    videoEl.playsInline = true;
+
+    // On garde les controls pour toi (édition + lecture)
+    stageEl.classList.add("video-controls-on");
+    videoEl.style.display = "block";
+
+    // attendre dimensions
+    await new Promise((resolve)=>{
+      const onMeta = ()=>{
+        videoEl.removeEventListener("loadedmetadata", onMeta);
+        resolve();
+      };
+      videoEl.addEventListener("loadedmetadata", onMeta);
+    });
+
+    mediaNaturalW = videoEl.videoWidth || 0;
+    mediaNaturalH = videoEl.videoHeight || 0;
+
+    applyMediaBaseFit();
+    loadZones();
+    applyModeVisibility();
+  }
 }
 
 /* ================= PARTS (base + custom) ================= */
@@ -412,12 +617,9 @@ function readCustomParts(){
 function writeCustomParts(map){
   localStorage.setItem(PARTS_CUSTOM_KEY, JSON.stringify(map || {}));
 }
-
 function mergeParts(){
   const map = {};
-  // base
   partsBase.forEach(p=>{ if(p && p.id) map[p.id]=p; });
-  // custom overrides/adds
   Object.keys(partsCustom).forEach(id=>{ map[id]=partsCustom[id]; });
   partsMerged = Object.values(map).sort((a,b)=>{
     const A=(a.nom||a.id||"").toLowerCase();
@@ -425,7 +627,6 @@ function mergeParts(){
     return A.localeCompare(B,"fr");
   });
 }
-
 function fillPartsSelect(){
   const sel = $("pieceSelect");
   sel.innerHTML = '<option value="">— choisir —</option>';
@@ -436,8 +637,6 @@ function fillPartsSelect(){
     sel.appendChild(o);
   });
 }
-
-/* ================= PANEL (auto) ================= */
 function clearPanel(){
   $("pieceSelect").value = "";
   $("partIdLabel").textContent = "—";
@@ -446,7 +645,6 @@ function clearPanel(){
   $("desc").value = "";
   $("circuit").value = "";
 }
-
 function setPanelFromPart(part){
   if(!part){ clearPanel(); return; }
   $("pieceSelect").value = part.id || "";
@@ -456,14 +654,12 @@ function setPanelFromPart(part){
   $("desc").value = part.desc || "";
   $("circuit").value = part.circuit || "";
 }
-
 function getPartById(id){
   if(!id) return null;
   return partsMerged.find(p=>p.id===id) || null;
 }
-
 function setPanelForZone(r){
-  if(!r || r===bg){
+  if(!r){
     clearPanel();
     return;
   }
@@ -471,37 +667,28 @@ function setPanelForZone(r){
   const p = getPartById(pid);
   if(p) setPanelFromPart(p);
   else {
-    // zone associée à un id absent -> on affiche l'id quand même
     clearPanel();
     $("partIdLabel").textContent = pid || "—";
     $("pieceSelect").value = pid;
     $("desc").value = pid ? "(Pièce introuvable dans les listes)" : "";
   }
 }
-
-/* ================= PARTS JSON LOAD ================= */
 async function loadParts(){
   try{
     const res = await fetch(JSON_URL, { cache:"no-store" });
     if(!res.ok) throw new Error("JSON introuvable");
     const data = await res.json();
-
-    // ton JSON = tableau [{id,nom,role,desc,circuit},...]
     if(Array.isArray(data)){
-      partsBase = data
-        .map(p=>({
-          id: (p.id||"").toString(),
-          nom: (p.nom||"").toString(),
-          role:(p.role||"").toString(),
-          desc:(p.desc||"").toString(),
-          circuit:(p.circuit||"").toString()
-        }))
-        .filter(p=>p.id);
+      partsBase = data.map(p=>({
+        id: (p.id||"").toString(),
+        nom: (p.nom||"").toString(),
+        role:(p.role||"").toString(),
+        desc:(p.desc||"").toString(),
+        circuit:(p.circuit||"").toString()
+      })).filter(p=>p.id);
     } else {
-      // fallback (si jamais)
       partsBase = [];
     }
-
     partsCustom = readCustomParts();
     mergeParts();
     fillPartsSelect();
@@ -516,58 +703,47 @@ async function loadParts(){
 }
 
 /* ================= PANEL EVENTS ================= */
-/* Choisir une pièce => applique à la zone active (si une zone est active) + affiche ses infos */
 $("pieceSelect").addEventListener("change", ()=>{
   const id = $("pieceSelect").value;
   const p = getPartById(id);
   if(p) setPanelFromPart(p);
   else {
     $("partIdLabel").textContent = id || "—";
-    // on ne wipe pas tout si l'utilisateur veut créer une nouvelle pièce
     if(!id) clearPanel();
   }
 
-  const r = canvas.getActiveObject();
-  if(r && r!==bg && r.type==="rect"){
+  const r = canvas?.getActiveObject();
+  if(r && r.type==="rect"){
     r.partId = id;
     saveZones();
-    // rester cohérent : afficher panel de cette zone
     setPanelForZone(r);
   }
 });
 
-/* Ajouter / mettre à jour une pièce (localStorage) */
 $("btnSavePart").addEventListener("click", ()=>{
   const nom = $("nom").value.trim();
   const role = $("role").value.trim();
   const desc = $("desc").value.trim();
   const circuit = $("circuit").value.trim();
 
-  // id: si une pièce sélectionnée -> on garde son id, sinon on en crée un
   let id = ($("pieceSelect").value || "").trim();
-  if(!id){
-    id = slugify(nom);
-  }
+  if(!id) id = slugify(nom);
   if(!id){
     alert("Il faut au minimum un NOM (pour générer un ID).");
     return;
   }
 
-  // enregistrer en custom (ajout ou override)
   partsCustom[id] = { id, nom: nom || id, role, desc, circuit };
   writeCustomParts(partsCustom);
 
-  // refresh list + panel
   mergeParts();
   fillPartsSelect();
 
-  // set selection + label
   $("pieceSelect").value = id;
   $("partIdLabel").textContent = id;
 
-  // si une zone est active, associe automatiquement cette pièce
-  const r = canvas.getActiveObject();
-  if(r && r!==bg && r.type==="rect"){
+  const r = canvas?.getActiveObject();
+  if(r && r.type==="rect"){
     r.partId = id;
     saveZones();
   }
@@ -582,8 +758,8 @@ $("btnPan").onclick    = ()=>setActiveTool("pan");
 
 $("btnErase").onclick  = ()=>{
   if(!isEditor) return;
-  const r = canvas.getActiveObject();
-  if(!r || r===bg || r.type!=="rect") return;
+  const r = canvas?.getActiveObject();
+  if(!r || r.type!=="rect") return;
   canvas.remove(r);
   canvas.discardActiveObject();
   saveZones();
@@ -598,123 +774,11 @@ $("btnMode").onclick = ()=>{
 
 $("btnFit").onclick = ()=>{
   resetViewToFit();
+  fitZonesToMedia();
   clearPanel();
+  canvas.requestRenderAll();
 };
 
-/* ================= CANVAS EVENTS ================= */
-/* Click zone : affiche fiche dans tous les modes */
-canvas.on("mouse:down", (opt)=>{
-  const t = opt.target;
-  if(!t || t===bg) return;
-  if(tool==="pan") return;
-  setPanelForZone(t);
-  if(isEditor && tool==="select"){
-    canvas.setActiveObject(t);
-  }
-});
-
-/* Draw */
-canvas.on("mouse:down", (opt)=>{
-  if(!isEditor) return;
-  if(tool!=="draw") return;
-  if(opt.target && opt.target!==bg) return;
-
-  drawing = true;
-  startPt = canvas.getPointer(opt.e, true);
-  curRect = makeZoneRect();
-  curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
-  canvas.add(curRect);
-  canvas.setActiveObject(curRect);
-});
-
-canvas.on("mouse:move", (opt)=>{
-  if(drawing && curRect){
-    const p = canvas.getPointer(opt.e, true);
-    const left = Math.min(p.x, startPt.x);
-    const top  = Math.min(p.y, startPt.y);
-    const w = Math.abs(p.x - startPt.x);
-    const h = Math.abs(p.y - startPt.y);
-    curRect.set({ left, top, width:w, height:h, scaleX:1, scaleY:1 });
-    curRect.setCoords();
-    canvas.requestRenderAll();
-  }
-
-  if(isPanning){
-    const e = opt.e;
-    const vpt = canvas.viewportTransform;
-    vpt[4] += (e.clientX - lastClient.x);
-    vpt[5] += (e.clientY - lastClient.y);
-    lastClient = {x:e.clientX, y:e.clientY};
-    canvas.setViewportTransform(vpt);
-    canvas.requestRenderAll();
-  }
-});
-
-canvas.on("mouse:up", ()=>{
-  if(drawing && curRect){
-    drawing = false;
-
-    if(curRect.width < 10 || curRect.height < 10){
-      canvas.remove(curRect);
-      curRect = null;
-      canvas.requestRenderAll();
-      return;
-    }
-
-    updateImgBoxFromRect(curRect);
-    curRect.partId = "";
-    saveZones();
-
-    setPanelForZone(curRect);
-    $("pieceSelect").focus();
-
-    curRect = null;
-  }
-
-  if(isPanning){
-    isPanning = false;
-    canvas.defaultCursor = (tool==="pan") ? "grab" : (tool==="draw" ? "crosshair" : "pointer");
-  }
-});
-
-/* Pan */
-canvas.on("mouse:down", (opt)=>{
-  if(tool!=="pan") return;
-  isPanning = true;
-  lastClient = { x:opt.e.clientX, y:opt.e.clientY };
-  canvas.defaultCursor = "grabbing";
-});
-
-/* Curseur stable */
-canvas.on("mouse:over", ()=>{
-  if(tool==="pan") canvas.defaultCursor = isPanning ? "grabbing" : "grab";
-  else if(tool==="draw") canvas.defaultCursor = "crosshair";
-  else canvas.defaultCursor = "pointer";
-});
-
-/* ================= ZOOM ================= */
-function setZoom(z){
-  zoom = Math.max(0.5, Math.min(3, z));
-  const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-  canvas.zoomToPoint(center, zoom);
-  $("zoomRange").value = String(Math.round(zoom*100));
-  $("zoomLabel").textContent = Math.round(zoom*100) + "%";
-  canvas.requestRenderAll();
-}
-
-$("zoomRange").addEventListener("input", ()=>{
-  setZoom(parseInt($("zoomRange").value,10)/100);
-});
-
-canvas.on("mouse:wheel", (opt)=>{
-  const e = opt.e;
-  if(!e.ctrlKey && !e.metaKey) return; // ctrl+molette
-  e.preventDefault(); e.stopPropagation();
-  const delta = e.deltaY;
-  setZoom( zoom * (0.999 ** delta) );
-});
-
-/* ================= FULLSCREEN ================= */
 $("btnFs").onclick = ()=>{
   if(!document.fullscreenElement){
     document.documentElement.requestFullscreen();
@@ -725,7 +789,7 @@ $("btnFs").onclick = ()=>{
 
 document.addEventListener("fullscreenchange", ()=>{
   document.body.classList.toggle("fs", !!document.fullscreenElement);
-  setTimeout(()=>{ resizeCanvas(); fitBackgroundAndZones(); }, 80);
+  setTimeout(()=>{ resizeAll(); }, 80);
 });
 
 /* ================= IMAGE SELECT ================= */
@@ -737,32 +801,24 @@ function fillImageSelect(){
     o.textContent = i.label;
     $("imgSelect").appendChild(o);
   });
-  $("imgSelect").value = currentImage;
+  $("imgSelect").value = currentMedia;
 }
 
 $("imgSelect").addEventListener("change", ()=>{
-  currentImage = $("imgSelect").value;
-  showMedia(currentImage);
+  currentMedia = $("imgSelect").value;
+  showMedia(currentMedia);
   clearPanel();
 });
 
 /* ================= INIT ================= */
 (async function init(){
+  ensureCanvas();
   fillImageSelect();
   setActiveTool("select");
-
-  // parts (base + custom)
   await loadParts();
 
-  // canvas size first
-  resizeCanvas();
-
-  // ✅ charge l'image par défaut : Fond référence (premier)
-showMedia(currentImage);
-
-  // safety pass for GH Pages rendering timing
-  setTimeout(()=>{ resizeCanvas(); fitBackgroundAndZones(); }, 60);
-
+  resizeAll();               // dimensionner canvas + scène
+  await showMedia(currentMedia); // charge fond référence par défaut
   applyModeVisibility();
   clearPanel();
 })();
