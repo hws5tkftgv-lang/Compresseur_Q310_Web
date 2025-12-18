@@ -107,6 +107,22 @@
 .video-media .media-layer{
   pointer-events:auto;
 }
+/* ===== FIX VIDEO PLAY (OBLIGATOIRE) ===== */
+.media-layer{
+  z-index: 1;
+}
+#c{
+  z-index: 2;
+}
+
+/* quand la vidéo est active → elle passe AU-DESSUS du canvas */
+.video-media .media-layer{
+  z-index: 3;
+  pointer-events:auto;
+}
+.video-media #c{
+  pointer-events:none;
+}
 
 </style>
 </head>
