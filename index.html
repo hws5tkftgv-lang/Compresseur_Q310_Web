@@ -230,7 +230,7 @@ const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:
 let tool = "select"; // select | draw | pan
 let zoom = 1;
 
-let currentMedia = MEDIA[0].url;
+let currentMedia = MEDIAS[0].url;
 let currentMediaKey = currentMedia;
 let mediaType = "image"; // image | video
 
@@ -584,7 +584,7 @@ document.addEventListener("fullscreenchange", ()=>{
 /* ================= IMAGE SELECT ================= */
 function fillMediaSelect(){
   $("imgSelect").innerHTML = "";
-  MEDIA.forEach(i=>{
+  MEDIAS.forEach(i=>{
     const o = document.createElement("option");
     o.value = i.url;
     o.textContent = i.label;
