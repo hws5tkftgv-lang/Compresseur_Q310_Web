@@ -274,8 +274,9 @@ function setActiveTool(t){
   $("btnDraw").classList.toggle("active", t==="draw");
   $("btnPan").classList.toggle("active", t==="pan");
 
-  canvas.isDrawingMode = false;
+  canvas.discardActiveObject();
   canvas.selection = false;
+  canvas.skipTargetFind = (t !== "select");
 
   canvas.forEachObject(o=>{
     o.selectable = false;
@@ -284,6 +285,7 @@ function setActiveTool(t){
 
   if(t === "select"){
     canvas.selection = true;
+    canvas.skipTargetFind = false;
     canvas.forEachObject(o=>{
       o.selectable = true;
       o.evented = true;
@@ -299,7 +301,9 @@ function setActiveTool(t){
     canvas.defaultCursor = "grab";
   }
 
-  // vidéo → retour zones
+  canvas.requestRenderAll();
+
+  // si vidéo → retour édition zones
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     stageEl.classList.add("video-zones");
