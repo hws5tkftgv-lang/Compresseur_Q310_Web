@@ -168,6 +168,9 @@ const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 /* ✅ Fond référence par défaut (premier) */
 const IMAGES = [
   { label:"Fond référence", url:"actif/compresseur_bg.png" },
+   // 🎥 VIDEO (AJOUT ICI)
+  { label:"Animation – Compresseur 2 stages", url:"video:actif/compresseur 2 stages.mp4" },
+
   { label:"Vue générale", url:"actif/VUE_GENERAL.jpeg" },
   { label:"Vue générale 2", url:"actif/VUE_GENERAL_2.jpeg" },
   { label:"Vue côté", url:"actif/VUE_1.jpeg" },
@@ -250,6 +253,43 @@ function loadBackground(url){
       resolve();
     }, { crossOrigin:"anonymous" });
   });
+}
+function showMedia(url){
+  const stage = document.querySelector(".stage");
+  stage.innerHTML = "";
+
+  // ===== CAS VIDÉO =====
+  if(url.startsWith("video:")){
+    const video = document.createElement("video");
+    video.src = url.replace("video:","");
+    video.controls = true;
+    video.loop = true;
+    video.style.width = "100%";
+    video.style.height = "100%";
+    video.style.objectFit = "contain";
+    stage.appendChild(video);
+
+    // désactiver outils de zones
+    document.querySelectorAll(".btn").forEach(b=>{
+      if(b.id !== "btnFs") b.disabled = true;
+    });
+    return;
+  }
+
+  // ===== CAS IMAGE (COMPORTEMENT ACTUEL) =====
+  const canvasEl = document.createElement("canvas");
+  canvasEl.id = "c";
+  stage.appendChild(canvasEl);
+
+  document.querySelectorAll(".btn").forEach(b=>b.disabled=false);
+
+  // recréer canvas Fabric (comme avant)
+  window.canvas = new fabric.Canvas("c", {
+    selection:false,
+    preserveObjectStacking:true
+  });
+
+  loadBackground(url);
 }
 
 /* ================= FIT + VIEW ================= */
@@ -700,9 +740,9 @@ function fillImageSelect(){
   $("imgSelect").value = currentImage;
 }
 
-$("imgSelect").addEventListener("change", async ()=>{
+$("imgSelect").addEventListener("change", ()=>{
   currentImage = $("imgSelect").value;
-  await loadBackground(currentImage);
+  showMedia(currentImage);
   clearPanel();
 });
 
@@ -718,7 +758,7 @@ $("imgSelect").addEventListener("change", async ()=>{
   resizeCanvas();
 
   // ✅ charge l'image par défaut : Fond référence (premier)
-  await loadBackground(currentImage);
+showMedia(currentImage);
 
   // safety pass for GH Pages rendering timing
   setTimeout(()=>{ resizeCanvas(); fitBackgroundAndZones(); }, 60);
