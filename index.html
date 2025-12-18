@@ -246,7 +246,7 @@ function slugify(s){
 }
 
 /* ================= STATE ================= */
-const canvas = new fabric.Canvas("c", { selection:false, preserveObjectStacking:true });
+const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 
 let tool = "select"; // select | draw | pan
 let zoom = 1;
@@ -269,13 +269,37 @@ let partsMerged = [];
 /* ================= TOOL UI ================= */
 function setActiveTool(t){
   tool = t;
+
   $("btnSelect").classList.toggle("active", t==="select");
   $("btnDraw").classList.toggle("active", t==="draw");
   $("btnPan").classList.toggle("active", t==="pan");
 
-  canvas.defaultCursor = (t==="pan") ? "grab" : (t==="draw" ? "crosshair" : "pointer");
+  canvas.isDrawingMode = false;
+  canvas.selection = false;
 
-  // ✅ dès qu'on choisit un outil, on repasse en "zones" si vidéo
+  canvas.forEachObject(o=>{
+    o.selectable = false;
+    o.evented = false;
+  });
+
+  if(t === "select"){
+    canvas.selection = true;
+    canvas.forEachObject(o=>{
+      o.selectable = true;
+      o.evented = true;
+    });
+    canvas.defaultCursor = "pointer";
+  }
+
+  if(t === "draw"){
+    canvas.defaultCursor = "crosshair";
+  }
+
+  if(t === "pan"){
+    canvas.defaultCursor = "grab";
+  }
+
+  // vidéo → retour zones
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     stageEl.classList.add("video-zones");
