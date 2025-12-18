@@ -62,7 +62,7 @@ textarea,input{
   border:1px solid rgba(255,255,255,.18);
   border-radius:8px;padding:8px
 }
-textarea{min-height:120px;resize:vertical}
+textarea{min-height:90px;resize:vertical}
 
 canvas{display:block}
 
@@ -100,27 +100,26 @@ body.fs .stage,body.fs .panel{height:calc(100vh - 56px - 16px);min-height:unset}
 
   <aside class="panel">
     <h3>🟦 Fiche de la zone</h3>
-    <div class="small">
-      Lecture : zones invisibles mais cliquables.<br>
-      Éditeur : dessin / sélection / pan / suppression.
-    </div>
-
-    <div class="hr"></div>
 
     <label>Pièce</label>
     <select id="pieceSelect" class="select"></select>
 
+    <label>Nom</label>
+    <input id="nom">
+
     <label>Rôle</label>
-    <textarea id="role" readonly></textarea>
+    <textarea id="role"></textarea>
 
     <label>Description</label>
-    <textarea id="desc" readonly></textarea>
+    <textarea id="desc"></textarea>
 
     <label>Circuit</label>
-    <input id="circuit" readonly>
+    <input id="circuit" placeholder="LP / HP / LUB / CTRL / TR">
+
+    <button id="btnSavePart" class="btn">💾 Ajouter / Mettre à jour la pièce</button>
 
     <div class="small" style="margin-top:auto">
-      Sauvegarde locale automatique par image
+      Les pièces ajoutées sont sauvegardées localement.
     </div>
   </aside>
 </div>
@@ -128,7 +127,11 @@ body.fs .stage,body.fs .panel{height:calc(100vh - 56px - 16px);min-height:unset}
 <script>
 /* ================= CONFIG ================= */
 const JSON_URL="quincy_310L_parts.json";
+const PARTS_CUSTOM_KEY="q310_parts_custom";
+
+/* 👉 Fond référence EN PREMIER */
 const IMAGES=[
+  {label:"Fond référence",url:"actif/compresseur_bg.png"},
   {label:"Vue générale",url:"actif/VUE_GENERAL.jpeg"},
   {label:"Vue générale 2",url:"actif/VUE_GENERAL_2.jpeg"},
   {label:"Vue côté",url:"actif/VUE_1.jpeg"},
@@ -140,218 +143,69 @@ const IMAGES=[
   {label:"Vers réservoir",url:"actif/VERS_RESERVOIR.jpeg"},
   {label:"Poulie",url:"actif/POULIE.jpeg"},
   {label:"Filtre à air",url:"actif/FILTRE_AIR_COUVERCLE.jpeg"},
-  {label:"Soupape unloader",url:"actif/SOUPAPE_UNLOADER.jpeg"},
-  {label:"Fond référence",url:"actif/compresseur_bg.png"}
+  {label:"Soupape unloader",url:"actif/SOUPAPE_UNLOADER.jpeg"}
 ];
 
+/* ================= HELPERS ================= */
 const $=id=>document.getElementById(id);
 const LS=img=>"q310_zones::"+img;
 
+/* ================= STATE ================= */
 const canvas=new fabric.Canvas("c",{selection:false,preserveObjectStacking:true});
 let bg=null,currentImage=IMAGES[0].url,isEditor=false,tool="select",zoom=1;
-let parts=[],drawing=false,startPt=null,curRect=null,isPanning=false,last=null;
+let parts=[],customParts={};
+let drawing=false,startPt=null,curRect=null,isPanning=false,last=null;
 
-/* ===== TOOLS ===== */
-function setTool(t){
-  tool=t;
-  btnSelect.classList.toggle("active",t==="select");
-  btnDraw.classList.toggle("active",t==="draw");
-  btnPan.classList.toggle("active",t==="pan");
-  canvas.defaultCursor=t==="pan"?"grab":t==="draw"?"crosshair":"pointer";
+/* ================= PARTS ================= */
+function mergeParts(){
+  const map={};
+  parts.forEach(p=>map[p.id]=p);
+  Object.values(customParts).forEach(p=>map[p.id]=p);
+  return Object.values(map);
 }
 
-/* ===== RESIZE ===== */
-function resize(){
-  const s=document.querySelector(".stage");
-  canvas.setWidth(s.clientWidth);
-  canvas.setHeight(s.clientHeight);
-  if(bg) fit();
-}
-window.addEventListener("resize",resize);
-
-/* ===== LOAD IMAGE ===== */
-function loadImage(url){
-  fabric.Image.fromURL(url,img=>{
-    canvas.clear();
-    bg=img;bg.selectable=false;bg.evented=false;
-    canvas.add(bg);
-    resetView();
-    loadZones();
-    applyMode();
-  });
-}
-
-/* ===== FIT ===== */
-function resetView(){
-  canvas.setViewportTransform([1,0,0,1,0,0]);
-  zoom=1;
-  zoomRange.value=100;
-  zoomLabel.textContent="100%";
-  fit();
-}
-function fit(){
-  const cw=canvas.width,ch=canvas.height;
-  const s=Math.min(cw/bg.width,ch/bg.height);
-  bg.scale(s).set({left:(cw-bg.width*s)/2,top:(ch-bg.height*s)/2});
-  zones().forEach(r=>{
-    const b=r.box;if(!b)return;
-    r.set({left:bg.left+b.x*s,top:bg.top+b.y*s,width:b.w*s,height:b.h*s,scaleX:1,scaleY:1});
-    r.setCoords();
-  });
-  canvas.renderAll();
-}
-
-/* ===== ZONES ===== */
-function zones(){return canvas.getObjects().filter(o=>o!==bg)}
-function saveZones(){
-  const z=zones().map(r=>{updateBox(r);return{box:r.box,partId:r.partId}});
-  localStorage.setItem(LS(currentImage),JSON.stringify(z));
-}
-function loadZones(){
-  zones().forEach(z=>canvas.remove(z));
-  const raw=localStorage.getItem(LS(currentImage));
-  if(!raw)return;
-  JSON.parse(raw).forEach(z=>{
-    const r=makeRect();
-    r.partId=z.partId;
-    r.box=z.box;
-    canvas.add(r);
-  });
-  fit();
-}
-function updateBox(r){
-  r.box={
-    x:(r.left-bg.left)/bg.scaleX,
-    y:(r.top-bg.top)/bg.scaleY,
-    w:(r.width*r.scaleX)/bg.scaleX,
-    h:(r.height*r.scaleY)/bg.scaleY
-  };
-}
-function makeRect(){
-  const r=new fabric.Rect({
-    fill:"rgba(0,150,255,.15)",
-    stroke:"rgba(0,150,255,.95)",
-    strokeWidth:2,lockRotation:true
-  });
-  r.partId="";r.box=null;
-  return r;
-}
-
-/* ===== PANEL ===== */
-function showPart(r){
-  if(!r||r===bg){pieceSelect.value="";role.value="";desc.value="";circuit.value="";return;}
-  const p=parts.find(x=>x.id===r.partId);
-  if(!p)return;
-  pieceSelect.value=p.id;
-  role.value=p.role;
-  desc.value=p.desc;
-  circuit.value=p.circuit;
-}
-
-/* ===== MODE ===== */
-function applyMode(){
-  zones().forEach(r=>{
-    r.opacity=isEditor?1:0;
-    r.selectable=isEditor;
-    r.evented=true;
-  });
-  modeLabel.textContent=isEditor?"Mode : Éditeur":"Mode : Lecture";
-  canvas.discardActiveObject();
-  canvas.renderAll();
-}
-
-/* ===== EVENTS ===== */
-btnMode.onclick=()=>{isEditor=!isEditor;applyMode()};
-btnSelect.onclick=()=>setTool("select");
-btnDraw.onclick=()=>setTool("draw");
-btnPan.onclick=()=>setTool("pan");
-btnErase.onclick=()=>{
-  if(!isEditor)return;
-  const r=canvas.getActiveObject();
-  if(r&&r!==bg){canvas.remove(r);saveZones();showPart(null)}
-};
-btnFit.onclick=()=>{resetView();showPart(null)};
-btnFs.onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-
-pieceSelect.onchange=()=>{
-  const r=canvas.getActiveObject();
-  if(r&&r!==bg){r.partId=pieceSelect.value;saveZones();showPart(r)}
-};
-
-canvas.on("mouse:down",o=>{
-  const t=o.target;
-  if(tool==="pan"){isPanning=true;last={x:o.e.clientX,y:o.e.clientY};canvas.defaultCursor="grabbing";return;}
-  if(!isEditor){if(t&&t!==bg)showPart(t);return;}
-  if(tool==="select"&&t&&t!==bg){canvas.setActiveObject(t);showPart(t)}
-  if(tool==="draw"&&!t){
-    drawing=true;
-    startPt=canvas.getPointer(o.e,true);
-    curRect=makeRect();
-    curRect.set({left:startPt.x,top:startPt.y,width:1,height:1});
-    canvas.add(curRect);canvas.setActiveObject(curRect);
-  }
-});
-canvas.on("mouse:move",o=>{
-  if(drawing&&curRect){
-    const p=canvas.getPointer(o.e,true);
-    curRect.set({
-      left:Math.min(p.x,startPt.x),
-      top:Math.min(p.y,startPt.y),
-      width:Math.abs(p.x-startPt.x),
-      height:Math.abs(p.y-startPt.y),
-      scaleX:1,scaleY:1
-    });
-    curRect.setCoords();canvas.renderAll();
-  }
-  if(isPanning){
-    const v=canvas.viewportTransform;
-    v[4]+=o.e.clientX-last.x;
-    v[5]+=o.e.clientY-last.y;
-    last={x:o.e.clientX,y:o.e.clientY};
-    canvas.setViewportTransform(v);canvas.renderAll();
-  }
-});
-canvas.on("mouse:up",()=>{
-  if(drawing&&curRect){
-    drawing=false;
-    if(curRect.width<10||curRect.height<10){canvas.remove(curRect);curRect=null;return}
-    updateBox(curRect);saveZones();showPart(curRect);
-    curRect=null;
-  }
-  if(isPanning){isPanning=false;canvas.defaultCursor=tool==="pan"?"grab":tool==="draw"?"crosshair":"pointer"}
-});
-
-/* ===== ZOOM ===== */
-function setZoom(z){
-  zoom=Math.max(.5,Math.min(3,z));
-  canvas.zoomToPoint(new fabric.Point(canvas.width/2,canvas.height/2),zoom);
-  zoomRange.value=Math.round(zoom*100);
-  zoomLabel.textContent=Math.round(zoom*100)+"%";
-}
-zoomRange.oninput=()=>setZoom(parseInt(zoomRange.value)/100);
-
-/* ===== INIT ===== */
-(async()=>{
-  IMAGES.forEach(i=>{
-    const o=document.createElement("option");
-    o.value=i.url;o.textContent=i.label;imgSelect.appendChild(o);
-  });
-  imgSelect.value=currentImage;
-  imgSelect.onchange=()=>{currentImage=imgSelect.value;loadImage(currentImage);showPart(null)};
-
-  const res=await fetch(JSON_URL,{cache:"no-store"});
-  parts=await res.json();
+function refreshPartSelect(){
   pieceSelect.innerHTML='<option value="">— choisir —</option>';
-  parts.forEach(p=>{
+  mergeParts().forEach(p=>{
     const o=document.createElement("option");
     o.value=p.id;
     o.textContent=`${p.nom} (${p.circuit})`;
     pieceSelect.appendChild(o);
   });
+}
 
-  resize();
-  loadImage(currentImage);
-  applyMode();
+btnSavePart.onclick=()=>{
+  const id = pieceSelect.value || nom.value.trim().toLowerCase().replace(/\s+/g,"_");
+  if(!id) return alert("Nom requis");
+
+  customParts[id]={
+    id,
+    nom:nom.value,
+    role:role.value,
+    desc:desc.value,
+    circuit:circuit.value
+  };
+  localStorage.setItem(PARTS_CUSTOM_KEY,JSON.stringify(customParts));
+  refreshPartSelect();
+  pieceSelect.value=id;
+};
+
+/* ================= INIT ================= */
+(async()=>{
+  // Images
+  IMAGES.forEach(i=>{
+    const o=document.createElement("option");
+    o.value=i.url;o.textContent=i.label;imgSelect.appendChild(o);
+  });
+  imgSelect.value=currentImage;
+
+  // Parts JSON
+  const res=await fetch(JSON_URL,{cache:"no-store"});
+  parts=await res.json();
+
+  // Custom parts
+  customParts=JSON.parse(localStorage.getItem(PARTS_CUSTOM_KEY)||"{}");
+  refreshPartSelect();
 })();
 </script>
 
