@@ -565,11 +565,15 @@ async function showMedia(url){
 
 /* ================= BUTTONS ================= */
 $("btnVideo").onclick = ()=>{
-  if(mediaType!=="video") return;
-  stageEl.classList.add("video-media");
-  stageEl.classList.remove("video-zones");
-  $("btnVideo").classList.add("active");
+  if(mediaType !== "video") return;
+
+  if (videoEl.paused) {
+    videoEl.play();
+  } else {
+    videoEl.pause();
+  }
 };
+
 
 $("btnSelect").onclick = ()=>setActiveTool("select");
 $("btnDraw").onclick   = ()=>setActiveTool("draw");
