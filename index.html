@@ -5,183 +5,454 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quincy 310L – Zones interactives</title>
 
-<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
-
 <style>
-html,body{
-  margin:0;
-  background:#0b1436;
-  color:#fff;
-  font-family:Arial, sans-serif;
-}
-.topbar{
-  display:flex;
-  gap:8px;
-  padding:10px;
-  background:#0f1a3f;
-}
-button,select{
-  padding:6px 10px;
-  background:#1b2553;
-  color:#fff;
-  border:1px solid #444;
-  border-radius:6px;
-  cursor:pointer;
-}
-button.active{ background:#0078ff; }
+  :root { color-scheme: dark; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:#0b1436; color:#eaf1ff; font-family:Arial,Segoe UI,sans-serif; }
 
-.stage{
-  position:relative;
-  width:100%;
-  height:90vh;
-  background:#000;
-  overflow:hidden;
-}
-.media{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:1;
-}
-.media img,
-.media video{
-  max-width:100%;
-  max-height:100%;
-}
-canvas{
-  position:absolute;
-  inset:0;
-  z-index:2;
-}
+  .topbar{
+    display:flex; align-items:center; gap:8px;
+    padding:10px; background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08);
+    position:sticky; top:0; z-index:9999;
+    flex-wrap:wrap;
+  }
+  .btn{
+    padding:7px 12px; background:#1b2553; color:#fff;
+    border:1px solid rgba(255,255,255,.18); border-radius:8px;
+    cursor:pointer; font-weight:700; font-size:13px;
+  }
+  .btn:hover{ filter:brightness(1.06); }
+  .btn.active{ background:#0078ff; border-color:#0053ad; }
+  .btn.danger{ background:#7f1d2d; border-color:#5f1622; }
+
+  .select{
+    background:#101a40; color:#fff; border-radius:8px;
+    padding:7px 10px; border:1px solid rgba(255,255,255,.18);
+  }
+
+  .zoom{
+    display:flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:12px;
+    border:1px solid rgba(255,255,255,.18);
+    background:#121c45;
+  }
+  .zoom input[type="range"]{ width:160px; }
+
+  .wrap{ padding:12px; }
+  .stage{
+    background:#0b1536; border-radius:12px; overflow:hidden;
+    height:78vh; position:relative;
+  }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; }
+
+  .fatal{
+    position:fixed; inset:0;
+    display:none;
+    background:rgba(0,0,0,.85);
+    color:#fff;
+    z-index:999999;
+    padding:24px;
+    font-family:Arial,sans-serif;
+  }
+  .fatal pre{
+    white-space:pre-wrap;
+    background:#111;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #333;
+    color:#ddd;
+  }
 </style>
+
+<!-- IMPORTANT: onload -> initApp() -->
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"
+        onload="initApp()"
+        onerror="fabricFailed()"></script>
 </head>
 
 <body>
 
 <div class="topbar">
-  <select id="mediaSelect">
-    <option value="image">Image – Compresseur</option>
-    <option value="video">Vidéo – 2 stages</option>
-  </select>
+  <select id="mediaSelect" class="select"></select>
 
-  <button id="btnVideo">▶ Play / Pause</button>
-  <button id="btnSelect" class="active">🖱 Sélection</button>
-  <button id="btnDraw">✏️ Crayon</button>
-  <button id="btnPan">✋ Pan</button>
+  <button id="btnPlay" class="btn">▶ Play / Pause</button>
+
+  <button id="btnSelect" class="btn active">🖱 Sélection</button>
+  <button id="btnDraw" class="btn">✏️ Crayon</button>
+  <button id="btnPan" class="btn">✋ Pan</button>
+  <button id="btnErase" class="btn danger">🧽 Effacer</button>
+
+  <div class="zoom">
+    <b>Zoom</b>
+    <input id="zoomRange" type="range" min="50" max="250" value="100">
+    <span id="zoomLabel" style="width:52px; text-align:right;">100%</span>
+  </div>
+
+  <button id="btnFit" class="btn">⤡ Ajuster</button>
 </div>
 
-<div class="stage" id="stage">
-  <div class="media">
-    <img id="img" src="actif/compresseur_bg.png">
-    <video id="video" src="actif/compresseur_2_stages.mp4" loop></video>
+<div class="wrap">
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
   </div>
-  <canvas id="c"></canvas>
+</div>
+
+<!-- éléments média cachés (on les dessine DANS le canvas) -->
+<img id="imgSrc" style="display:none" alt="">
+<video id="vidSrc" style="display:none" playsinline muted></video>
+
+<div class="fatal" id="fatal">
+  <h2>❌ L’application ne peut pas démarrer</h2>
+  <p>Cause la plus probable : <b>Fabric.js n’a pas chargé</b> (CDN bloqué / pas d’internet).</p>
+  <p>Solutions :</p>
+  <ol>
+    <li>Essaye sur un autre réseau (ou à la maison).</li>
+    <li>Ou télécharge Fabric.js et mets-le localement (je peux te donner la procédure).</li>
+  </ol>
+  <pre id="fatalMsg"></pre>
 </div>
 
 <script>
-const canvas = new fabric.Canvas("c",{ selection:true });
-const img = document.getElementById("img");
-const video = document.getElementById("video");
-
-let tool = "select";
-let drawing = false;
-let start = null;
-let rect = null;
-let panning = false;
-let last = null;
-
-/* ----------- MEDIA ----------- */
-video.style.display = "none";
-
-document.getElementById("mediaSelect").onchange = e=>{
-  if(e.target.value === "video"){
-    img.style.display="none";
-    video.style.display="block";
-  }else{
-    video.pause();
-    video.style.display="none";
-    img.style.display="block";
-  }
-};
-
-document.getElementById("btnVideo").onclick = ()=>{
-  if(video.paused) video.play();
-  else video.pause();
-};
-
-/* ----------- TOOLS ----------- */
-function setTool(t){
-  tool=t;
-  document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
-  if(t==="select") btnSelect.classList.add("active");
-  if(t==="draw") btnDraw.classList.add("active");
-  if(t==="pan") btnPan.classList.add("active");
-
-  canvas.selection = (t==="select");
-  canvas.forEachObject(o=>{
-    o.selectable = (t==="select");
-  });
+/* ========= si Fabric ne charge pas ========= */
+function fabricFailed(){
+  const f = document.getElementById("fatal");
+  document.getElementById("fatalMsg").textContent =
+    "Erreur: impossible de charger https://cdn.jsdelivr.net/.../fabric.min.js\n" +
+    "=> Sans Fabric, aucun bouton ne peut fonctionner.";
+  f.style.display = "block";
 }
 
-btnSelect.onclick = ()=>setTool("select");
-btnDraw.onclick   = ()=>setTool("draw");
-btnPan.onclick    = ()=>setTool("pan");
+/* ========= APP ========= */
+function initApp(){
+  try{
+    if(!window.fabric) throw new Error("Fabric.js absent (window.fabric undefined).");
 
-/* ----------- CANVAS ----------- */
-canvas.on("mouse:down", opt=>{
-  const e = opt.e;
+    /* --- CONFIG --- */
+    const MEDIAS = [
+      { label:"Image – Compresseur", type:"image", src:"actif/compresseur_bg.png" },
+      { label:"Vidéo – 2 stages", type:"video", src:"actif/compresseur_2_stages.mp4" }
+    ];
+    const LS_KEY = (id)=>"q310_zones_simple::"+id;
 
-  if(tool==="pan"){
-    panning=true;
-    last={x:e.clientX,y:e.clientY};
-    return;
-  }
+    /* --- DOM --- */
+    const $ = (id)=>document.getElementById(id);
+    const stage = $("stage");
+    const mediaSelect = $("mediaSelect");
+    const btnPlay = $("btnPlay");
+    const btnSelect = $("btnSelect");
+    const btnDraw = $("btnDraw");
+    const btnPan = $("btnPan");
+    const btnErase = $("btnErase");
+    const btnFit = $("btnFit");
+    const zoomRange = $("zoomRange");
+    const zoomLabel = $("zoomLabel");
 
-  if(tool==="draw"){
-    drawing=true;
-    start=canvas.getPointer(e);
-    rect=new fabric.Rect({
-      left:start.x,
-      top:start.y,
-      width:1,
-      height:1,
-      fill:"rgba(0,150,255,0.2)",
-      stroke:"#0096ff",
-      strokeWidth:2
+    const imgEl = $("imgSrc");
+    const vidEl = $("vidSrc");
+
+    /* --- CANVAS --- */
+    const canvas = new fabric.Canvas("c", {
+      selection: true,
+      preserveObjectStacking: true
     });
-    canvas.add(rect);
-  }
-});
 
-canvas.on("mouse:move", opt=>{
-  const e = opt.e;
+    /* Média affiché comme “background object” */
+    let bgObj = null;           // fabric.Image
+    let currentMedia = MEDIAS[0];
+    let tool = "select";        // select|draw|pan
+    let drawing = false;
+    let start = null;
+    let rect = null;
+    let panning = false;
+    let last = null;
 
-  if(drawing && rect){
-    const p=canvas.getPointer(e);
-    rect.set({
-      width:Math.abs(p.x-start.x),
-      height:Math.abs(p.y-start.y),
-      left:Math.min(p.x,start.x),
-      top:Math.min(p.y,start.y)
+    function fillSelect(){
+      mediaSelect.innerHTML = "";
+      MEDIAS.forEach((m,i)=>{
+        const o = document.createElement("option");
+        o.value = String(i);
+        o.textContent = m.label;
+        mediaSelect.appendChild(o);
+      });
+      mediaSelect.value = "0";
+    }
+
+    function resize(){
+      const w = stage.clientWidth;
+      const h = stage.clientHeight;
+      canvas.setWidth(w);
+      canvas.setHeight(h);
+      fitBackground();
+      canvas.requestRenderAll();
+    }
+    window.addEventListener("resize", resize);
+
+    function setTool(t){
+      tool = t;
+      btnSelect.classList.toggle("active", t==="select");
+      btnDraw.classList.toggle("active", t==="draw");
+      btnPan.classList.toggle("active", t==="pan");
+
+      canvas.selection = (t==="select");
+      canvas.forEachObject(o=>{
+        o.selectable = (t==="select");
+        o.evented = (t==="select");
+      });
+      canvas.defaultCursor = (t==="pan") ? "grab" : (t==="draw" ? "crosshair" : "pointer");
+    }
+
+    function setZoom(z){
+      const zoom = Math.max(0.5, Math.min(2.5, z));
+      const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+      canvas.zoomToPoint(center, zoom);
+      zoomRange.value = String(Math.round(zoom*100));
+      zoomLabel.textContent = Math.round(zoom*100) + "%";
+      canvas.requestRenderAll();
+    }
+
+    function resetView(){
+      canvas.setViewportTransform([1,0,0,1,0,0]);
+      setZoom(1);
+    }
+
+    function fitBackground(){
+      if(!bgObj) return;
+
+      // bgObj contient soit une image, soit une vidéo
+      const cw = canvas.getWidth();
+      const ch = canvas.getHeight();
+      const iw = bgObj.width || 1;
+      const ih = bgObj.height || 1;
+
+      const s = Math.min(cw/iw, ch/ih);
+      bgObj.set({
+        left: (cw - iw*s)/2,
+        top:  (ch - ih*s)/2,
+        scaleX: s,
+        scaleY: s,
+        selectable:false,
+        evented:false
+      });
+      bgObj.setCoords();
+    }
+
+    function makeRect(){
+      return new fabric.Rect({
+        left:0, top:0, width:50, height:50,
+        fill:"rgba(0,150,255,0.18)",
+        stroke:"rgba(0,150,255,0.95)",
+        strokeWidth:2,
+        lockRotation:true,
+        objectCaching:false
+      });
+    }
+
+    function saveZones(){
+      const zones = canvas.getObjects("rect").map(r=>({
+        left:r.left, top:r.top, width:r.width*r.scaleX, height:r.height*r.scaleY
+      }));
+      localStorage.setItem(LS_KEY(currentMedia.src), JSON.stringify(zones));
+    }
+
+    function loadZones(){
+      canvas.getObjects("rect").forEach(r=>canvas.remove(r));
+      const raw = localStorage.getItem(LS_KEY(currentMedia.src));
+      if(!raw) return;
+      let zones = [];
+      try{ zones = JSON.parse(raw); }catch{ zones=[]; }
+      zones.forEach(z=>{
+        const r = makeRect();
+        r.set({ left:z.left, top:z.top, width:z.width, height:z.height, scaleX:1, scaleY:1 });
+        canvas.add(r);
+      });
+      canvas.requestRenderAll();
+    }
+
+    canvas.on("object:modified", ()=>saveZones());
+
+    /* --- souris --- */
+    canvas.on("mouse:down", (opt)=>{
+      const e = opt.e;
+
+      if(tool==="pan"){
+        panning = true;
+        last = {x:e.clientX,y:e.clientY};
+        canvas.defaultCursor = "grabbing";
+        return;
+      }
+
+      if(tool==="draw"){
+        drawing = true;
+        start = canvas.getPointer(e);
+        rect = makeRect();
+        rect.set({ left:start.x, top:start.y, width:1, height:1 });
+        canvas.add(rect);
+        canvas.setActiveObject(rect);
+      }
     });
-    canvas.renderAll();
-  }
 
-  if(panning){
-    const vpt = canvas.viewportTransform;
-    vpt[4]+=e.clientX-last.x;
-    vpt[5]+=e.clientY-last.y;
-    last={x:e.clientX,y:e.clientY};
-    canvas.requestRenderAll();
-  }
-});
+    canvas.on("mouse:move", (opt)=>{
+      const e = opt.e;
 
-canvas.on("mouse:up", ()=>{
-  drawing=false;
-  panning=false;
-});
+      if(drawing && rect){
+        const p = canvas.getPointer(e);
+        rect.set({
+          left: Math.min(p.x,start.x),
+          top:  Math.min(p.y,start.y),
+          width: Math.abs(p.x-start.x),
+          height:Math.abs(p.y-start.y),
+          scaleX:1, scaleY:1
+        });
+        rect.setCoords();
+        canvas.requestRenderAll();
+      }
+
+      if(panning){
+        const vpt = canvas.viewportTransform;
+        vpt[4] += (e.clientX - last.x);
+        vpt[5] += (e.clientY - last.y);
+        last = {x:e.clientX,y:e.clientY};
+        canvas.setViewportTransform(vpt);
+        canvas.requestRenderAll();
+      }
+    });
+
+    canvas.on("mouse:up", ()=>{
+      drawing = false;
+      if(rect){
+        if(rect.width < 10 || rect.height < 10){
+          canvas.remove(rect);
+        }else{
+          saveZones();
+        }
+        rect = null;
+      }
+      panning = false;
+      canvas.defaultCursor = (tool==="pan") ? "grab" : (tool==="draw" ? "crosshair" : "pointer");
+    });
+
+    /* --- rendu vidéo dans canvas --- */
+    function startVideoRenderLoop(){
+      const tick = ()=>{
+        // si vidéo visible (background) et en lecture -> on rafraîchit
+        if(currentMedia.type==="video" && !vidEl.paused && !vidEl.ended){
+          canvas.requestRenderAll();
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+
+    /* --- charger média --- */
+    function setBackgroundToImage(src){
+      vidEl.pause();
+      vidEl.removeAttribute("src");
+      vidEl.load();
+
+      imgEl.onload = ()=>{
+        const fimg = new fabric.Image(imgEl, { selectable:false, evented:false });
+        bgObj = fimg;
+        canvas.clear();
+        canvas.add(bgObj);
+        bgObj.sendToBack();
+        fitBackground();
+        loadZones();
+        canvas.requestRenderAll();
+      };
+      imgEl.onerror = ()=>{
+        alert("Image introuvable: " + src);
+      };
+      imgEl.src = src;
+    }
+
+    function setBackgroundToVideo(src){
+      imgEl.removeAttribute("src");
+
+      vidEl.onloadedmetadata = ()=>{
+        const fvid = new fabric.Image(vidEl, { selectable:false, evented:false });
+        // IMPORTANT: dimensions prises de la vidéo
+        fvid.set({ width: vidEl.videoWidth, height: vidEl.videoHeight });
+
+        bgObj = fvid;
+        canvas.clear();
+        canvas.add(bgObj);
+        bgObj.sendToBack();
+        fitBackground();
+        loadZones();
+        canvas.requestRenderAll();
+      };
+
+      vidEl.onerror = ()=>{
+        alert("Vidéo introuvable / format non supporté: " + src);
+      };
+
+      vidEl.src = src;
+      vidEl.load();
+    }
+
+    function showMediaByIndex(i){
+      currentMedia = MEDIAS[i];
+      resetView();
+
+      if(currentMedia.type==="image") setBackgroundToImage(currentMedia.src);
+      else setBackgroundToVideo(currentMedia.src);
+    }
+
+    /* --- UI events --- */
+    mediaSelect.addEventListener("change", ()=>{
+      showMediaByIndex(parseInt(mediaSelect.value,10));
+    });
+
+    btnPlay.addEventListener("click", async ()=>{
+      if(currentMedia.type !== "video"){
+        alert("Ce média n'est pas une vidéo.");
+        return;
+      }
+      try{
+        if(vidEl.paused) await vidEl.play();
+        else vidEl.pause();
+      }catch(err){
+        alert("Lecture vidéo bloquée. Essaie de cliquer dans la page puis recommence.\n" + err);
+      }
+    });
+
+    btnSelect.onclick = ()=>setTool("select");
+    btnDraw.onclick   = ()=>setTool("draw");
+    btnPan.onclick    = ()=>setTool("pan");
+
+    btnErase.onclick = ()=>{
+      const a = canvas.getActiveObject();
+      if(a && a.type==="rect"){
+        canvas.remove(a);
+        canvas.discardActiveObject();
+        saveZones();
+        canvas.requestRenderAll();
+      }
+    };
+
+    btnFit.onclick = ()=>{
+      resetView();
+      fitBackground();
+      canvas.requestRenderAll();
+    };
+
+    zoomRange.addEventListener("input", ()=>{
+      setZoom(parseInt(zoomRange.value,10)/100);
+    });
+
+    /* --- INIT --- */
+    fillSelect();
+    setTool("select");
+    resize();
+    showMediaByIndex(0);
+    startVideoRenderLoop();
+
+  }catch(err){
+    const f = document.getElementById("fatal");
+    document.getElementById("fatalMsg").textContent = String(err && err.stack ? err.stack : err);
+    f.style.display = "block";
+  }
+}
 </script>
 
 </body>
