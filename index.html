@@ -73,9 +73,9 @@
   }
 
   /* ✅ IMPORTANT : quand on veut cliquer Play -> canvas ne doit PAS capter */
-  .video-media #c{ pointer-events:none; }
+/*  .video-media #c{ pointer-events:none; }/*
   /* ✅ quand on veut éditer zones -> canvas capte */
-  .video-zones #c{ pointer-events:auto; }
+ /* .video-zones #c{ pointer-events:auto; }/*
 
   .panel{
     background:#0f1a44; border-radius:12px; padding:12px;
@@ -260,6 +260,18 @@ function slugify(s){
 
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
+// ====== FIX DEFINITIF : qui reçoit les clics ? (Fabric upperCanvas) ======
+function setCanvasInteract(on){
+  // Fabric capte les événements sur upperCanvasEl, pas juste sur <canvas id="c">
+  if (canvas.upperCanvasEl) canvas.upperCanvasEl.style.pointerEvents = on ? "auto" : "none";
+  // (optionnel) le canvas "bas" aussi
+  if (canvas.lowerCanvasEl) canvas.lowerCanvasEl.style.pointerEvents = on ? "auto" : "none";
+}
+function setVideoOnTop(on){
+  // on laisse la vidéo au-dessus seulement quand on veut cliquer Play
+  mediaLayer.style.zIndex = on ? "3" : "1";
+  $("c").style.zIndex = on ? "2" : "2"; // canvas reste 2, vidéo passe à 3
+}
 
 let tool = "select"; // select | draw | pan
 let zoom = 1;
@@ -286,6 +298,15 @@ function setActiveTool(t){
   $("btnSelect").classList.toggle("active", t==="select");
   $("btnDraw").classList.toggle("active", t==="draw");
   $("btnPan").classList.toggle("active", t==="pan");
+  // Dès qu’on choisit un outil, on veut ÉDITER : canvas capte, vidéo passe sous
+if (mediaType === "video") {
+  setVideoOnTop(false);
+  setCanvasInteract(true);
+  $("btnVideo").classList.remove("active");
+} else {
+  setCanvasInteract(true);
+}
+
 
   canvas.discardActiveObject();
   canvas.selection = false;
@@ -607,15 +628,18 @@ loadZones();
 }
 
 /* ================= BUTTONS ================= */
-$("btnVideo").onclick = ()=>{
+$("btnVideo").onclick = async ()=>{
   if(mediaType !== "video") return;
 
-  if (videoEl.paused) {
-    videoEl.play();
-  } else {
-    videoEl.pause();
-  }
+  // Mode "Play" : la vidéo reçoit les clics, le canvas est désactivé
+  setVideoOnTop(true);
+  setCanvasInteract(false);
+  $("btnVideo").classList.add("active");
+
+  // petit bonus : si l’utilisateur clique le bouton, on tente play (souvent OK)
+  try { await videoEl.play(); } catch(e) { /* ignore */ }
 };
+
 
 
 $("btnSelect").onclick = ()=>setActiveTool("select");
