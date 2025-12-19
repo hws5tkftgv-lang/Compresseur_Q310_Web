@@ -836,8 +836,7 @@ if(!isTeacher && tool==="select"){
     curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
     canvas.add(curRect);
     canvas.setActiveObject(curRect);
-  }
-});
+  });
 
 canvas.on("mouse:move", (opt)=>{
   if(drawing && curRect){
