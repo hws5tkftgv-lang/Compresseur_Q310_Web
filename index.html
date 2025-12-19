@@ -398,8 +398,9 @@ $("btnMode").addEventListener("click", ()=>{
    ✋ pan    = garde la visibilité actuelle
 */
 function setActiveTool(t){
-  // Interdire draw/erase en élève
-  if(!isTeacher && (t === "draw")) t = "select";
+
+  // 🔒 Interdire le mode édition en mode élève
+  if(!isTeacher && t === "draw") t = "select";
 
   tool = t;
 
@@ -409,52 +410,58 @@ function setActiveTool(t){
 
   canvas.discardActiveObject();
 
+  // visibilité des zones
   if(t === "select") zonesVisible = false;
   if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
- if(t === "select"){
-  canvas.selection = false;
-  canvas.skipTargetFind = false;
-  canvas.defaultCursor = "pointer";
+  /* ================= MODE SÉLECTION (ÉLÈVE) ================= */
+  if(t === "select"){
+    canvas.selection = false;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = "pointer";
 
-  canvas.forEachObject(o=>{
-    o.evented = true;
-    o.selectable = false;   // 🔒
-    o.lockMovementX = true;
-    o.lockMovementY = true;
-    o.lockScalingX  = true;
-    o.lockScalingY  = true;
-    o.lockRotation  = true;
-  });
+    canvas.forEachObject(o=>{
+      o.evented = true;
+      o.selectable = false;   // 🔒 impossible à déplacer
+      o.lockMovementX = true;
+      o.lockMovementY = true;
+      o.lockScalingX  = true;
+      o.lockScalingY  = true;
+      o.lockRotation  = true;
+    });
 
-
+  /* ================= MODE ÉDITION (ENSEIGNANT) ================= */
   }else if(t === "draw"){
-  canvas.selection = false;
-  canvas.skipTargetFind = false;
-  canvas.defaultCursor = "crosshair";
+    canvas.selection = false;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = "crosshair";
 
-  canvas.forEachObject(o=>{
-    o.evented = true;
-    o.selectable = true;       // ✅ édition
-    o.lockMovementX = false;
-    o.lockMovementY = false;
-    o.lockScalingX = false;
-    o.lockScalingY = false;
-    o.lockRotation = true;     // rotation toujours bloquée
-  });
-}
+    canvas.forEachObject(o=>{
+      o.evented = true;
+      o.selectable = true;    // ✅ modifiable
+      o.lockMovementX = false;
+      o.lockMovementY = false;
+      o.lockScalingX  = false;
+      o.lockScalingY  = false;
+      o.lockRotation  = true;
+    });
 
-    );
+  /* ================= MODE PAN ================= */
   }else{ // pan
     canvas.selection = false;
     canvas.skipTargetFind = true;
     canvas.defaultCursor = "grab";
+
     canvas.forEachObject(o=>{
       o.evented = true;
       o.selectable = false;
     });
   }
+
+  canvas.requestRenderAll();
+}
+
 
   // Vidéo: si on touche un outil, on désactive "Play cliquable"
   if(mediaType==="video"){
