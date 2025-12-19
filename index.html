@@ -66,12 +66,6 @@
     border:none;
   }
 
-  /* ========= FIX FINAL (DESSIN + PAN + PLAY VIDEO) =========
-     - Par défaut: canvas interactif (dessin/pan/sélection)
-     - Media layer: visuel seulement (pas de clic)
-     - En mode vidéo "Play": la vidéo passe AU-DESSUS du canvas
-  */
-
   .panel{
     background:#0f1a44; border-radius:12px; padding:12px;
     display:flex; flex-direction:column; gap:10px;
@@ -98,40 +92,36 @@
     height:calc(100vh - 56px - 16px);
     min-height:unset;
   }
+
   /* ======================================================
-   FIX CRITIQUE FABRIC.JS – NE PAS MODIFIER
-   ====================================================== */
+     FIX CRITIQUE FABRIC.JS – NE PAS MODIFIER
+     ====================================================== */
 
-/* Le parent DOIT être positionné */
-.stage{
-  position: relative;
-}
+  .stage{
+    position: relative;
+  }
 
-/* Conteneur réel utilisé par Fabric */
-.canvas-container{
-  position: absolute !important;
-  inset: 0;
-  z-index: 2;
-  pointer-events: auto;
-}
+  .canvas-container{
+    position: absolute !important;
+    inset: 0;
+    z-index: 2;
+    pointer-events: auto;
+  }
 
-/* Média en dessous par défaut */
-.media-layer{
-  z-index: 1;
-  pointer-events: none;
-}
+  .media-layer{
+    z-index: 1;
+    pointer-events: none;
+    transform-origin: 0 0;
+  }
 
-/* Mode vidéo : la vidéo passe AU-DESSUS */
-.video-media .media-layer{
-  z-index: 3;
-  pointer-events: auto;
-}
+  .video-media .media-layer{
+    z-index: 3;
+    pointer-events: auto;
+  }
 
-/* Mode vidéo : le canvas est désactivé */
-.video-media .canvas-container{
-  pointer-events: none;
-}
-
+  .video-media .canvas-container{
+    pointer-events: none;
+  }
 </style>
 </head>
 
@@ -217,8 +207,6 @@
 const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 
-/* ⚠️ Conseil : renomme la vidéo sans espace si tu peux: compresseur_2_stages.mp4
-   sinon garde exactement le nom. */
 const MEDIAS = [
   { label: "Fond référence", url: "actif/compresseur_bg.png" },
   { label: "Animation – Compresseur 2 stages", url: "video:actif/compresseur_2_stages.mp4" },
@@ -255,13 +243,8 @@ function slugify(s){
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 
-/* ===== TEST 1 : Fabric reçoit-il la souris ? ===== */
-canvas.on("mouse:down", () => {
-  console.log("🟢 Fabric mouse:down OK");
-});
-let zonesVisible = true;
-
-let tool = "select"; // select | draw | pan
+let zonesVisible = false; // ✅ invisible par défaut (zones déjà sauvegardées)
+let tool = "select";      // select | draw | pan
 let zoom = 1;
 
 let currentMedia = MEDIAS[0].url;
@@ -279,11 +262,22 @@ let partsBase = [];
 let partsCustom = {};
 let partsMerged = [];
 
+/* ================= ZONES VISIBILITY (FIX) ================= */
+function updateZonesVisibility(){
+  canvas.forEachObject(o=>{
+    if(o && o.type === "rect"){
+      o.set({
+        fill: zonesVisible ? "rgba(0,150,255,0.12)" : "rgba(0,0,0,0)",
+        stroke: zonesVisible ? "rgba(0,150,255,0.95)" : "rgba(0,0,0,0)"
+      });
+    }
+  });
+  canvas.requestRenderAll();
+}
+
 /* ================= TOOL UI ================= */
 function setActiveTool(t){
   tool = t;
-zonesVisible = true;
-updateZonesVisibility();
 
   $("btnSelect").classList.toggle("active", t==="select");
   $("btnDraw").classList.toggle("active", t==="draw");
@@ -291,7 +285,6 @@ updateZonesVisibility();
 
   canvas.discardActiveObject();
 
-  // Comportement Fabric NORMAL (sinon tu tues draw/pan)
   canvas.selection = (t === "select");
 
   canvas.defaultCursor =
@@ -299,15 +292,16 @@ updateZonesVisibility();
     t === "pan"  ? "grab" :
     "pointer";
 
-  // Les zones restent toujours evented (sinon Fabric ne reçoit rien)
   canvas.forEachObject(o=>{
     o.evented = true;
     o.selectable = (t === "select");
   });
 
-  canvas.requestRenderAll();
+  // ✅ Pendant qu’on travaille, on rend visibles
+  zonesVisible = true;
+  updateZonesVisibility();
 
-  // Si vidéo → passer en édition zones (canvas actif) + désactiver le mode Play
+  // si vidéo → on désactive le mode Play cliquable
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     $("btnVideo").classList.remove("active");
@@ -368,13 +362,17 @@ function resetViewToFit(){
   applyMediaBaseFit();
 }
 
-/* ================= ZOOM ================= */
+/* ================= ZOOM (FIX: centré sur image) ================= */
 function setZoom(z){
   zoom = Math.max(0.5, Math.min(3, z));
- const center = new fabric.Point(
-  mediaLeft + (mediaNaturalW * mediaScale) / 2,
-  mediaTop  + (mediaNaturalH * mediaScale) / 2
-);
+
+  // ✅ centre de l'image (fallback si image pas prête)
+  const center = (mediaNaturalW && mediaNaturalH)
+    ? new fabric.Point(
+        mediaLeft + (mediaNaturalW * mediaScale) / 2,
+        mediaTop  + (mediaNaturalH * mediaScale) / 2
+      )
+    : new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
 
   canvas.zoomToPoint(center, zoom);
   $("zoomRange").value = String(Math.round(zoom*100));
@@ -382,9 +380,11 @@ function setZoom(z){
   syncMediaTransformToCanvas();
   canvas.requestRenderAll();
 }
+
 $("zoomRange").addEventListener("input", ()=>{
   setZoom(parseInt($("zoomRange").value,10)/100);
 });
+
 canvas.on("mouse:wheel", (opt)=>{
   const e = opt.e;
   if(!e.ctrlKey && !e.metaKey) return;
@@ -397,18 +397,6 @@ canvas.on("mouse:wheel", (opt)=>{
 function getZones(){ return canvas.getObjects().filter(o=>o && o.type==="rect"); }
 
 function makeZoneRect(){
-  function updateZonesVisibility(){
-  canvas.forEachObject(o=>{
-    if(o.type === "rect"){
-      o.set({
-        fill: zonesVisible ? "rgba(0,150,255,0.12)" : "rgba(0,0,0,0)",
-        stroke: zonesVisible ? "rgba(0,150,255,0.95)" : "rgba(0,0,0,0)"
-      });
-    }
-  });
-  canvas.requestRenderAll();
-}
-
   const r = new fabric.Rect({
     left:0, top:0, width:50, height:50,
     fill:"rgba(0,150,255,0.12)",
@@ -452,9 +440,11 @@ function saveZones(){
   });
   localStorage.setItem(LS_ZONES(currentMediaKey), JSON.stringify(zones));
 
-zonesVisible = false;
-updateZonesVisibility();
+  // ✅ après sauvegarde → invisible (mais cliquable)
+  zonesVisible = false;
+  updateZonesVisibility();
 }
+
 function loadZones(){
   getZones().forEach(r=>canvas.remove(r));
 
@@ -472,7 +462,10 @@ function loadZones(){
   });
 
   fitZonesToMedia();
-  canvas.requestRenderAll();
+
+  // ✅ au chargement: zones issues du storage → invisibles
+  zonesVisible = false;
+  updateZonesVisibility();
 }
 
 canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
@@ -481,7 +474,6 @@ canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
 canvas.on("mouse:down", (opt)=>{
   const t = opt.target;
 
-  // pan
   if(tool==="pan"){
     isPanning = true;
     lastClient = { x:opt.e.clientX, y:opt.e.clientY };
@@ -489,14 +481,12 @@ canvas.on("mouse:down", (opt)=>{
     return;
   }
 
-  // click zone -> panel
   if(t && t.type==="rect"){
     setPanelForZone(t);
     if(tool==="select") canvas.setActiveObject(t);
     return;
   }
 
-  // draw
   if(tool==="draw"){
     drawing = true;
     startPt = canvas.getPointer(opt.e, true);
@@ -521,12 +511,9 @@ canvas.on("mouse:move", (opt)=>{
 
   if(isPanning){
     const e = opt.e;
-
-    // FIX robustesse: travailler sur une copie
     const vpt = canvas.viewportTransform.slice();
     vpt[4] += (e.clientX - lastClient.x);
     vpt[5] += (e.clientY - lastClient.y);
-
     lastClient = {x:e.clientX, y:e.clientY};
     canvas.setViewportTransform(vpt);
     syncMediaTransformToCanvas();
@@ -564,17 +551,14 @@ async function showMedia(url){
   currentMediaKey = url;
   mediaType = url.startsWith("video:") ? "video" : "image";
 
-  // reset
   imgEl.style.display="none";
   videoEl.style.display="none";
   videoEl.pause();
   videoEl.removeAttribute("src");
   videoEl.load();
 
-  // reset view
   resetViewToFit();
 
-  // classes
   stageEl.classList.remove("video-media");
   $("btnVideo").classList.remove("active");
 
@@ -609,21 +593,21 @@ async function showMedia(url){
     applyMediaBaseFit();
     loadZones();
 
-    // Par défaut: mode Play cliquable
     stageEl.classList.add("video-media");
     $("btnVideo").classList.add("active");
   }
+
+  // ✅ robustesse GitHub Pages: s'assurer que canvas/media ont la bonne taille
+  setTimeout(()=>{ resizeAll(); }, 0);
 }
 
 /* ================= BUTTONS ================= */
 $("btnVideo").onclick = ()=>{
   if(mediaType !== "video") return;
 
-  // Activer le mode "Play cliquable" (vidéo au-dessus du canvas)
   stageEl.classList.add("video-media");
   $("btnVideo").classList.add("active");
 
-  // Play/Pause
   if (videoEl.paused) videoEl.play();
   else videoEl.pause();
 };
@@ -811,13 +795,19 @@ $("btnSavePart").addEventListener("click", ()=>{
 /* ================= INIT ================= */
 (async function init(){
   fillMediaSelect();
-  setActiveTool("select");
   await loadParts();
 
   resizeAll();
   await showMedia(currentMedia);
 
-  // safety
+  // ✅ au démarrage : zones invisibles (issues du storage)
+  zonesVisible = false;
+  updateZonesVisibility();
+
+  // outil par défaut (mais zones restent invisibles tant que tu n'édites pas)
+  tool = "select";
+  $("btnSelect").classList.add("active");
+
   setTimeout(()=>{ resizeAll(); }, 120);
 })();
 </script>
