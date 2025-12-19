@@ -259,6 +259,7 @@ const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:t
 canvas.on("mouse:down", () => {
   console.log("🟢 Fabric mouse:down OK");
 });
+let zonesVisible = true;
 
 let tool = "select"; // select | draw | pan
 let zoom = 1;
@@ -281,6 +282,8 @@ let partsMerged = [];
 /* ================= TOOL UI ================= */
 function setActiveTool(t){
   tool = t;
+zonesVisible = true;
+updateZonesVisibility();
 
   $("btnSelect").classList.toggle("active", t==="select");
   $("btnDraw").classList.toggle("active", t==="draw");
@@ -368,7 +371,11 @@ function resetViewToFit(){
 /* ================= ZOOM ================= */
 function setZoom(z){
   zoom = Math.max(0.5, Math.min(3, z));
-  const center = new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
+ const center = new fabric.Point(
+  mediaLeft + (mediaNaturalW * mediaScale) / 2,
+  mediaTop  + (mediaNaturalH * mediaScale) / 2
+);
+
   canvas.zoomToPoint(center, zoom);
   $("zoomRange").value = String(Math.round(zoom*100));
   $("zoomLabel").textContent = Math.round(zoom*100) + "%";
@@ -390,6 +397,18 @@ canvas.on("mouse:wheel", (opt)=>{
 function getZones(){ return canvas.getObjects().filter(o=>o && o.type==="rect"); }
 
 function makeZoneRect(){
+  function updateZonesVisibility(){
+  canvas.forEachObject(o=>{
+    if(o.type === "rect"){
+      o.set({
+        fill: zonesVisible ? "rgba(0,150,255,0.12)" : "rgba(0,0,0,0)",
+        stroke: zonesVisible ? "rgba(0,150,255,0.95)" : "rgba(0,0,0,0)"
+      });
+    }
+  });
+  canvas.requestRenderAll();
+}
+
   const r = new fabric.Rect({
     left:0, top:0, width:50, height:50,
     fill:"rgba(0,150,255,0.12)",
@@ -432,8 +451,10 @@ function saveZones(){
     return { imgBox:r._imgBox, partId:(r.partId||"") };
   });
   localStorage.setItem(LS_ZONES(currentMediaKey), JSON.stringify(zones));
-}
 
+zonesVisible = false;
+updateZonesVisibility();
+}
 function loadZones(){
   getZones().forEach(r=>canvas.remove(r));
 
