@@ -59,7 +59,7 @@
   }
   .media-layer{
     transform-origin:0 0;
-    pointer-events:none; /* la vidéo (élément) gère ses clics */
+    pointer-events:none;
   }
   #imgLayer, #videoLayer{
     position:absolute;
@@ -69,13 +69,12 @@
     border:none;
   }
   #videoLayer{
-    pointer-events:auto; /* controls video */
+    pointer-events:auto;
   }
 
-  /* ✅ IMPORTANT : quand on veut cliquer Play -> canvas ne doit PAS capter */
-/*  .video-media #c{ pointer-events:none; }/*
-  /* ✅ quand on veut éditer zones -> canvas capte */
- /* .video-zones #c{ pointer-events:auto; }/*
+  /* ✅ (tes règles, mais commentaires réparés) */
+  /* .video-media #c{ pointer-events:none; } */
+  /* .video-zones #c{ pointer-events:auto; } */
 
   .panel{
     background:#0f1a44; border-radius:12px; padding:12px;
@@ -103,39 +102,24 @@
     height:calc(100vh - 56px - 16px);
     min-height:unset;
   }
-  /* ✅ quand la vidéo est active, elle doit recevoir les clics */
-.video-media .media-layer{
-  pointer-events:auto;
-}
-/* ===== FIX VIDEO PLAY (OBLIGATOIRE) ===== */
-.media-layer{
-  z-index: 1;
-}
-#c{
-  z-index: 2;
-}
 
-/* quand la vidéo est active → elle passe AU-DESSUS du canvas */
-.video-media .media-layer{
-  z-index: 3;
-  pointer-events:auto;
-}
-/* ===== FIX DEFINITIF CANVAS ===== */
-#c{
-  pointer-events:auto !important;
-}
+  /* tes z-index */
+  .media-layer{ z-index: 1; }
+  #c{ z-index: 2; }
 
-/* ===== FIX IMAGE (OBLIGATOIRE) ===== */
+  .video-media .media-layer{
+    z-index: 3;
+    pointer-events:auto;
+  }
 
-/* image AU-DESSUS du canvas */
-.image-media .media-layer{
-  z-index:3;
-  pointer-events:none; /* on clique toujours sur le canvas */
-}
+  /* IMPORTANT : Fabric écoute sur upperCanvas, pas sur #c seulement */
+  #c{ pointer-events:auto !important; }
 
-.image-media #c{
-  z-index:2;
-}
+  .image-media .media-layer{
+    z-index:3;
+    pointer-events:none;
+  }
+  .image-media #c{ z-index:2; }
 
 </style>
 </head>
@@ -145,7 +129,6 @@
 <div class="topbar">
   <select id="imgSelect" class="select"></select>
 
-  <!-- ✅ bouton simple pour rendre Play cliquable -->
   <button id="btnVideo" class="btn" title="Cliquer Play/Pause sur la vidéo">🎬 Vidéo (Play)</button>
 
   <button id="btnSelect" class="btn active" title="Sélection">🖱</button>
@@ -223,8 +206,6 @@
 const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 
-/* ⚠️ Conseil : renomme la vidéo sans espace si tu peux: compresseur_2_stages.mp4
-   sinon garde exactement le nom. */
 const MEDIAS = [
   { label: "Fond référence", url: "actif/compresseur_bg.png" },
   { label: "Animation – Compresseur 2 stages", url: "video:actif/compresseur_2_stages.mp4" },
@@ -260,17 +241,14 @@ function slugify(s){
 
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
-// ====== FIX DEFINITIF : qui reçoit les clics ? (Fabric upperCanvas) ======
+
 function setCanvasInteract(on){
-  // Fabric capte les événements sur upperCanvasEl, pas juste sur <canvas id="c">
   if (canvas.upperCanvasEl) canvas.upperCanvasEl.style.pointerEvents = on ? "auto" : "none";
-  // (optionnel) le canvas "bas" aussi
   if (canvas.lowerCanvasEl) canvas.lowerCanvasEl.style.pointerEvents = on ? "auto" : "none";
 }
 function setVideoOnTop(on){
-  // on laisse la vidéo au-dessus seulement quand on veut cliquer Play
   mediaLayer.style.zIndex = on ? "3" : "1";
-  $("c").style.zIndex = on ? "2" : "2"; // canvas reste 2, vidéo passe à 3
+  $("c").style.zIndex = "2";
 }
 
 let tool = "select"; // select | draw | pan
@@ -298,50 +276,31 @@ function setActiveTool(t){
   $("btnSelect").classList.toggle("active", t==="select");
   $("btnDraw").classList.toggle("active", t==="draw");
   $("btnPan").classList.toggle("active", t==="pan");
-  // Dès qu’on choisit un outil, on veut ÉDITER : canvas capte, vidéo passe sous
-if (mediaType === "video") {
+
+  // IMPORTANT: en draw/pan, on ne veut PAS que Fabric “attrape” des zones (sinon ça bloque le drag pan/draw)
+  canvas.discardActiveObject();
+  canvas.selection = (t==="select");
+  canvas.skipTargetFind = (t!=="select");
+
+  canvas.forEachObject(o=>{
+    o.selectable = (t==="select");
+    o.evented = (t==="select");
+  });
+
+  if(t === "select") canvas.defaultCursor = "pointer";
+  if(t === "draw")   canvas.defaultCursor = "crosshair";
+  if(t === "pan")    canvas.defaultCursor = "grab";
+
+  // dès qu’on choisit un outil => on veut éditer => canvas actif, vidéo sous
   setVideoOnTop(false);
   setCanvasInteract(true);
   $("btnVideo").classList.remove("active");
-} else {
-  setCanvasInteract(true);
-}
-
-
-  canvas.discardActiveObject();
-  canvas.selection = false;
-  canvas.skipTargetFind = (t !== "select");
-
-  canvas.forEachObject(o=>{
-    o.selectable = false;
-    o.evented = false;
-  });
-
-  if(t === "select"){
-    canvas.selection = true;
-    canvas.skipTargetFind = false;
-    canvas.forEachObject(o=>{
-      o.selectable = true;
-      o.evented = true;
-    });
-    canvas.defaultCursor = "pointer";
-  }
-
-  if(t === "draw"){
-    canvas.defaultCursor = "crosshair";
-  }
-
-  if(t === "pan"){
-    canvas.defaultCursor = "grab";
-  }
 
   canvas.requestRenderAll();
 
-  // si vidéo → retour édition zones
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     stageEl.classList.add("video-zones");
-    $("btnVideo").classList.remove("active");
   }
 }
 
@@ -360,10 +319,11 @@ function applyMediaBaseFit(){
   const w = mediaNaturalW * base;
   const h = mediaNaturalH * base;
 
-  if(mediaType==="image")
+  // ✅ FIX : blocs if/else corrects + on s’assure que le canvas reste interactif
   setVideoOnTop(false);
-setCanvasInteract(true);
-{
+  setCanvasInteract(true);
+
+  if(mediaType==="image"){
     imgEl.style.left = mediaLeft+"px";
     imgEl.style.top = mediaTop+"px";
     imgEl.style.width = w+"px";
@@ -497,7 +457,6 @@ canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
 canvas.on("mouse:down", (opt)=>{
   const t = opt.target;
 
-  // pan
   if(tool==="pan"){
     isPanning = true;
     lastClient = { x:opt.e.clientX, y:opt.e.clientY };
@@ -505,14 +464,12 @@ canvas.on("mouse:down", (opt)=>{
     return;
   }
 
-  // click zone -> panel
   if(t && t.type==="rect"){
     setPanelForZone(t);
     if(tool==="select") canvas.setActiveObject(t);
     return;
   }
 
-  // draw
   if(tool==="draw"){
     drawing = true;
     startPt = canvas.getPointer(opt.e, true);
@@ -577,30 +534,26 @@ async function showMedia(url){
   currentMediaKey = url;
   mediaType = url.startsWith("video:") ? "video" : "image";
 
-  // reset
   imgEl.style.display="none";
   videoEl.style.display="none";
   videoEl.pause();
   videoEl.removeAttribute("src");
   videoEl.load();
 
-  // reset view
   resetViewToFit();
 
- // classes
-stageEl.classList.remove("video-media","video-zones","image-media");
-$("btnVideo").classList.remove("active");
+  stageEl.classList.remove("video-media","video-zones","image-media");
+  $("btnVideo").classList.remove("active");
 
   if(mediaType==="image"){
     imgEl.src = url;
     imgEl.onload = ()=>{
       mediaNaturalW = imgEl.naturalWidth || 0;
       mediaNaturalH = imgEl.naturalHeight || 0;
-     imgEl.style.display="block";
-stageEl.classList.add("image-media"); // 👈 CRITIQUE
-applyMediaBaseFit();
-loadZones();
-
+      imgEl.style.display="block";
+      stageEl.classList.add("image-media");
+      applyMediaBaseFit();
+      loadZones();
     };
     imgEl.onerror = ()=>alert("Image introuvable: "+url);
   }else{
@@ -609,11 +562,11 @@ loadZones();
     videoEl.loop = true;
     videoEl.playsInline = true;
     videoEl.style.display="block";
-    // Par défaut on met le canvas ACTIF (édition), pas le play
-setVideoOnTop(false);
-setCanvasInteract(true);
-$("btnVideo").classList.remove("active");
 
+    // par défaut : édition active
+    setVideoOnTop(false);
+    setCanvasInteract(true);
+    $("btnVideo").classList.remove("active");
 
     await new Promise((resolve)=>{
       const onMeta = ()=>{
@@ -629,7 +582,6 @@ $("btnVideo").classList.remove("active");
     applyMediaBaseFit();
     loadZones();
 
-    // ✅ par défaut on laisse la vidéo cliquable (Play)
     stageEl.classList.add("video-media");
     $("btnVideo").classList.add("active");
   }
@@ -639,16 +591,12 @@ $("btnVideo").classList.remove("active");
 $("btnVideo").onclick = async ()=>{
   if(mediaType !== "video") return;
 
-  // Mode "Play" : la vidéo reçoit les clics, le canvas est désactivé
   setVideoOnTop(true);
   setCanvasInteract(false);
   $("btnVideo").classList.add("active");
 
-  // petit bonus : si l’utilisateur clique le bouton, on tente play (souvent OK)
-  try { await videoEl.play(); } catch(e) { /* ignore */ }
+  try { await videoEl.play(); } catch(e) {}
 };
-
-
 
 $("btnSelect").onclick = ()=>setActiveTool("select");
 $("btnDraw").onclick   = ()=>setActiveTool("draw");
@@ -839,7 +787,6 @@ $("btnSavePart").addEventListener("click", ()=>{
   resizeAll();
   await showMedia(currentMedia);
 
-  // safety
   setTimeout(()=>{ resizeAll(); }, 120);
 })();
 </script>
