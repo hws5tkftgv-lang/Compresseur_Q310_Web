@@ -715,11 +715,24 @@ canvas.on("mouse:down", (opt)=>{
     return;
   }
 
-  if(t && t.type==="rect"){
-    setPanelForZone(t);
-    if(tool==="select") canvas.setActiveObject(t);
-    return;
+if(t && t.type==="rect"){
+  setPanelForZone(t);
+
+  // 🔵 BULLE ÉLÈVE (IMAGE)
+  if(!isTeacher && tool==="select"){
+    const part = getPartById(t.partId);
+    if(part && part.desc){
+      const pt = fabric.util.transformPoint(
+        t.getCenterPoint(),
+        canvas.viewportTransform
+      );
+      showBubble(part.desc, pt.x + 12, pt.y + 12, 5000);
+    }
   }
+
+  if(tool==="select") canvas.setActiveObject(t);
+  return;
+}
 
   if(tool==="draw"){
     if(!isTeacher) return;
