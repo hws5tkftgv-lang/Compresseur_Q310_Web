@@ -274,6 +274,17 @@
       </div>
 
       <div>
+        <label>Commentaire bulle</label>
+        <textarea id="commentText" placeholder="Texte affiché dans la bulle"></textarea>
+      </div>
+
+      <div>
+      <label>Durée affichage (ms)</label>
+      <input id="commentDuration" type="number" value="5000">
+      </div>
+
+     
+      <div>
         <label>Circuit</label>
         <input id="circuit" placeholder="LP / HP / LUB / CTRL / TR">
       </div>
@@ -295,6 +306,19 @@ const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 const TEACHER_PASSWORD = "comp";
 const TEACHER_SESSION_KEY = "q310_teacher_mode_v1";
+  /* ================= COMMENTAIRES (IMAGE + VIDÉO) =================
+   images : bulles déclenchées par clic sur une zone
+   videos : bulles déclenchées automatiquement par le temps
+*/
+const COMMENTS = {
+  images: {
+    // mediaKey : { partId : { text, duration } }
+  },
+  videos: {
+    // videoFile : [ { t, text, duration } ]
+  }
+};
+
 
 const MEDIAS = [
   { label: "Fond référence", url: "actif/compresseur_bg.png" },
@@ -337,6 +361,40 @@ function showBubble(text, x, y, duration = 5000){
     bubble.style.display = "none";
   }, duration);
 }
+/* ================= VIDÉO : BULLES AUTOMATIQUES ================= */
+
+let lastVideoComment = null;
+
+videoEl.addEventListener("timeupdate", ()=>{
+  if(isTeacher) return; // enseignant = pas d’auto lecture
+
+  const file = videoEl.src.split("/").pop();
+  const list = COMMENTS.videos[file];
+  if(!list) return;
+
+  const now = videoEl.currentTime;
+
+  list.forEach(c=>{
+    if(lastVideoComment === c) return;
+
+    if(Math.abs(now - c.t) < 0.25){
+      lastVideoComment = c;
+
+      videoEl.pause();
+
+      showBubble(
+        c.text,
+        stageEl.clientWidth * 0.5,
+        stageEl.clientHeight * 0.15,
+        c.duration || 5000
+      );
+
+      setTimeout(()=>{
+        videoEl.play();
+      }, c.duration || 5000);
+    }
+  });
+});
 
 
 function slugify(s){
@@ -739,9 +797,25 @@ if(t && t.type==="rect"){
   setPanelForZone(t);
 
   // 🔵 BULLE ÉLÈVE (IMAGE)
-  if(!isTeacher && tool==="select"){
-    const part = getPartById(t.partId);
-    if(part && part.desc){
+if(!isTeacher && tool==="select"){
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[t.partId];
+
+  if(comment){
+    const pt = fabric.util.transformPoint(
+      t.getCenterPoint(),
+      canvas.viewportTransform
+    );
+
+    showBubble(
+      comment.text,
+      pt.x + 12,
+      pt.y + 12,
+      comment.duration || 5000
+    );
+  }
+}
+
       const pt = fabric.util.transformPoint(
         t.getCenterPoint(),
         canvas.viewportTransform
@@ -819,6 +893,7 @@ canvas.on("mouse:up", ()=>{
 
 /* ================= MEDIA SWITCH ================= */
 async function showMedia(url){
+  lastVideoComment = null;
   currentMedia = url;
   currentMediaKey = url;
   mediaType = url.startsWith("video:") ? "video" : "image";
@@ -1167,6 +1242,19 @@ $("btnSavePart").addEventListener("click", ()=>{
 
   setPanelFromPart(partsCustom[id]);
   refreshZoneList();
+    if(canvas.getActiveObject() && canvas.getActiveObject().type === "rect"){
+    const pid = canvas.getActiveObject().partId;
+    if(pid){
+      if(!COMMENTS.images[currentMediaKey]){
+        COMMENTS.images[currentMediaKey] = {};
+      }
+      COMMENTS.images[currentMediaKey][pid] = {
+        text: $("commentText").value.trim(),
+        duration: parseInt($("commentDuration").value,10) || 5000
+      };
+    }
+  }
+
 });
 
 /* ================= INIT ================= */
@@ -1194,6 +1282,10 @@ $("btnSavePart").addEventListener("click", ()=>{
     8000
   );
 }, 1000);
+COMMENTS.videos["compresseur_2_stages.mp4"] = [
+  { t: 2.5, text: "Entrée d’air", duration: 4000 },
+  { t: 7.0, text: "Premier étage", duration: 6000 }
+];
 
 </script>
 
