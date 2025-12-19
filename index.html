@@ -401,6 +401,12 @@ function setActiveTool(t){
 
   // 🔒 Interdire le mode édition en mode élève
   if(!isTeacher && t === "draw") t = "select";
+// Si on passe en édition pendant une vidéo → pause + réactiver canvas
+if(mediaType === "video" && t === "draw"){
+  videoEl.pause();
+  stageEl.classList.remove("video-media"); // 🔑 redonne les events au canvas
+  $("btnVideo").classList.remove("active");
+}
 
   tool = t;
 
