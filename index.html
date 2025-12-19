@@ -12,6 +12,9 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; background:#0b1436; color:#eaf1ff; font-family:Arial,Segoe UI,sans-serif; }
 
+  /* === PAS DE COINS RONDS === */
+  .btn, .select, .zoom, .stage, .panel, textarea, input { border-radius:0 !important; }
+
   .topbar{
     display:flex; align-items:center; gap:8px;
     padding:10px; background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08);
@@ -19,21 +22,22 @@
   }
   .btn{
     padding:7px 12px; background:#1b2553; color:#fff;
-    border:1px solid rgba(255,255,255,.18); border-radius:8px;
+    border:1px solid rgba(255,255,255,.18);
     cursor:pointer; font-weight:700; font-size:13px;
   }
   .btn:hover{ filter:brightness(1.06); }
   .btn.active{ background:#0078ff; border-color:#0053ad; }
   .btn.danger{ background:#7f1d2d; border-color:#5f1622; }
+  .btn.locked{ opacity:.55; cursor:not-allowed; filter:none; }
 
   .select{
-    background:#101a40; color:#fff; border-radius:8px;
+    background:#101a40; color:#fff;
     padding:7px 10px; border:1px solid rgba(255,255,255,.18);
   }
 
   .zoom{
     display:flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:12px;
+    padding:6px 10px;
     border:1px solid rgba(255,255,255,.18);
     background:#121c45;
   }
@@ -48,7 +52,7 @@
   }
 
   .stage{
-    background:#0b1536; border-radius:12px; overflow:hidden;
+    background:#0b1536; overflow:hidden;
     min-height:78vh; position:relative;
   }
 
@@ -67,9 +71,10 @@
   }
 
   .panel{
-    background:#0f1a44; border-radius:12px; padding:12px;
+    background:#0f1a44; padding:12px;
     display:flex; flex-direction:column; gap:10px;
     min-height:78vh;
+    border:1px solid rgba(255,255,255,.10);
   }
   .panel h3{ margin:0; font-size:15px; }
   .small{ font-size:12px; opacity:.85; line-height:1.3; }
@@ -79,7 +84,7 @@
   textarea, input{
     width:100%;
     background:#101a40; color:#fff;
-    border:1px solid rgba(255,255,255,.18); border-radius:10px;
+    border:1px solid rgba(255,255,255,.18);
     padding:10px;
   }
   textarea{ min-height:90px; resize:vertical; }
@@ -96,10 +101,7 @@
   /* ======================================================
      FIX CRITIQUE FABRIC.JS – NE PAS MODIFIER
      ====================================================== */
-
-  .stage{
-    position: relative;
-  }
+  .stage{ position: relative; }
 
   .canvas-container{
     position: absolute !important;
@@ -122,6 +124,46 @@
   .video-media .canvas-container{
     pointer-events: none;
   }
+
+  /* ===== Zone list ===== */
+  .zoneListWrap{
+    display:flex; flex-direction:column; gap:8px;
+    border:1px solid rgba(255,255,255,.10);
+    padding:10px;
+    background:#0f1a44;
+  }
+  .zoneList{
+    display:flex; flex-direction:column; gap:6px;
+    max-height:34vh;
+    overflow:auto;
+    border-top:1px solid rgba(255,255,255,.10);
+    padding-top:8px;
+  }
+  .zoneItem{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px;
+    padding:6px 8px;
+    border:1px solid rgba(255,255,255,.12);
+    background:#101a40;
+    cursor:pointer;
+    user-select:none;
+  }
+  .zoneItem:hover{ filter:brightness(1.06); }
+  .zoneItem b{ font-size:12px; }
+  .zoneItem span{ font-size:11px; opacity:.75; white-space:nowrap; }
+
+  /* ===== Mini fiche élève (lecture) ===== */
+  .studentCard{
+    border:1px solid rgba(255,255,255,.10);
+    padding:10px;
+    background:#0f1a44;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .studentCard .title{ font-weight:800; font-size:13px; }
+  .studentCard .meta{ font-size:11px; opacity:.75; }
+  .studentCard .txt{ font-size:12px; opacity:.92; line-height:1.35; white-space:pre-wrap; }
+  .muted{ opacity:.70; }
+
 </style>
 </head>
 
@@ -145,6 +187,9 @@
 
   <button id="btnFit" class="btn" title="Ajuster">⤡ Ajuster</button>
   <button id="btnFs" class="btn" title="Plein écran">⤢ Plein écran</button>
+
+  <!-- Mode -->
+  <button id="btnMode" class="btn" title="Mode élève / enseignant (mot de passe)">🔒 Mode élève</button>
 </div>
 
 <div class="wrap">
@@ -157,47 +202,73 @@
   </div>
 
   <aside class="panel">
-    <h3>🟦 Fiche de la zone</h3>
-    <div class="small">
-      ✔ Tout est en mode enseignant (édition permanente).<br>
-      🎬 Pour cliquer Play/Pause sur une vidéo, clique “Vidéo (Play)”.<br>
-      🖱 (lecture) = zones invisibles mais cliquables. ✏️ (édition) = zones visibles + modifiables.
+    <h3 id="panelTitle">🟦 Fiche (mode élève)</h3>
+    <div class="small" id="modeHint">
+      🔒 Mode élève : zones invisibles mais cliquables + survol intelligent + liste cliquable.<br>
+      🔓 Mode enseignant : édition complète (mot de passe <b>comp</b>).
     </div>
 
     <div class="hr"></div>
 
-    <div>
-      <label>Pièce</label>
-      <select id="pieceSelect" class="select" style="width:100%"></select>
-      <div class="small" style="opacity:.75;margin-top:6px">
-        ID : <span id="partIdLabel">—</span>
+    <!-- ====== Panneau ÉLÈVE (lecture) ====== -->
+    <div id="panelStudent" style="display:block">
+      <div class="studentCard">
+        <div class="title" id="stuNom">Aucune zone sélectionnée</div>
+        <div class="meta">Circuit : <span id="stuCircuit" class="muted">—</span> · ID : <span id="stuId" class="muted">—</span></div>
+        <div class="txt"><b>Rôle</b> : <span id="stuRole" class="muted">—</span></div>
+        <div class="txt"><b>Description</b> : <span id="stuDesc" class="muted">—</span></div>
+      </div>
+
+      <div class="zoneListWrap">
+        <div class="small"><b>Liste des zones</b> (clique pour ouvrir la fiche)</div>
+        <input id="zoneSearch" placeholder="Rechercher (nom, circuit, id)..." />
+        <div class="zoneList" id="zoneList"></div>
+        <div class="small muted">Astuce: Ctrl + molette = zoom.</div>
       </div>
     </div>
 
-    <div>
-      <label>Nom</label>
-      <input id="nom" placeholder="ex: Filtre à air">
-    </div>
+    <!-- ====== Panneau ENSEIGNANT (édition) : TON FORMULAIRE ORIGINAL ====== -->
+    <div id="panelTeacher" style="display:none">
+      <div class="small">
+        ✔ Mode enseignant : édition zones + création pièces.<br>
+        🖱 (lecture) = zones invisibles mais cliquables. ✏️ (édition) = zones visibles + modifiables.
+      </div>
 
-    <div>
-      <label>Rôle</label>
-      <textarea id="role" placeholder="ex: Filtrer l’air entrant"></textarea>
-    </div>
+      <div class="hr"></div>
 
-    <div>
-      <label>Description</label>
-      <textarea id="desc" placeholder="ex: Retient les poussières..."></textarea>
-    </div>
+      <div>
+        <label>Pièce</label>
+        <select id="pieceSelect" class="select" style="width:100%"></select>
+        <div class="small" style="opacity:.75;margin-top:6px">
+          ID : <span id="partIdLabel">—</span>
+        </div>
+      </div>
 
-    <div>
-      <label>Circuit</label>
-      <input id="circuit" placeholder="LP / HP / LUB / CTRL / TR">
-    </div>
+      <div>
+        <label>Nom</label>
+        <input id="nom" placeholder="ex: Filtre à air">
+      </div>
 
-    <button id="btnSavePart" class="btn">💾 Ajouter / Mettre à jour la pièce</button>
+      <div>
+        <label>Rôle</label>
+        <textarea id="role" placeholder="ex: Filtrer l’air entrant"></textarea>
+      </div>
 
-    <div class="small" style="margin-top:auto; opacity:.75;">
-      Pièces ajoutées : sauvegarde locale (n’écrit pas dans le JSON GitHub).
+      <div>
+        <label>Description</label>
+        <textarea id="desc" placeholder="ex: Retient les poussières..."></textarea>
+      </div>
+
+      <div>
+        <label>Circuit</label>
+        <input id="circuit" placeholder="LP / HP / LUB / CTRL / TR">
+      </div>
+
+      <button id="btnSavePart" class="btn">💾 Ajouter / Mettre à jour la pièce</button>
+
+      <div class="small" style="margin-top:auto; opacity:.75;">
+        Pièces ajoutées : sauvegarde locale (n’écrit pas dans le JSON GitHub).
+      </div>
     </div>
   </aside>
 </div>
@@ -206,6 +277,8 @@
 /* ================= CONFIG ================= */
 const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
+const TEACHER_PASSWORD = "comp";
+const TEACHER_SESSION_KEY = "q310_teacher_mode_v1";
 
 const MEDIAS = [
   { label: "Fond référence", url: "actif/compresseur_bg.png" },
@@ -243,19 +316,21 @@ function slugify(s){
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 
-let zonesVisible = false; // ✅ invisible par défaut en mode sélection
+let zonesVisible = false; // invisible par défaut en mode sélection
 let tool = "select";      // select | draw | pan
 let zoom = 1;
 
 let currentMedia = MEDIAS[0].url;
 let currentMediaKey = currentMedia;
-let mediaType = "image"; // image | video
+let mediaType = "image";
 
 let mediaNaturalW = 0, mediaNaturalH = 0;
 let mediaLeft = 0, mediaTop = 0, mediaScale = 1;
 
 let drawing=false, startPt=null, curRect=null;
 let isPanning=false, lastClient=null;
+
+let isTeacher = (sessionStorage.getItem(TEACHER_SESSION_KEY) === "1");
 
 /* Parts */
 let partsBase = [];
@@ -275,13 +350,57 @@ function updateZonesVisibility(){
   canvas.requestRenderAll();
 }
 
+/* ================= MODE UI (ÉLÈVE / ENSEIGNANT) ================= */
+function applyModeUI(){
+  $("panelStudent").style.display = isTeacher ? "none" : "block";
+  $("panelTeacher").style.display = isTeacher ? "block" : "none";
+  $("panelTitle").textContent = isTeacher ? "🧑‍🏫 Fiche (mode enseignant)" : "🟦 Fiche (mode élève)";
+  $("btnMode").textContent = isTeacher ? "🔓 Mode enseignant" : "🔒 Mode élève";
+
+  // En élève: verrouiller outils d'édition
+  const lock = !isTeacher;
+
+  $("btnDraw").classList.toggle("locked", lock);
+  $("btnErase").classList.toggle("locked", lock);
+
+  // Pan autorisé en élève
+  $("btnPan").classList.toggle("locked", false);
+
+  // En élève: forcer select (lecture) + zones invisibles
+  if(lock){
+    setActiveTool("select");
+  }
+}
+
+/* Bouton mode */
+$("btnMode").addEventListener("click", ()=>{
+  if(isTeacher){
+    isTeacher = false;
+    sessionStorage.setItem(TEACHER_SESSION_KEY, "0");
+    applyModeUI();
+    return;
+  }
+  const p = prompt("Mot de passe enseignant :");
+  if(p === TEACHER_PASSWORD){
+    isTeacher = true;
+    sessionStorage.setItem(TEACHER_SESSION_KEY, "1");
+    applyModeUI();
+    // En enseignant, on passe en édition (zones visibles) automatiquement
+    setActiveTool("draw");
+  }else if(p !== null){
+    alert("Mot de passe incorrect.");
+  }
+});
+
 /* ================= TOOL UI (LOGIQUE FINALE) =================
    🖱 select = zones invisibles mais cliquables
-   ✏️ draw   = zones visibles + édition
-   ✋ pan    = garde la visibilité actuelle (pratique: pan en lecture OU en édition)
+   ✏️ draw   = zones visibles + édition (enseignant seulement)
+   ✋ pan    = garde la visibilité actuelle
 */
 function setActiveTool(t){
-  const prev = tool;
+  // Interdire draw/erase en élève
+  if(!isTeacher && (t === "draw")) t = "select";
+
   tool = t;
 
   $("btnSelect").classList.toggle("active", t==="select");
@@ -290,20 +409,17 @@ function setActiveTool(t){
 
   canvas.discardActiveObject();
 
-  // visibilité: seulement si tool change vers select/draw.
-  // pan conserve l'état courant.
   if(t === "select") zonesVisible = false;
   if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
-  // comportement sélection/édition
   if(t === "select"){
     canvas.selection = true;
     canvas.skipTargetFind = false;
     canvas.defaultCursor = "pointer";
     canvas.forEachObject(o=>{
       o.evented = true;
-      o.selectable = true;   // sélectionner = ouvrir fiche / activer zone
+      o.selectable = true;
     });
   }else if(t === "draw"){
     canvas.selection = false;
@@ -311,11 +427,11 @@ function setActiveTool(t){
     canvas.defaultCursor = "crosshair";
     canvas.forEachObject(o=>{
       o.evented = true;
-      o.selectable = true;   // en édition: déplacer / redimensionner
+      o.selectable = true;
     });
   }else{ // pan
     canvas.selection = false;
-    canvas.skipTargetFind = true; // évite d'attraper une zone pendant qu'on pan
+    canvas.skipTargetFind = true;
     canvas.defaultCursor = "grab";
     canvas.forEachObject(o=>{
       o.evented = true;
@@ -323,7 +439,7 @@ function setActiveTool(t){
     });
   }
 
-  // si vidéo → on désactive le mode Play cliquable dès qu'on touche un outil
+  // Vidéo: si on touche un outil, on désactive "Play cliquable"
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     $("btnVideo").classList.remove("active");
@@ -371,7 +487,6 @@ function resizeAll(){
 }
 window.addEventListener("resize", resizeAll);
 
-/* viewport -> media layer */
 function syncMediaTransformToCanvas(){
   const v = canvas.viewportTransform || [1,0,0,1,0,0];
   mediaLayer.style.transform = `matrix(${v[0]},${v[1]},${v[2]},${v[3]},${v[4]},${v[5]})`;
@@ -386,13 +501,13 @@ function resetViewToFit(){
   applyMediaBaseFit();
 }
 
-/* ================= ZOOM (FIX ROBUSTE: centré sur l’image, même après pan) ================= */
+/* ================= ZOOM (centré sur l’image, même après pan) ================= */
 function getImageCenterScreenPoint(){
   const w = mediaNaturalW * mediaScale;
   const h = mediaNaturalH * mediaScale;
   const worldCenter = new fabric.Point(mediaLeft + w/2, mediaTop + h/2);
   const vpt = canvas.viewportTransform || [1,0,0,1,0,0];
-  return fabric.util.transformPoint(worldCenter, vpt); // -> coordonnées écran
+  return fabric.util.transformPoint(worldCenter, vpt);
 }
 
 function setZoom(z){
@@ -437,6 +552,9 @@ function makeZoneRect(){
   });
   r.partId = "";
   r._imgBox = null;
+
+  // Pour survol intelligent (état original)
+  r.__orig = { fill:r.fill, stroke:r.stroke, strokeWidth:r.strokeWidth };
   return r;
 }
 
@@ -469,13 +587,14 @@ function saveZones(){
     return { imgBox:r._imgBox, partId:(r.partId||"") };
   });
   localStorage.setItem(LS_ZONES(currentMediaKey), JSON.stringify(zones));
+  refreshZoneList();
 }
 
 function loadZones(){
   getZones().forEach(r=>canvas.remove(r));
 
   const raw = localStorage.getItem(LS_ZONES(currentMediaKey));
-  if(!raw){ canvas.requestRenderAll(); return; }
+  if(!raw){ canvas.requestRenderAll(); refreshZoneList(); return; }
 
   let zones;
   try{ zones = JSON.parse(raw); }catch{ return; }
@@ -488,25 +607,52 @@ function loadZones(){
   });
 
   fitZonesToMedia();
-  updateZonesVisibility(); // applique le mode actuel (select/draw)
+  updateZonesVisibility();
   canvas.requestRenderAll();
+  refreshZoneList();
 }
 
 canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
 
-/* ================= CLIC DROIT = SUPPRIMER (mode ✏️ uniquement) ================= */
+/* ================= SURVOL INTELLIGENT (mode élève) ================= */
+function applyHoverStyle(r, on){
+  if(!r || r.type !== "rect") return;
+  if(isTeacher) return;        // pas besoin en enseignant
+  if(tool !== "select") return;// seulement en lecture
+
+  if(on){
+    r.set({
+      stroke: "rgba(255,255,255,0.90)",
+      fill: "rgba(255,255,255,0.06)",
+      strokeWidth: 2
+    });
+  }else{
+    // revenir à l'état "lecture" (invisible)
+    r.set({
+      stroke: "rgba(0,0,0,0)",
+      fill: "rgba(0,0,0,0)",
+      strokeWidth: 2
+    });
+  }
+  canvas.requestRenderAll();
+}
+
+canvas.on("mouse:over", (opt)=>{ if(opt.target && opt.target.type==="rect") applyHoverStyle(opt.target, true); });
+canvas.on("mouse:out",  (opt)=>{ if(opt.target && opt.target.type==="rect") applyHoverStyle(opt.target, false); });
+
+/* ================= CLIC DROIT = SUPPRIMER (enseignant + ✏️) ================= */
 canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
 
 canvas.on("mouse:down", (opt)=>{
-  if(opt.e && opt.e.button === 2){ // right click
-    if(tool === "draw" && opt.target && opt.target.type === "rect"){
+  if(opt.e && opt.e.button === 2){
+    if(isTeacher && tool === "draw" && opt.target && opt.target.type === "rect"){
       canvas.remove(opt.target);
       canvas.discardActiveObject();
       saveZones();
       clearPanel();
       canvas.requestRenderAll();
     }
-    return; // important: ne pas démarrer un draw/pan sur clic droit
+    return;
   }
 });
 
@@ -528,6 +674,8 @@ canvas.on("mouse:down", (opt)=>{
   }
 
   if(tool==="draw"){
+    if(!isTeacher) return;
+
     drawing = true;
     startPt = canvas.getPointer(opt.e, true);
     curRect = makeZoneRect();
@@ -578,7 +726,6 @@ canvas.on("mouse:up", ()=>{
     setPanelForZone(curRect);
     curRect = null;
 
-    // en édition, on garde visible
     zonesVisible = true;
     updateZonesVisibility();
   }
@@ -637,6 +784,7 @@ async function showMedia(url){
     applyMediaBaseFit();
     loadZones();
 
+    // Vidéo dispo en mode élève aussi: on garde le bouton Vidéo identique
     stageEl.classList.add("video-media");
     $("btnVideo").classList.add("active");
   }
@@ -656,10 +804,11 @@ $("btnVideo").onclick = ()=>{
 };
 
 $("btnSelect").onclick = ()=>setActiveTool("select");
-$("btnDraw").onclick   = ()=>setActiveTool("draw");
+$("btnDraw").onclick   = ()=>{ if(isTeacher) setActiveTool("draw"); };
 $("btnPan").onclick    = ()=>setActiveTool("pan");
 
 $("btnErase").onclick  = ()=>{
+  if(!isTeacher) return;
   const r = canvas.getActiveObject();
   if(!r || r.type!=="rect") return;
   canvas.remove(r);
@@ -732,15 +881,31 @@ function fillPartsSelect(){
   });
 }
 function clearPanel(){
-  $("pieceSelect").value = "";
-  $("partIdLabel").textContent = "—";
-  $("nom").value = "";
-  $("role").value = "";
-  $("desc").value = "";
-  $("circuit").value = "";
+  if(isTeacher){
+    $("pieceSelect").value = "";
+    $("partIdLabel").textContent = "—";
+    $("nom").value = "";
+    $("role").value = "";
+    $("desc").value = "";
+    $("circuit").value = "";
+  }else{
+    $("stuNom").textContent = "Aucune zone sélectionnée";
+    $("stuCircuit").textContent = "—";
+    $("stuId").textContent = "—";
+    $("stuRole").textContent = "—";
+    $("stuDesc").textContent = "—";
+  }
 }
+
+function setStudentCard(part, pid){
+  $("stuNom").textContent = (part && (part.nom||part.id)) ? (part.nom||part.id) : (pid ? "(Pièce introuvable)" : "Aucune zone sélectionnée");
+  $("stuCircuit").textContent = (part && part.circuit) ? part.circuit : "—";
+  $("stuId").textContent = pid || (part && part.id) || "—";
+  $("stuRole").textContent = (part && part.role) ? part.role : "—";
+  $("stuDesc").textContent = (part && part.desc) ? part.desc : "—";
+}
+
 function setPanelFromPart(part){
-  if(!part){ clearPanel(); return; }
   $("pieceSelect").value = part.id || "";
   $("partIdLabel").textContent = part.id || "—";
   $("nom").value = part.nom || "";
@@ -748,22 +913,103 @@ function setPanelFromPart(part){
   $("desc").value = part.desc || "";
   $("circuit").value = part.circuit || "";
 }
+
 function getPartById(id){
   if(!id) return null;
   return partsMerged.find(p=>p.id===id) || null;
 }
+
 function setPanelForZone(r){
   if(!r){ clearPanel(); return; }
   const pid = (r.partId||"").toString();
   const p = getPartById(pid);
-  if(p) setPanelFromPart(p);
-  else{
-    clearPanel();
-    $("partIdLabel").textContent = pid || "—";
-    $("pieceSelect").value = pid;
-    $("desc").value = pid ? "(Pièce introuvable dans les listes)" : "";
+
+  if(isTeacher){
+    if(p) setPanelFromPart(p);
+    else{
+      clearPanel();
+      $("partIdLabel").textContent = pid || "—";
+      $("pieceSelect").value = pid;
+      $("desc").value = pid ? "(Pièce introuvable dans les listes)" : "";
+    }
+  }else{
+    setStudentCard(p, pid);
   }
 }
+
+/* ===== Liste des zones cliquable ===== */
+function zoneLabelFrom(r){
+  const pid = (r.partId||"").toString();
+  const p = getPartById(pid);
+  const nom = (p && (p.nom||p.id)) ? (p.nom||p.id) : (pid ? pid : "(sans pièce)");
+  const circuit = (p && p.circuit) ? p.circuit : "-";
+  return { nom, circuit, pid };
+}
+
+function focusZone(r){
+  if(!r) return;
+  const center = r.getCenterPoint();
+
+  // Pan pour centrer la zone dans le canvas
+  const vpt = canvas.viewportTransform.slice();
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+
+  // Calculer le delta pour amener le centre au milieu écran
+  vpt[4] = (cw/2) - (center.x * vpt[0]);
+  vpt[5] = (ch/2) - (center.y * vpt[3]);
+
+  canvas.setViewportTransform(vpt);
+  syncMediaTransformToCanvas();
+  canvas.requestRenderAll();
+}
+
+function refreshZoneList(){
+  const list = $("zoneList");
+  if(!list) return;
+
+  const q = ($("zoneSearch").value || "").trim().toLowerCase();
+  list.innerHTML = "";
+
+  const zones = getZones().slice();
+  zones.sort((a,b)=>{
+    const A = zoneLabelFrom(a).nom.toLowerCase();
+    const B = zoneLabelFrom(b).nom.toLowerCase();
+    return A.localeCompare(B,"fr");
+  });
+
+  zones.forEach((r, idx)=>{
+    const info = zoneLabelFrom(r);
+    const hay = `${info.nom} ${info.circuit} ${info.pid}`.toLowerCase();
+    if(q && !hay.includes(q)) return;
+
+    const item = document.createElement("div");
+    item.className = "zoneItem";
+    item.innerHTML = `<b>${info.nom}</b><span>${info.circuit}</span>`;
+    item.addEventListener("click", ()=>{
+      // lecture: sélectionner + fiche + focus
+      canvas.setActiveObject(r);
+      setPanelForZone(r);
+      focusZone(r);
+
+      // halo momentané pour bien voir en élève
+      if(!isTeacher && tool==="select"){
+        applyHoverStyle(r, true);
+        setTimeout(()=>applyHoverStyle(r, false), 700);
+      }
+    });
+    list.appendChild(item);
+  });
+
+  if(!list.children.length){
+    const empty = document.createElement("div");
+    empty.className = "small muted";
+    empty.textContent = q ? "Aucun résultat." : "Aucune zone sur cette image.";
+    list.appendChild(empty);
+  }
+}
+
+$("zoneSearch").addEventListener("input", refreshZoneList);
 
 async function loadParts(){
   try{
@@ -786,9 +1032,12 @@ async function loadParts(){
   partsCustom = readCustomParts();
   mergeParts();
   fillPartsSelect();
+  refreshZoneList();
 }
 
+/* enseignant: assigner pièce à la zone active */
 $("pieceSelect").addEventListener("change", ()=>{
+  if(!isTeacher) return;
   const id = $("pieceSelect").value;
   const p = getPartById(id);
   if(p) setPanelFromPart(p);
@@ -801,10 +1050,13 @@ $("pieceSelect").addEventListener("change", ()=>{
     r.partId = id;
     saveZones();
     setPanelForZone(r);
+    refreshZoneList();
   }
 });
 
 $("btnSavePart").addEventListener("click", ()=>{
+  if(!isTeacher) return;
+
   const nom = $("nom").value.trim();
   const role = $("role").value.trim();
   const desc = $("desc").value.trim();
@@ -833,6 +1085,7 @@ $("btnSavePart").addEventListener("click", ()=>{
   }
 
   setPanelFromPart(partsCustom[id]);
+  refreshZoneList();
 });
 
 /* ================= INIT ================= */
@@ -845,6 +1098,10 @@ $("btnSavePart").addEventListener("click", ()=>{
 
   // outil par défaut: sélection -> invisible
   setActiveTool("select");
+
+  // appliquer mode actuel (session)
+  applyModeUI();
+  applyModeUI(); // (double appel volontaire: s'assure que setActiveTool a bien appliqué l'état)
 
   setTimeout(()=>{ resizeAll(); }, 120);
 })();
