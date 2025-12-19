@@ -320,6 +320,24 @@ const mediaLayer = $("mediaLayer");
 const imgEl = $("imgLayer");
 const videoEl = $("videoLayer");
 const LS_ZONES = (mediaKey)=>"q310_zones_v4::"+mediaKey;
+  /* ================= BULLE DE COMMENTAIRE ================= */
+let bubbleTimer = null;
+
+function showBubble(text, x, y, duration = 5000){
+  const bubble = document.getElementById("bubble");
+  if(!bubble) return;
+
+  bubble.textContent = text;
+  bubble.style.left = Math.round(x) + "px";
+  bubble.style.top  = Math.round(y) + "px";
+  bubble.style.display = "block";
+
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(()=>{
+    bubble.style.display = "none";
+  }, duration);
+}
+
 
 function slugify(s){
   return (s||"")
