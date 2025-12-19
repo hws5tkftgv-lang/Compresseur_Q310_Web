@@ -199,6 +199,20 @@
       <video id="videoLayer" controls playsinline></video>
     </div>
     <canvas id="c"></canvas>
+    <div id="bubble" style="
+  position:absolute;
+  max-width:320px;
+  padding:10px;
+  background:#101a40;
+  border:1px solid rgba(255,255,255,.25);
+  color:#fff;
+  font-size:12px;
+  line-height:1.4;
+  display:none;
+  z-index:9999;
+  pointer-events:none;
+"></div>
+
   </div>
 
   <aside class="panel">
@@ -312,6 +326,10 @@ function slugify(s){
     .replace(/[^a-z0-9]+/g,"_")
     .replace(/^_+|_+$/g,"");
 }
+const bubble = document.getElementById("bubble");
+const stage  = document.getElementById("stage");
+const img    = document.getElementById("imgLayer");
+const video  = document.getElementById("videoLayer");
 
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
