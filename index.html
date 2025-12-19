@@ -161,7 +161,7 @@
     <div class="small">
       ✔ Tout est en mode enseignant (édition permanente).<br>
       🎬 Pour cliquer Play/Pause sur une vidéo, clique “Vidéo (Play)”.<br>
-      🖱✏️✋ Pour les zones, clique un outil (ça désactive le mode Play).
+      🖱 (lecture) = zones invisibles mais cliquables. ✏️ (édition) = zones visibles + modifiables.
     </div>
 
     <div class="hr"></div>
@@ -243,7 +243,7 @@ function slugify(s){
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 
-let zonesVisible = false; // ✅ invisible par défaut (zones déjà sauvegardées)
+let zonesVisible = false; // ✅ invisible par défaut en mode sélection
 let tool = "select";      // select | draw | pan
 let zoom = 1;
 
@@ -262,7 +262,7 @@ let partsBase = [];
 let partsCustom = {};
 let partsMerged = [];
 
-/* ================= ZONES VISIBILITY (FIX) ================= */
+/* ================= ZONES VISIBILITY ================= */
 function updateZonesVisibility(){
   canvas.forEachObject(o=>{
     if(o && o.type === "rect"){
@@ -275,8 +275,13 @@ function updateZonesVisibility(){
   canvas.requestRenderAll();
 }
 
-/* ================= TOOL UI ================= */
+/* ================= TOOL UI (LOGIQUE FINALE) =================
+   🖱 select = zones invisibles mais cliquables
+   ✏️ draw   = zones visibles + édition
+   ✋ pan    = garde la visibilité actuelle (pratique: pan en lecture OU en édition)
+*/
 function setActiveTool(t){
+  const prev = tool;
   tool = t;
 
   $("btnSelect").classList.toggle("active", t==="select");
@@ -285,27 +290,46 @@ function setActiveTool(t){
 
   canvas.discardActiveObject();
 
-  canvas.selection = (t === "select");
-
-  canvas.defaultCursor =
-    t === "draw" ? "crosshair" :
-    t === "pan"  ? "grab" :
-    "pointer";
-
-  canvas.forEachObject(o=>{
-    o.evented = true;
-    o.selectable = (t === "select");
-  });
-
-  // ✅ Pendant qu’on travaille, on rend visibles
-  zonesVisible = true;
+  // visibilité: seulement si tool change vers select/draw.
+  // pan conserve l'état courant.
+  if(t === "select") zonesVisible = false;
+  if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
-  // si vidéo → on désactive le mode Play cliquable
+  // comportement sélection/édition
+  if(t === "select"){
+    canvas.selection = true;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = "pointer";
+    canvas.forEachObject(o=>{
+      o.evented = true;
+      o.selectable = true;   // sélectionner = ouvrir fiche / activer zone
+    });
+  }else if(t === "draw"){
+    canvas.selection = false;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = "crosshair";
+    canvas.forEachObject(o=>{
+      o.evented = true;
+      o.selectable = true;   // en édition: déplacer / redimensionner
+    });
+  }else{ // pan
+    canvas.selection = false;
+    canvas.skipTargetFind = true; // évite d'attraper une zone pendant qu'on pan
+    canvas.defaultCursor = "grab";
+    canvas.forEachObject(o=>{
+      o.evented = true;
+      o.selectable = false;
+    });
+  }
+
+  // si vidéo → on désactive le mode Play cliquable dès qu'on touche un outil
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     $("btnVideo").classList.remove("active");
   }
+
+  canvas.requestRenderAll();
 }
 
 /* ================= MEDIA FIT ================= */
@@ -362,21 +386,27 @@ function resetViewToFit(){
   applyMediaBaseFit();
 }
 
-/* ================= ZOOM (FIX: centré sur image) ================= */
+/* ================= ZOOM (FIX ROBUSTE: centré sur l’image, même après pan) ================= */
+function getImageCenterScreenPoint(){
+  const w = mediaNaturalW * mediaScale;
+  const h = mediaNaturalH * mediaScale;
+  const worldCenter = new fabric.Point(mediaLeft + w/2, mediaTop + h/2);
+  const vpt = canvas.viewportTransform || [1,0,0,1,0,0];
+  return fabric.util.transformPoint(worldCenter, vpt); // -> coordonnées écran
+}
+
 function setZoom(z){
   zoom = Math.max(0.5, Math.min(3, z));
 
-  // ✅ centre de l'image (fallback si image pas prête)
-  const center = (mediaNaturalW && mediaNaturalH)
-    ? new fabric.Point(
-        mediaLeft + (mediaNaturalW * mediaScale) / 2,
-        mediaTop  + (mediaNaturalH * mediaScale) / 2
-      )
+  const centerScreen = (mediaNaturalW && mediaNaturalH)
+    ? getImageCenterScreenPoint()
     : new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
 
-  canvas.zoomToPoint(center, zoom);
+  canvas.zoomToPoint(centerScreen, zoom);
+
   $("zoomRange").value = String(Math.round(zoom*100));
   $("zoomLabel").textContent = Math.round(zoom*100) + "%";
+
   syncMediaTransformToCanvas();
   canvas.requestRenderAll();
 }
@@ -439,10 +469,6 @@ function saveZones(){
     return { imgBox:r._imgBox, partId:(r.partId||"") };
   });
   localStorage.setItem(LS_ZONES(currentMediaKey), JSON.stringify(zones));
-
-  // ✅ après sauvegarde → invisible (mais cliquable)
-  zonesVisible = false;
-  updateZonesVisibility();
 }
 
 function loadZones(){
@@ -462,13 +488,27 @@ function loadZones(){
   });
 
   fitZonesToMedia();
-
-  // ✅ au chargement: zones issues du storage → invisibles
-  zonesVisible = false;
-  updateZonesVisibility();
+  updateZonesVisibility(); // applique le mode actuel (select/draw)
+  canvas.requestRenderAll();
 }
 
 canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
+
+/* ================= CLIC DROIT = SUPPRIMER (mode ✏️ uniquement) ================= */
+canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
+
+canvas.on("mouse:down", (opt)=>{
+  if(opt.e && opt.e.button === 2){ // right click
+    if(tool === "draw" && opt.target && opt.target.type === "rect"){
+      canvas.remove(opt.target);
+      canvas.discardActiveObject();
+      saveZones();
+      clearPanel();
+      canvas.requestRenderAll();
+    }
+    return; // important: ne pas démarrer un draw/pan sur clic droit
+  }
+});
 
 /* ================= CANVAS EVENTS (select/draw/pan) ================= */
 canvas.on("mouse:down", (opt)=>{
@@ -537,6 +577,10 @@ canvas.on("mouse:up", ()=>{
     saveZones();
     setPanelForZone(curRect);
     curRect = null;
+
+    // en édition, on garde visible
+    zonesVisible = true;
+    updateZonesVisibility();
   }
 
   if(isPanning){
@@ -597,7 +641,6 @@ async function showMedia(url){
     $("btnVideo").classList.add("active");
   }
 
-  // ✅ robustesse GitHub Pages: s'assurer que canvas/media ont la bonne taille
   setTimeout(()=>{ resizeAll(); }, 0);
 }
 
@@ -800,13 +843,8 @@ $("btnSavePart").addEventListener("click", ()=>{
   resizeAll();
   await showMedia(currentMedia);
 
-  // ✅ au démarrage : zones invisibles (issues du storage)
-  zonesVisible = false;
-  updateZonesVisibility();
-
-  // outil par défaut (mais zones restent invisibles tant que tu n'édites pas)
-  tool = "select";
-  $("btnSelect").classList.add("active");
+  // outil par défaut: sélection -> invisible
+  setActiveTool("select");
 
   setTimeout(()=>{ resizeAll(); }, 120);
 })();
