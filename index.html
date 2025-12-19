@@ -786,6 +786,7 @@ canvas.on("mouse:down", (opt)=>{
 canvas.on("mouse:down", (opt)=>{
   const t = opt.target;
 
+  /* ===== PAN ===== */
   if(tool==="pan"){
     isPanning = true;
     lastClient = { x:opt.e.clientX, y:opt.e.clientY };
@@ -793,42 +794,39 @@ canvas.on("mouse:down", (opt)=>{
     return;
   }
 
-if(t && t.type==="rect"){
-  setPanelForZone(t);
+  /* ===== CLIC SUR ZONE ===== */
+  if(t && t.type==="rect"){
+    setPanelForZone(t);
 
-  // 🔵 BULLE ÉLÈVE (IMAGE)
-if(!isTeacher && tool==="select"){
-  const mediaComments = COMMENTS.images[currentMediaKey] || {};
-  const comment = mediaComments[t.partId];
+    // 🔵 BULLE ÉLÈVE (IMAGE)
+    if(!isTeacher && tool==="select"){
+      const mediaComments = COMMENTS.images[currentMediaKey] || {};
+      const comment = mediaComments[t.partId];
 
-  if(comment){
-    const pt = fabric.util.transformPoint(
-      t.getCenterPoint(),
-      canvas.viewportTransform
-    );
+      if(comment){
+        const pt = fabric.util.transformPoint(
+          t.getCenterPoint(),
+          canvas.viewportTransform
+        );
 
-    showBubble(
-      comment.text,
-      pt.x + 12,
-      pt.y + 12,
-      comment.duration || 5000
-    );
-  }
-}
-
-      const pt = fabric.util.transformPoint(
-        t.getCenterPoint(),
-        canvas.viewportTransform
-      );
-      showBubble(part.desc, pt.x + 12, pt.y + 12, 5000);
+        showBubble(
+          comment.text,
+          pt.x + 12,
+          pt.y + 12,
+          comment.duration || 5000
+        );
+      }
     }
-  });
 
-  if(tool==="select") canvas.setActiveObject(t);
+    if(tool==="select"){
+      canvas.setActiveObject(t);
+    }
+    return;
+  }
 
-
+  /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
   if(tool==="draw"){
-    if(!isTeacher) 
+    if(!isTeacher) return;
 
     drawing = true;
     startPt = canvas.getPointer(opt.e, true);
@@ -836,7 +834,9 @@ if(!isTeacher && tool==="select"){
     curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
     canvas.add(curRect);
     canvas.setActiveObject(curRect);
-  );
+  }
+});
+
 
 canvas.on("mouse:move", (opt)=>{
   if(drawing && curRect){
