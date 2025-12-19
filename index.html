@@ -237,6 +237,11 @@ function slugify(s){
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 
+/* ===== TEST 1 : Fabric reçoit-il la souris ? ===== */
+canvas.on("mouse:down", () => {
+  console.log("🟢 Fabric mouse:down OK");
+});
+
 let tool = "select"; // select | draw | pan
 let zoom = 1;
 
