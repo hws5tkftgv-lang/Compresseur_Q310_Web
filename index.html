@@ -413,21 +413,38 @@ function setActiveTool(t){
   if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
-  if(t === "select"){
-    canvas.selection = true;
-    canvas.skipTargetFind = false;
-    canvas.defaultCursor = "pointer";
-    canvas.forEachObject(o=>{
-      o.evented = true;
-      o.selectable = true;
-    });
+ if(t === "select"){
+  canvas.selection = false;
+  canvas.skipTargetFind = false;
+  canvas.defaultCursor = "pointer";
+
+  canvas.forEachObject(o=>{
+    o.evented = true;
+    o.selectable = false;   // 🔒
+    o.lockMovementX = true;
+    o.lockMovementY = true;
+    o.lockScalingX  = true;
+    o.lockScalingY  = true;
+    o.lockRotation  = true;
+  });
+}
+
   }else if(t === "draw"){
-    canvas.selection = false;
-    canvas.skipTargetFind = false;
-    canvas.defaultCursor = "crosshair";
-    canvas.forEachObject(o=>{
-      o.evented = true;
-      o.selectable = true;
+  canvas.selection = false;
+  canvas.skipTargetFind = false;
+  canvas.defaultCursor = "crosshair";
+
+  canvas.forEachObject(o=>{
+    o.evented = true;
+    o.selectable = true;       // ✅ édition
+    o.lockMovementX = false;
+    o.lockMovementY = false;
+    o.lockScalingX = false;
+    o.lockScalingY = false;
+    o.lockRotation = true;     // rotation toujours bloquée
+  });
+}
+
     });
   }else{ // pan
     canvas.selection = false;
