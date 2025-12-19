@@ -71,22 +71,6 @@
      - Media layer: visuel seulement (pas de clic)
      - En mode vidéo "Play": la vidéo passe AU-DESSUS du canvas
   */
-  #c{
-    pointer-events:auto;
-    z-index:2;
-  }
-  .media-layer{
-    pointer-events:none;
-    z-index:1;
-    transform-origin:0 0;
-  }
-  .video-media .media-layer{
-    pointer-events:auto;
-    z-index:3;
-  }
-  .video-media #c{
-    pointer-events:none;
-  }
 
   .panel{
     background:#0f1a44; border-radius:12px; padding:12px;
@@ -114,6 +98,40 @@
     height:calc(100vh - 56px - 16px);
     min-height:unset;
   }
+  /* ======================================================
+   FIX CRITIQUE FABRIC.JS – NE PAS MODIFIER
+   ====================================================== */
+
+/* Le parent DOIT être positionné */
+.stage{
+  position: relative;
+}
+
+/* Conteneur réel utilisé par Fabric */
+.canvas-container{
+  position: absolute !important;
+  inset: 0;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+/* Média en dessous par défaut */
+.media-layer{
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Mode vidéo : la vidéo passe AU-DESSUS */
+.video-media .media-layer{
+  z-index: 3;
+  pointer-events: auto;
+}
+
+/* Mode vidéo : le canvas est désactivé */
+.video-media .canvas-container{
+  pointer-events: none;
+}
+
 </style>
 </head>
 
