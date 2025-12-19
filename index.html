@@ -360,7 +360,10 @@ function applyMediaBaseFit(){
   const w = mediaNaturalW * base;
   const h = mediaNaturalH * base;
 
-  if(mediaType==="image"){
+  if(mediaType==="image")
+  setVideoOnTop(false);
+setCanvasInteract(true);
+{
     imgEl.style.left = mediaLeft+"px";
     imgEl.style.top = mediaTop+"px";
     imgEl.style.width = w+"px";
@@ -606,6 +609,11 @@ loadZones();
     videoEl.loop = true;
     videoEl.playsInline = true;
     videoEl.style.display="block";
+    // Par défaut on met le canvas ACTIF (édition), pas le play
+setVideoOnTop(false);
+setCanvasInteract(true);
+$("btnVideo").classList.remove("active");
+
 
     await new Promise((resolve)=>{
       const onMeta = ()=>{
