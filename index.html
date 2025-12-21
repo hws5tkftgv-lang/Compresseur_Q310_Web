@@ -923,7 +923,39 @@ canvas.on("mouse:up", ()=>{
 });
 
 /* ================= MEDIA SWITCH ================= */
-async function showMedia(url){
+function renderVideoTimeline(){
+  const wrap = document.getElementById("videoTimeline");
+  if(!wrap) return;
+
+  wrap.innerHTML = "";
+
+  if(mediaType !== "video") return;
+
+  const file = videoEl.src.split("/").pop();
+  const list = COMMENTS.videos[file] || [];
+  const duration = videoEl.duration || 1;
+
+  list.forEach(c=>{
+    const mark = document.createElement("div");
+    mark.className = "videoMark";
+    mark.style.left = ((c.t / duration) * 100) + "%";
+    mark.title = `⏱ ${c.t.toFixed(1)} s`;
+
+    mark.onclick = ()=>{
+      videoEl.currentTime = c.t;
+      showBubble(
+        c.text,
+        stageEl.clientWidth * 0.5,
+        stageEl.clientHeight * 0.15,
+        c.duration || 5000
+      );
+    };
+
+    wrap.appendChild(mark);
+  });
+}
+
+  async function showMedia(url){
 
   lastVideoComment = null;
   currentMedia = url;
