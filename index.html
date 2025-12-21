@@ -923,32 +923,7 @@ canvas.on("mouse:up", ()=>{
 });
 
 /* ================= MEDIA SWITCH ================= */
-async function showMedia(url){
-  function renderVideoTimeline(){
-  const wrap = $("videoTimeline");
-  wrap.innerHTML = "";
-
-  if(mediaType !== "video") return;
-
-  const file = videoEl.src.split("/").pop();
-  const list = COMMENTS.videos[file] || [];
-  const duration = videoEl.duration || 1;
-
-  list.forEach((c, i)=>{
-    const mark = document.createElement("div");
-    mark.className = "videoMark";
-    mark.style.left = ((c.t / duration) * 100) + "%";
-
-    mark.title = `⏱ ${c.t.toFixed(1)} s`;
-
-    mark.onclick = ()=>{
-      videoEl.currentTime = c.t;
-      showBubble(c.text, stageEl.clientWidth*0.5, stageEl.clientHeight*0.15, c.duration);
-    };
-
-    wrap.appendChild(mark);
-  });
-}
+async function showMedia(url){}
 
   lastVideoComment = null;
   currentMedia = url;
@@ -965,20 +940,7 @@ async function showMedia(url){
 
   stageEl.classList.remove("video-media");
   $("btnVideo").classList.remove("active");
-$("btnAddVideoComment").addEventListener("click", ()=>{
-  if(mediaType !== "video") return;
 
-  const file = videoEl.src.split("/").pop();
-  if(!COMMENTS.videos[file]) COMMENTS.videos[file] = [];
-
-  COMMENTS.videos[file].push({
-    t: videoEl.currentTime,
-    text: $("commentText").value.trim() || "Nouveau commentaire",
-    duration: parseInt($("commentDuration").value,10) || 5000
-  });
-
-  renderVideoTimeline();
-});
 
   if(mediaType==="image"){
     imgEl.src = url;
@@ -1035,6 +997,20 @@ $("btnVideo").onclick = ()=>{
 $("btnSelect").onclick = ()=>setActiveTool("select");
 $("btnDraw").onclick   = ()=>{ if(isTeacher) setActiveTool("draw"); };
 $("btnPan").onclick    = ()=>setActiveTool("pan");
+$("btnAddVideoComment").addEventListener("click", ()=>{
+  if(mediaType !== "video") return;
+
+  const file = videoEl.src.split("/").pop();
+  if(!COMMENTS.videos[file]) COMMENTS.videos[file] = [];
+
+  COMMENTS.videos[file].push({
+    t: videoEl.currentTime,
+    text: $("commentText").value.trim() || "Nouveau commentaire",
+    duration: parseInt($("commentDuration").value,10) || 5000
+  });
+
+  renderVideoTimeline();
+});
 
 $("btnErase").onclick  = ()=>{
   if(!isTeacher) return;
