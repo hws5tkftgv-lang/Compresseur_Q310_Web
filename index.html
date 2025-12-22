@@ -1117,6 +1117,8 @@ $("btnAddVideoComment").addEventListener("click", ()=>{
   if(mediaType !== "video") return;
 
   const file = videoEl.src.split("/").pop();
+   // 🆕 init stockage local si absent
+  if(!videoBubbles[file]) videoBubbles[file] = [];
   if(!COMMENTS.videos[file]) COMMENTS.videos[file] = [];
 
   COMMENTS.videos[file].push({
@@ -1124,6 +1126,12 @@ $("btnAddVideoComment").addEventListener("click", ()=>{
     text: $("commentText").value.trim() || "Nouveau commentaire",
     duration: parseInt($("commentDuration").value,10) || 5000
   });
+  // 🆕 ajouter à la mémoire persistante
+  videoBubbles[file].push(bubble);
+   // 🆕 sauvegarde locale
+  localStorage.setItem("videoBubbles", JSON.stringify(videoBubbles));
+  // (optionnel mais utile)
+  COMMENTS.videos[file] = videoBubbles[file];
   saveVideoComments();
   renderVideoTimeline();
  
