@@ -828,6 +828,12 @@ canvas.on("mouse:over", (opt)=>{
 
   const mediaComments = COMMENTS.images[currentMediaKey] || {};
   const comment = mediaComments[r.partId];
+  console.log("SURVOL", {
+  media: currentMediaKey,
+  partId: r.partId,
+  commentsForImage: COMMENTS.images[currentMediaKey]
+});
+
   if(!comment) return;
 
   const pt = fabric.util.transformPoint(
