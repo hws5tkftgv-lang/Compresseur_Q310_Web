@@ -332,11 +332,14 @@
  
 
 /* ================= CONFIG ================= */
+let videoBubbles = JSON.parse(localStorage.getItem("videoBubbles") || "{}");  
 const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 const TEACHER_PASSWORD = "comp";
 const TEACHER_SESSION_KEY = "q310_teacher_mode_v1";
 const VIDEO_COMMENTS_KEY = "q310_video_comments_v1";
+
+
   
   /* ================= COMMENTAIRES (IMAGE + VIDÉO) =================
    images : bulles déclenchées par clic sur une zone
