@@ -506,9 +506,7 @@ function applyModeUI(){
   $("panelTeacher").style.display = isTeacher ? "block" : "none";
   $("panelTitle").textContent = isTeacher ? "🧑‍🏫 Fiche (mode enseignant)" : "🟦 Fiche (mode élève)";
   $("btnMode").textContent = isTeacher ? "🔓 Mode enseignant" : "🔒 Mode élève";
-const isVideo = mediaType === "video";
-$("videoTimelineWrap").style.display =
-  (isTeacher && isVideo) ? "block" : "none";
+
 
   // En élève: verrouiller outils d'édition
   const lock = !isTeacher;
@@ -1036,6 +1034,13 @@ function renderVideoTimeline(){
 
   setTimeout(()=>{ resizeAll(); }, 0);
   renderVideoTimeline();
+    // 🎥 Affichage timeline vidéo (enseignant seulement)
+const wrap = document.getElementById("videoTimelineWrap");
+if(wrap){
+  wrap.style.display =
+    (isTeacher && mediaType === "video") ? "block" : "none";
+}
+
 
 }
 
@@ -1384,7 +1389,7 @@ $("btnSavePart").addEventListener("click", ()=>{
 })();
   setTimeout(()=>{
   showBubble(
-    "TEST BULLE – SI TU VOIS ÇA, LE PROBLÈME EST LA LOGIQUE, PAS L’AFFICHAGE",
+   
     200,
     200,
     8000
