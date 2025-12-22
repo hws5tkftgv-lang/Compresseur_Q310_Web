@@ -336,6 +336,8 @@ const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 const TEACHER_PASSWORD = "comp";
 const TEACHER_SESSION_KEY = "q310_teacher_mode_v1";
+const VIDEO_COMMENTS_KEY = "q310_video_comments_v1";
+  
   /* ================= COMMENTAIRES (IMAGE + VIDÉO) =================
    images : bulles déclenchées par clic sur une zone
    videos : bulles déclenchées automatiquement par le temps
@@ -348,6 +350,28 @@ const COMMENTS = {
     // videoFile : [ { t, text, duration } ]
   }
 };
+function loadVideoComments(){
+  try{
+    const raw = localStorage.getItem(VIDEO_COMMENTS_KEY);
+    if(raw){
+      COMMENTS.videos = JSON.parse(raw) || {};
+    }
+  }catch(e){
+    console.error("Erreur chargement commentaires vidéo", e);
+    COMMENTS.videos = {};
+  }
+}
+
+function saveVideoComments(){
+  try{
+    localStorage.setItem(
+      VIDEO_COMMENTS_KEY,
+      JSON.stringify(COMMENTS.videos)
+    );
+  }catch(e){
+    console.error("Erreur sauvegarde commentaires vidéo", e);
+  }
+}
 
 
 const MEDIAS = [
@@ -1040,8 +1064,10 @@ $("btnAddVideoComment").addEventListener("click", ()=>{
     text: $("commentText").value.trim() || "Nouveau commentaire",
     duration: parseInt($("commentDuration").value,10) || 5000
   });
-
+  saveVideoComments();
   renderVideoTimeline();
+ 
+
 });
 
 $("btnErase").onclick  = ()=>{
@@ -1340,6 +1366,7 @@ $("btnSavePart").addEventListener("click", ()=>{
 
 /* ================= INIT ================= */
 (async function init(){
+  loadVideoComments();
   fillMediaSelect();
   await loadParts();
 
