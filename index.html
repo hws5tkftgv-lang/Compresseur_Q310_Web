@@ -410,10 +410,7 @@ function showBubble(text, x, y, duration = 5000){
   bubble.style.top  = Math.round(y) + "px";
   bubble.style.display = "block";
 
-  clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(()=>{
-    bubble.style.display = "none";
-  }, duration);
+ 
 }
 /* ================= VIDÉO : BULLES AUTOMATIQUES ================= */
 
@@ -818,8 +815,47 @@ function applyHoverStyle(r, on){
   canvas.requestRenderAll();
 }
 
-canvas.on("mouse:over", (opt)=>{ if(opt.target && opt.target.type==="rect") applyHoverStyle(opt.target, true); });
-canvas.on("mouse:out",  (opt)=>{ if(opt.target && opt.target.type==="rect") applyHoverStyle(opt.target, false); });
+canvas.on("mouse:over", (opt)=>{
+  const r = opt.target;
+  if(!r || r.type !== "rect") return;
+  if(isTeacher) return;
+  if(tool !== "select") return;
+
+  // 🔒 Vidéo en lecture = pas de survol
+  if(mediaType === "video" && !videoEl.paused) return;
+
+  applyHoverStyle(r, true);
+
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[r.partId];
+  if(!comment) return;
+
+  const pt = fabric.util.transformPoint(
+    r.getCenterPoint(),
+    canvas.viewportTransform
+  );
+
+  showBubble(
+    comment.text,
+    pt.x + 12,
+    pt.y + 12
+  );
+});
+
+canvas.on("mouse:out", (opt)=>{
+  const r = opt.target;
+  if(!r || r.type !== "rect") return;
+  if(isTeacher) return;
+  if(tool !== "select") return;
+
+  applyHoverStyle(r, false);
+
+  const bubble = document.getElementById("bubble");
+  bubble.style.display = "none";
+});
+  
+
+  
 
 /* ================= CLIC DROIT = SUPPRIMER (enseignant + ✏️) ================= */
 canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
