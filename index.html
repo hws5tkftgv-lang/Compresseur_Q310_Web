@@ -990,13 +990,28 @@ canvas.on("mouse:over", (opt)=>{
 
   applyHoverStyle(r, true);
 
-  const comment = COMMENTS.zones?.[r.partId];
-  console.log("SURVOL OK", r.partId, comment);
+const mediaComments = COMMENTS.images[currentMediaKey] || {};
+const comment = mediaComments[r.partId];
 
-  if(!comment) return;
-
-  showBubble(comment, r);
+console.log("SURVOL OK", {
+  media: currentMediaKey,
+  partId: r.partId,
+  comment
 });
+
+if(!comment || !comment.text) return;
+
+const pt = fabric.util.transformPoint(
+  r.getCenterPoint(),
+  canvas.viewportTransform
+);
+
+showBubble(
+  comment.text,
+  pt.x + 12,
+  pt.y + 12,
+  comment.duration || 5000
+);
 
 
 canvas.on("mouse:out", (opt)=>{
@@ -1616,6 +1631,7 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
 ];
 
 </script>
+<div id="bubble"></div>
 
 </body>
 </html>
