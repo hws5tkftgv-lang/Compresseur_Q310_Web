@@ -16,16 +16,43 @@
   /* === PAS DE COINS RONDS === */
   .btn, .select, .zoom, .stage, .panel, textarea, input { border-radius:0 !important; }
 
-  .topbar{
-    display:flex; align-items:center; gap:8px;
-    padding:10px; background:#0f1a3f; border-bottom:1px solid rgba(255,255,255,.08);
-    position:sticky; top:0; z-index:9999;
-  }
+ .topbar{
+  display:flex;
+  align-items:stretch;           /* 🔑 boutons pleine hauteur */
+  gap:6px;
+  padding:8px;
+  background:#0f1a3f;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  position:sticky;
+  top:0;
+  z-index:9999;
+}
+.topbar{
+  display:flex;
+  align-items:stretch;           /* 🔑 boutons pleine hauteur */
+  gap:6px;
+  padding:8px;
+  background:#0f1a3f;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  position:sticky;
+  top:0;
+  z-index:9999;
+}
+
   .btn{
     padding:7px 12px; background:#1b2553; color:#fff;
     border:1px solid rgba(255,255,255,.18);
     cursor:pointer; font-weight:700; font-size:13px;
   }
+  .topbar .btn,
+.topbar .select,
+.topbar .zoom{
+  flex:1;                        /* 🔑 partage automatique */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
   .btn:hover{ filter:brightness(1.06); }
   .btn.active{ background:#0078ff; border-color:#0053ad; }
   .btn.danger{ background:#7f1d2d; border-color:#5f1622; }
