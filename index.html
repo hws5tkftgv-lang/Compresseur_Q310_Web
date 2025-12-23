@@ -694,6 +694,13 @@ function setActiveTool(t){
   if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
+/* ================= CORRECTION SURVOL ÉLÈVE ================= */
+if (t === "select" && mediaType === "image") {
+  stageEl.classList.remove("video-media"); // 🔑 essentiel
+  canvas.upperCanvasEl.style.pointerEvents = "auto";
+}
+
+
   /* ================= MODE SÉLECTION (ÉLÈVE) ================= */
 if(t === "select"){
   canvas.selection = false;
@@ -1190,6 +1197,12 @@ function renderVideoTimeline(){
 
   stageEl.classList.remove("video-media");
   $("btnVideo").classList.remove("active");
+  // 🔓 Autoriser le survol en mode image (élève)
+if (mediaType === "image") {
+  stageEl.classList.remove("video-media");
+  canvas.upperCanvasEl.style.pointerEvents = "auto";
+}
+  
 
 
   if(mediaType==="image"){
