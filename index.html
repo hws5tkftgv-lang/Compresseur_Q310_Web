@@ -1454,6 +1454,7 @@ $("btnSavePart").addEventListener("click", ()=>{
         text: $("commentText").value.trim(),
         duration: parseInt($("commentDuration").value,10) || 5000
       };
+      saveImageComments(); // ← OBLIGATOIRE
     }
   }
 
