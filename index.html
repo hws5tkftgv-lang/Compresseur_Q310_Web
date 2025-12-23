@@ -697,35 +697,28 @@ function setActiveTool(t){
   if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
-/* ================= CORRECTION SURVOL ÉLÈVE ================= */
-if (t === "select" && mediaType === "image") {
-  stageEl.classList.remove("video-media"); // 🔑 essentiel
-  canvas.upperCanvasEl.style.pointerEvents = "auto";
-}
+  /* ===== MODE SÉLECTION (ÉLÈVE) ===== */
+  if(t === "select"){
+    canvas.selection = false;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = "pointer";
 
+    canvas.forEachObject(o=>{
+      o.selectable = false;
+      o.evented = true;
 
-  /* ================= MODE SÉLECTION (ÉLÈVE) ================= */
-if(t === "select"){
-  canvas.selection = false;
-  canvas.skipTargetFind = false;   // ✅ OBLIGATOIRE POUR SURVOL
-  canvas.defaultCursor = "pointer";
+      o.lockMovementX = true;
+      o.lockMovementY = true;
+      o.lockScalingX  = true;
+      o.lockScalingY  = true;
+      o.lockRotation  = true;
 
-  canvas.forEachObject(o=>{
-    o.selectable = false;          // 🔒 immobile
-    o.evented = true;              // ✅ SURVOL + CLIC
+      o.hasControls = false;
+      o.hasBorders  = false;
+    });
+  }
 
-    o.lockMovementX = true;
-    o.lockMovementY = true;
-    o.lockScalingX  = true;
-    o.lockScalingY  = true;
-    o.lockRotation  = true;
-
-    o.hasControls = false;
-    o.hasBorders  = false;
-  });
-}
-
-  /* ================= MODE ÉDITION (ENSEIGNANT) ================= */
+  /* ===== MODE ÉDITION (ENSEIGNANT) ===== */
   else if(t === "draw"){
     canvas.selection = false;
     canvas.skipTargetFind = false;
@@ -746,8 +739,8 @@ if(t === "select"){
     });
   }
 
-  /* ================= MODE PAN ================= */
-  else { // pan
+  /* ===== MODE PAN ===== */
+  else {
     canvas.selection = false;
     canvas.skipTargetFind = true;
     canvas.defaultCursor = "grab";
@@ -758,8 +751,15 @@ if(t === "select"){
     });
   }
 
+  // 🔥 CE BLOC DOIT ÊTRE ICI
+  if(mediaType === "video"){
+    stageEl.classList.remove("video-media");
+    $("btnVideo").classList.remove("active");
+  }
+
   canvas.requestRenderAll();
 }
+
 
 
   // Vidéo: si on touche un outil, on désactive "Play cliquable"
@@ -1617,14 +1617,7 @@ $("btnSavePart").addEventListener("click", ()=>{
 
   setTimeout(()=>{ resizeAll(); }, 120);
 })();
-  setTimeout(()=>{
-  showBubble(
-   
-    200,
-    200,
-    8000
-  );
-}, 1000);
+
 COMMENTS.videos["compresseur_2_stages.mp4"] = [
   { t: 2.5, text: "Entrée d’air", duration: 4000 },
   { t: 7.0, text: "Premier étage", duration: 6000 }
