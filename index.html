@@ -695,25 +695,25 @@ function setActiveTool(t){
   updateZonesVisibility();
 
   /* ================= MODE SÉLECTION (ÉLÈVE) ================= */
-  if(t === "select"){
-    canvas.selection = false;
-    canvas.skipTargetFind = false;
-    canvas.defaultCursor = "pointer";
+if(t === "select"){
+  canvas.selection = false;
+  canvas.skipTargetFind = false;   // ✅ OBLIGATOIRE POUR SURVOL
+  canvas.defaultCursor = "pointer";
 
-    canvas.forEachObject(o=>{
-      o.selectable = false;     // 🔒 IMMOBILE
-      o.evented = true;         // ✅ clic + hover
+  canvas.forEachObject(o=>{
+    o.selectable = false;          // 🔒 immobile
+    o.evented = true;              // ✅ SURVOL + CLIC
 
-      o.lockMovementX = true;
-      o.lockMovementY = true;
-      o.lockScalingX  = true;
-      o.lockScalingY  = true;
-      o.lockRotation  = true;
+    o.lockMovementX = true;
+    o.lockMovementY = true;
+    o.lockScalingX  = true;
+    o.lockScalingY  = true;
+    o.lockRotation  = true;
 
-      o.hasControls = false;
-      o.hasBorders  = false;
-    });
-  }
+    o.hasControls = false;
+    o.hasBorders  = false;
+  });
+}
 
   /* ================= MODE ÉDITION (ENSEIGNANT) ================= */
   else if(t === "draw"){
