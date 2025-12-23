@@ -153,16 +153,32 @@
   .zoneItem span{ font-size:11px; opacity:.75; white-space:nowrap; }
 
   /* ===== Mini fiche élève (lecture) ===== */
-  .studentCard{
-    border:1px solid rgba(255,255,255,.10);
-    padding:10px;
-    background:#0f1a44;
-    display:flex; flex-direction:column; gap:6px;
-  }
-  .studentCard .title{ font-weight:800; font-size:13px; }
-  .studentCard .meta{ font-size:11px; opacity:.75; }
-  .studentCard .txt{ font-size:12px; opacity:.92; line-height:1.35; white-space:pre-wrap; }
-  .muted{ opacity:.70; }
+ .studentCard{
+  border:1px solid rgba(255,255,255,.10);
+  padding:12px;
+  background:#0f1a44;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.studentCard .title{
+  font-weight:800;
+  font-size:15px;   /* ⬆️ */
+}
+
+.studentCard .meta{
+  font-size:12px;   /* ⬆️ */
+  opacity:.75;
+}
+
+.studentCard .txt{
+  font-size:14px;   /* ⬆️ lisibilité élève */
+  opacity:.95;
+  line-height:1.5;  /* ⬆️ confort lecture */
+  white-space:pre-wrap;
+}
+
 /* ===== Timeline vidéo ===== */
 #videoTimeline{
   position:relative;
