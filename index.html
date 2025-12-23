@@ -714,6 +714,9 @@ if(mediaType === "video" && t === "draw"){
       o.lockScalingX  = true;
       o.lockScalingY  = true;
       o.lockRotation  = true;
+      o.hasControls = false;
+      o.hasBorders  = false;
+
     });
 
   /* ================= MODE ÉDITION (ENSEIGNANT) ================= */
@@ -1207,6 +1210,11 @@ function renderVideoTimeline(){
 
   setTimeout(()=>{ resizeAll(); }, 0);
   renderVideoTimeline();
+    // 🔒 Sécurité : en mode élève, on verrouille toujours les zones
+if(!isTeacher){
+  setActiveTool("select");
+}
+
     // 🎥 Affichage timeline vidéo (enseignant seulement)
 const wrap = document.getElementById("videoTimelineWrap");
 if(wrap){
