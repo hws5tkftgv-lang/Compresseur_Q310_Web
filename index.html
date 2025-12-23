@@ -597,6 +597,10 @@ function applyModeUI(){
   $("panelTeacher").style.display = isTeacher ? "block" : "none";
   $("panelTitle").textContent = isTeacher ? "🧑‍🏫 Fiche (mode enseignant)" : "🟦 Fiche (mode élève)";
   $("btnMode").textContent = isTeacher ? "🔓 Mode enseignant" : "🔒 Mode élève";
+  // 🔕 Message d’aide : visible seulement en mode enseignant
+  if ($("modeHint")) {
+    $("modeHint").style.display = isTeacher ? "block" : "none";
+  }
 
 
   // En élève: verrouiller outils d'édition
