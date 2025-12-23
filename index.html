@@ -854,16 +854,38 @@ canvas.on("mouse:wheel", (opt)=>{
 function getZones(){ return canvas.getObjects().filter(o=>o && o.type==="rect"); }
 
 function makeZoneRect(){
-  const r = new fabric.Rect({
-    left:0, top:0, width:50, height:50,
-    fill:"rgba(0,150,255,0.12)",
-    stroke:"rgba(0,150,255,0.95)",
-    strokeWidth:2,
-    lockRotation:true,
-    objectCaching:false
+  return new fabric.Rect({
+    left: 0,
+    top: 0,
+    width: 100,
+    height: 100,
+
+    // invisible en mode élève
+    fill: 'rgba(0,0,0,0)',
+
+    // visible seulement pour l’enseignant
+    stroke: isTeacher ? '#4da3ff' : 'transparent',
+    strokeWidth: isTeacher ? 1 : 0,
+
+    // 🔒 VERROUILLAGE TOTAL EN MODE ÉLÈVE
+    selectable: isTeacher,
+    evented: true,
+
+    hasControls: isTeacher,
+    hasBorders: isTeacher,
+
+    lockMovementX: !isTeacher,
+    lockMovementY: !isTeacher,
+    lockScalingX: !isTeacher,
+    lockScalingY: !isTeacher,
+    lockRotation: true,
+
+    // confort
+    perPixelTargetFind: true,
+    hoverCursor: 'pointer'
   });
-  r.partId = "";
-  r._imgBox = null;
+}
+
 
   // Pour survol intelligent (état original)
   r.__orig = { fill:r.fill, stroke:r.stroke, strokeWidth:r.strokeWidth };
