@@ -701,23 +701,25 @@ if(mediaType === "video" && t === "draw"){
   updateZonesVisibility();
 
   /* ================= MODE SÉLECTION (ÉLÈVE) ================= */
-  if(t === "select"){
-    canvas.selection = false;
-    canvas.skipTargetFind = false;
-    canvas.defaultCursor = "pointer";
+if(t === "select"){
+  canvas.selection = false;
+  canvas.skipTargetFind = false;
+  canvas.defaultCursor = "pointer";
 
-    canvas.forEachObject(o=>{
-      o.evented = true;
-      o.selectable = false;   // 🔒 impossible à déplacer
-      o.lockMovementX = true;
-      o.lockMovementY = true;
-      o.lockScalingX  = true;
-      o.lockScalingY  = true;
-      o.lockRotation  = true;
-      o.hasControls = false;
-      o.hasBorders  = false;
+  canvas.forEachObject(o=>{
+    o.selectable = false;      // 🔒 jamais sélectionnable
+    o.evented = true;          // ✅ cliquable / survolable
 
-    });
+    o.lockMovementX = true;
+    o.lockMovementY = true;
+    o.lockScalingX  = true;
+    o.lockScalingY  = true;
+    o.lockRotation  = true;
+
+    o.hasControls = false;
+    o.hasBorders  = false;
+  });
+}
 
   /* ================= MODE ÉDITION (ENSEIGNANT) ================= */
   }else if(t === "draw"){
@@ -889,7 +891,6 @@ function makeZoneRect(){
 
   // Pour survol intelligent (état original)
   r.__orig = { fill:r.fill, stroke:r.stroke, strokeWidth:r.strokeWidth };
-  return r;
 }
 
 function updateImgBoxFromRect(r){
