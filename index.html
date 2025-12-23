@@ -678,14 +678,8 @@ $("btnMode").addEventListener("click", ()=>{
 */
 function setActiveTool(t){
 
-  // 🔒 Interdire le mode édition en mode élève
+  // 🔒 Interdire le mode édition en élève
   if(!isTeacher && t === "draw") t = "select";
-// Si on passe en édition pendant une vidéo → pause + réactiver canvas
-if(mediaType === "video" && t === "draw"){
-  videoEl.pause();
-  stageEl.classList.remove("video-media"); // 🔑 redonne les events au canvas
-  $("btnVideo").classList.remove("active");
-}
 
   tool = t;
 
@@ -701,51 +695,56 @@ if(mediaType === "video" && t === "draw"){
   updateZonesVisibility();
 
   /* ================= MODE SÉLECTION (ÉLÈVE) ================= */
-if(t === "select"){
-  canvas.selection = false;
-  canvas.skipTargetFind = false;
-  canvas.defaultCursor = "pointer";
+  if(t === "select"){
+    canvas.selection = false;
+    canvas.skipTargetFind = false;
+    canvas.defaultCursor = "pointer";
 
-  canvas.forEachObject(o=>{
-    o.selectable = false;      // 🔒 jamais sélectionnable
-    o.evented = true;          // ✅ cliquable / survolable
+    canvas.forEachObject(o=>{
+      o.selectable = false;     // 🔒 IMMOBILE
+      o.evented = true;         // ✅ clic + hover
 
-    o.lockMovementX = true;
-    o.lockMovementY = true;
-    o.lockScalingX  = true;
-    o.lockScalingY  = true;
-    o.lockRotation  = true;
+      o.lockMovementX = true;
+      o.lockMovementY = true;
+      o.lockScalingX  = true;
+      o.lockScalingY  = true;
+      o.lockRotation  = true;
 
-    o.hasControls = false;
-    o.hasBorders  = false;
-  });
-}
+      o.hasControls = false;
+      o.hasBorders  = false;
+    });
+  }
 
   /* ================= MODE ÉDITION (ENSEIGNANT) ================= */
-  }else if(t === "draw"){
+  else if(t === "draw"){
     canvas.selection = false;
     canvas.skipTargetFind = false;
     canvas.defaultCursor = "crosshair";
 
     canvas.forEachObject(o=>{
+      o.selectable = true;
       o.evented = true;
-      o.selectable = true;    // ✅ modifiable
+
       o.lockMovementX = false;
       o.lockMovementY = false;
       o.lockScalingX  = false;
       o.lockScalingY  = false;
       o.lockRotation  = true;
+
+      o.hasControls = true;
+      o.hasBorders  = true;
     });
+  }
 
   /* ================= MODE PAN ================= */
-  }else{ // pan
+  else { // pan
     canvas.selection = false;
     canvas.skipTargetFind = true;
     canvas.defaultCursor = "grab";
 
     canvas.forEachObject(o=>{
-      o.evented = true;
       o.selectable = false;
+      o.evented = false;
     });
   }
 
