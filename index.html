@@ -766,12 +766,11 @@ function setActiveTool(t){
   if(mediaType==="video"){
     stageEl.classList.remove("video-media");
     $("btnVideo").classList.remove("active");
-  }
+ 
 
-  canvas.requestRenderAll();
+  canvas.requestRenderAll(); }
 
-
-}/* ================= MEDIA FIT ================= */
+/* ================= MEDIA FIT ================= */
 function applyMediaBaseFit(){
   if(!mediaNaturalW || !mediaNaturalH) return;
 
