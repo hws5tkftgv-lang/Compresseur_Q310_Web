@@ -307,19 +307,7 @@
       <video id="videoLayer" controls playsinline></video>
     </div>
     <canvas id="c"></canvas>
-    <div id="bubble" style="
-  position:absolute;
-  max-width:320px;
-  padding:10px;
-  background:#101a40;
-  border:1px solid rgba(255,255,255,.25);
-  color:#fff;
-  font-size:12px;
-  line-height:1.4;
-  display:none;
-  z-index:9999;
-  pointer-events:none;
-"></div>
+ 
 
   </div>
 
@@ -1621,9 +1609,25 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
   { t: 2.5, text: "Entrée d’air", duration: 4000 },
   { t: 7.0, text: "Premier étage", duration: 6000 }
 ];
+setTimeout(() => {
+  showBubble("TEST BULLE OK", 300, 200, 4000);
+}, 1000);
 
 </script>
 
+<div id="bubble" style="
+  position:fixed;
+  max-width:320px;
+  padding:10px;
+  background:#101a40;
+  border:1px solid rgba(255,255,255,.25);
+  color:#fff;
+  font-size:12px;
+  line-height:1.4;
+  display:none;
+  z-index:100000;
+  pointer-events:none;
+"></div>
 
 </body>
 </html>
