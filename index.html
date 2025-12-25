@@ -524,12 +524,11 @@ function showBubble(text, canvasX, canvasY, duration = 5000){
   const bubble = document.getElementById("bubble");
   if(!bubble) return;
 
-  const rect = stageEl.getBoundingClientRect();
-
   bubble.textContent = text;
 
-  bubble.style.left = Math.round(rect.left + canvasX) + "px";
-  bubble.style.top  = Math.round(rect.top  + canvasY) + "px";
+  // ✅ POSITION RELATIVE À .stage
+  bubble.style.left = Math.round(canvasX) + "px";
+  bubble.style.top  = Math.round(canvasY) + "px";
 
   bubble.style.display = "block";
   bubble.style.transform = "scale(1)";
@@ -540,6 +539,7 @@ function showBubble(text, canvasX, canvasY, duration = 5000){
     bubble.style.display = "none";
   }, duration);
 }
+
 
 /* ================= VIDÉO : BULLES AUTOMATIQUES ================= */
 
