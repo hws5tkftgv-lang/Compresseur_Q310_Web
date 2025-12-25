@@ -966,6 +966,9 @@ function applyHoverStyle(r, on){
   }
   canvas.requestRenderAll();
 }
+let longPressTimer = null;
+let longPressTarget = null;
+const LONG_PRESS_DELAY = 500; // ms
 
 canvas.on("mouse:over", (opt)=>{
   const r = opt.target;
@@ -999,6 +1002,43 @@ showBubble(
   pt.x + 12,
   pt.y + 12,
   comment.duration || 5000);
+});
+canvas.on("mouse:down", (opt)=>{
+  if (isTeacher) return;
+  if (tool !== "select") return;
+
+  const r = opt.target;
+  if (!r || r.type !== "rect") return;
+
+  // mobile uniquement
+  if (!opt.e.touches) return;
+
+  longPressTarget = r;
+
+  longPressTimer = setTimeout(()=>{
+    const mediaComments = COMMENTS.images[currentMediaKey] || {};
+    const comment = mediaComments[r.partId];
+    if (!comment || !comment.text) return;
+
+    applyHoverStyle(r, true);
+
+    const pt = fabric.util.transformPoint(
+      r.getCenterPoint(),
+      canvas.viewportTransform
+    );
+
+    showBubble(
+      comment.text,
+      pt.x + 12,
+      pt.y + 12,
+      comment.duration || 5000
+    );
+  }, LONG_PRESS_DELAY);
+});
+canvas.on("mouse:up", ()=>{
+  clearTimeout(longPressTimer);
+  longPressTimer = null;
+  longPressTarget = null;
 });
 
 
@@ -1089,6 +1129,11 @@ canvas.on("mouse:down", (opt)=>{
 
 
 canvas.on("mouse:move", (opt)=>{
+  if (longPressTimer) {
+  clearTimeout(longPressTimer);
+  longPressTimer = null;
+}
+
   if(drawing && curRect){
     const p = canvas.getPointer(opt.e, true);
     const left = Math.min(p.x, startPt.x);
