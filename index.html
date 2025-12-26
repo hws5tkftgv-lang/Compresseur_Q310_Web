@@ -11,7 +11,16 @@
 <style>
   :root { color-scheme: dark; }
   *{ box-sizing:border-box; }
-  html,body{ margin:0; background:#0b1436; color:#eaf1ff; font-family:Arial,Segoe UI,sans-serif; }
+html,body{
+  margin:0;
+  background:#0b1436;
+  color:#eaf1ff;
+  font-family:Arial,Segoe UI,sans-serif;
+
+  /* 🔒 mobile : empêche scroll / zoom navigateur */
+  overscroll-behavior: none;
+  touch-action: none;
+}
 
   /* === PAS DE COINS RONDS === */
   .btn, .select, .zoom, .stage, .panel, textarea, input { border-radius:0 !important; }
