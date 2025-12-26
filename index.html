@@ -892,6 +892,15 @@ function makeZoneRect(){
     hoverCursor: 'pointer'
   });
 }
+function findZoneAtPointer(pointer){
+  const zones = getZones();
+  for(let i = zones.length - 1; i >= 0; i--){
+    const r = zones[i];
+    if(!r || r.type !== "rect") continue;
+    if(r.containsPoint(pointer)) return r;
+  }
+  return null;
+}
 
 
 
@@ -1136,34 +1145,42 @@ canvas.on("mouse:down", (opt)=>{
   }
 
   /* ===== CLIC SUR ZONE ===== */
-  if(t && t.type==="rect"){
-    setPanelForZone(t);
+/* ===== CLIC / TAP SUR ZONE ===== */
+let r = t;
 
-    // 🔵 BULLE ÉLÈVE (IMAGE)
-    if(!isTeacher && tool==="select"){
-      const mediaComments = COMMENTS.images[currentMediaKey] || {};
-      const comment = mediaComments[t.partId];
+// 📱 Mobile : target souvent null → recherche manuelle
+if(!r && opt.e && opt.e.touches){
+  const p = canvas.getPointer(opt.e, true);
+  r = findZoneAtPointer(p);
+}
 
-      if(comment){
-        const pt = fabric.util.transformPoint(
-          t.getCenterPoint(),
-          canvas.viewportTransform
-        );
+if(r && r.type === "rect"){
+  setPanelForZone(r);
 
-        showBubble(
-          comment.text,
-          pt.x + 12,
-          pt.y + 12,
-          comment.duration || 5000
-        );
-      }
+  if(!isTeacher && tool === "select"){
+    const mediaComments = COMMENTS.images[currentMediaKey] || {};
+    const comment = mediaComments[r.partId];
+
+    if(comment){
+      const pt = fabric.util.transformPoint(
+        r.getCenterPoint(),
+        canvas.viewportTransform
+      );
+
+      showBubble(
+        comment.text,
+        pt.x + 12,
+        pt.y + 12,
+        comment.duration || 5000
+      );
     }
-
-    if(tool==="select"){
-      canvas.setActiveObject(t);
-    }
-    return;
   }
+
+  if(tool === "select"){
+    canvas.setActiveObject(r);
+  }
+  return;
+}
 
   /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
   if(tool==="draw"){
