@@ -2,9 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quincy 310L – Zones interactives</title>
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
@@ -13,15 +11,7 @@
 <style>
   :root { color-scheme: dark; }
   *{ box-sizing:border-box; }
-html,body{
-  margin:0;
-  background:#0b1436;
-  color:#eaf1ff;
-  font-family:Arial,Segoe UI,sans-serif;
-
-  /* 🔒 mobile : empêche scroll / zoom navigateur */
- 
-}
+  html,body{ margin:0; background:#0b1436; color:#eaf1ff; font-family:Arial,Segoe UI,sans-serif; }
 
   /* === PAS DE COINS RONDS === */
   .btn, .select, .zoom, .stage, .panel, textarea, input { border-radius:0 !important; }
@@ -98,7 +88,6 @@ html,body{
   .stage{
     background:#0b1536; overflow:hidden;
     min-height:78vh; position:relative;
-    touch-action: none;
   }
 
   /* Media layer + Canvas overlay */
@@ -106,9 +95,6 @@ html,body{
     position:absolute; inset:0;
     width:100%; height:100%;
   }
-#c{
-  touch-action: none;
-}
 
   #imgLayer, #videoLayer{
     position:absolute;
@@ -151,16 +137,12 @@ html,body{
      ====================================================== */
   .stage{ position: relative; }
 
- .canvas-container{
-  position: absolute !important;
-  inset: 0;
-  z-index: 2;
-  pointer-events: auto;
-
-  /* 🔒 iOS / mobile : donner les gestes à Fabric */
-  touch-action: none;
-}
-
+  .canvas-container{
+    position: absolute !important;
+    inset: 0;
+    z-index: 2;
+    pointer-events: auto;
+  }
 
   .media-layer{
     z-index: 1;
@@ -597,15 +579,6 @@ const video  = document.getElementById("videoLayer");
 
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
-/* ================= iOS – FORCER LE CONTRÔLE TACTILE FABRIC ================= */
-const canvasEl = canvas.upperCanvasEl;
-
-["touchstart","touchmove","touchend","touchcancel"].forEach(type=>{
-  canvasEl.addEventListener(type, e=>{
-    e.preventDefault();
-  }, { passive:false });
-});
-  
 window.canvas = canvas;
 canvas.targetFindTolerance = 8;  
 
@@ -993,34 +966,54 @@ function applyHoverStyle(r, on){
   }
   canvas.requestRenderAll();
 }
-
-/* ================= MOBILE – TAP LONG (BULLE) ================= */
-
-const IS_TOUCH =
-  "ontouchstart" in window ||
-  navigator.maxTouchPoints > 0;
-
-let touchStartPt = null;
 let longPressTimer = null;
-let activeTouchTarget = null;
+let longPressTarget = null;
+const LONG_PRESS_DELAY = 500; // ms
 
-const LONG_PRESS_DELAY = 450;   // ms
-const MOVE_TOLERANCE = 12;      // px
+canvas.on("mouse:over", (opt)=>{
+  const r = opt.target;
+  if(!r || r.type !== "rect") return;
+  if(isTeacher) return;
+  if(tool !== "select") return;
 
+  // 🔒 Vidéo en lecture = pas de survol
+  if(mediaType === "video" && !videoEl.paused) return;
+
+  applyHoverStyle(r, true);
+
+const mediaComments = COMMENTS.images[currentMediaKey] || {};
+const comment = mediaComments[r.partId];
+
+console.log("SURVOL OK", {
+  media: currentMediaKey,
+  partId: r.partId,
+  comment
+});
+
+if(!comment || !comment.text) return;
+
+const pt = fabric.util.transformPoint(
+  r.getCenterPoint(),
+  canvas.viewportTransform
+);
+
+showBubble(
+  comment.text,
+  pt.x + 12,
+  pt.y + 12,
+  comment.duration || 5000);
+});
 canvas.on("mouse:down", (opt)=>{
-  if (!IS_TOUCH) return;
   if (isTeacher) return;
   if (tool !== "select") return;
 
   const r = opt.target;
   if (!r || r.type !== "rect") return;
 
-  const e = opt.e;
-  if (!e.touches || e.touches.length !== 1) return;
+  // mobile uniquement
+  if (!opt.e.touches) return;
 
-  const t = e.touches[0];
-  touchStartPt = { x: t.clientX, y: t.clientY };
-  activeTouchTarget = r;
+  longPressTarget = r;
 
   longPressTimer = setTimeout(()=>{
     const mediaComments = COMMENTS.images[currentMediaKey] || {};
@@ -1042,45 +1035,23 @@ canvas.on("mouse:down", (opt)=>{
     );
   }, LONG_PRESS_DELAY);
 });
-
-canvas.on("mouse:move", (opt)=>{
-  if (!IS_TOUCH) return;
-  if (!touchStartPt || !longPressTimer) return;
-
-  const e = opt.e;
-  if (!e.touches || e.touches.length !== 1) return;
-
-  const t = e.touches[0];
-  const dx = t.clientX - touchStartPt.x;
-  const dy = t.clientY - touchStartPt.y;
-
-  if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-  }
-});
-
 canvas.on("mouse:up", ()=>{
-  if (longPressTimer) {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-  }
-
-  if (IS_TOUCH && activeTouchTarget && tool === "select") {
-    setPanelForZone(activeTouchTarget);
-    canvas.setActiveObject(activeTouchTarget);
-
-    setTimeout(()=>{
-      applyHoverStyle(activeTouchTarget, false);
-    }, 500);
-  }
-
-  activeTouchTarget = null;
-  touchStartPt = null;
+  clearTimeout(longPressTimer);
+  longPressTimer = null;
+  longPressTarget = null;
 });
 
 
+canvas.on("mouse:out", (opt)=>{
+  const r = opt.target;
+  if(!r || r.type !== "rect") return;
+  if(isTeacher) return;
+  if(tool !== "select") return;
 
+  applyHoverStyle(r, false);
+
+
+});
   
 
   
