@@ -146,12 +146,16 @@ html,body{
      ====================================================== */
   .stage{ position: relative; }
 
-  .canvas-container{
-    position: absolute !important;
-    inset: 0;
-    z-index: 2;
-    pointer-events: auto;
-  }
+ .canvas-container{
+  position: absolute !important;
+  inset: 0;
+  z-index: 2;
+  pointer-events: auto;
+
+  /* 🔒 iOS / mobile : donner les gestes à Fabric */
+  touch-action: none;
+}
+
 
   .media-layer{
     z-index: 1;
