@@ -580,7 +580,12 @@ const img    = document.getElementById("imgLayer");
 const video  = document.getElementById("videoLayer");
 
 /* ================= STATE ================= */
-const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
+const canvas = new fabric.Canvas("c", {
+  selection: true,
+  preserveObjectStacking: true,
+  enablePointerEvents: true   // ✅ OBLIGATOIRE POUR MOBILE
+});
+
 window.canvas = canvas;
 canvas.targetFindTolerance = 8;  
 
