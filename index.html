@@ -1699,6 +1699,12 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
   { t: 2.5, text: "Entrée d’air", duration: 4000 },
   { t: 7.0, text: "Premier étage", duration: 6000 }
 ];
+// ===== TEST TACTILE iOS (TEMPORAIRE) =====
+const rawCanvas = document.getElementById("c");
+
+rawCanvas.addEventListener("touchstart", (e)=>{
+  alert("TOUCHSTART détecté sur le canvas");
+});
 
 </script>
 
