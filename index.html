@@ -1050,37 +1050,42 @@ showBubble(
   pt.y + 12,
   comment.duration || 5000);
 });
-canvas.on("mouse:down", (opt)=>{
+  canvas.on("mouse:down", (opt)=>{
   if (isTeacher) return;
   if (tool !== "select") return;
 
   const r = opt.target;
   if (!r || r.type !== "rect") return;
 
-  // mobile uniquement
+  // ✅ TAP SIMPLE = ouvrir fiche (PC + mobile)
+  setPanelForZone(r);
 
-  longPressTarget = r;
+  // 📱 LONG PRESS = bulle (mobile seulement)
+  if (opt.e && opt.e.touches) {
+    longPressTarget = r;
 
-  longPressTimer = setTimeout(()=>{
-    const mediaComments = COMMENTS.images[currentMediaKey] || {};
-    const comment = mediaComments[r.partId];
-    if (!comment || !comment.text) return;
+    longPressTimer = setTimeout(()=>{
+      const mediaComments = COMMENTS.images[currentMediaKey] || {};
+      const comment = mediaComments[r.partId];
+      if (!comment || !comment.text) return;
 
-    applyHoverStyle(r, true);
+      applyHoverStyle(r, true);
 
-    const pt = fabric.util.transformPoint(
-      r.getCenterPoint(),
-      canvas.viewportTransform
-    );
+      const pt = fabric.util.transformPoint(
+        r.getCenterPoint(),
+        canvas.viewportTransform
+      );
 
-    showBubble(
-      comment.text,
-      pt.x + 12,
-      pt.y + 12,
-      comment.duration || 5000
-    );
-  }, LONG_PRESS_DELAY);
+      showBubble(
+        comment.text,
+        pt.x + 12,
+        pt.y + 12,
+        comment.duration || 5000
+      );
+    }, LONG_PRESS_DELAY);
+  }
 });
+
 canvas.on("mouse:up", ()=>{
   clearTimeout(longPressTimer);
   longPressTimer = null;
