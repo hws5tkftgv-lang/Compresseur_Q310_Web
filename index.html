@@ -587,6 +587,18 @@ const canvas = new fabric.Canvas("c", {
   preserveObjectStacking: true,
   enablePointerEvents: true   // ✅ OBLIGATOIRE POUR MOBILE
 });
+  // ===== iOS : BLOQUER LE SCROLL SUR LE CANVAS =====
+const uc = canvas.upperCanvasEl;
+
+// empêcher le scroll / pan de la page sur mobile
+uc.addEventListener("touchstart", (e)=>{
+  e.preventDefault();
+}, { passive: false });
+
+uc.addEventListener("touchmove", (e)=>{
+  e.preventDefault();
+}, { passive: false });
+
 
 window.canvas = canvas;
 canvas.targetFindTolerance = 8;  
