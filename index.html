@@ -1201,9 +1201,10 @@ canvas.on("mouse:down", (opt)=>{
 
   /* ===== CLIC SUR ZONE ===== */
 /* ===== CLIC / TAP SUR ZONE ===== */
+/* ===== CLIC / TAP SUR ZONE (PC + MOBILE) ===== */
 let r = t;
 
-// 📱 Mobile : target souvent null → recherche manuelle
+// 📱 Mobile : Fabric ne trouve pas toujours la zone → recherche manuelle
 if(!r && opt.e && opt.e.touches){
   const p = canvas.getPointer(opt.e, true);
   r = findZoneAtPointer(p);
@@ -1212,6 +1213,17 @@ if(!r && opt.e && opt.e.touches){
 if(r && r.type === "rect"){
   setPanelForZone(r);
 
+  // ✅ feedback visuel (mobile)
+  if(tool === "select"){
+    canvas.setActiveObject(r);
+    applyHoverStyle(r, true);
+
+    setTimeout(()=>{
+      applyHoverStyle(r, false);
+    }, 600);
+  }
+
+  // 🔵 bulle élève (si définie)
   if(!isTeacher && tool === "select"){
     const mediaComments = COMMENTS.images[currentMediaKey] || {};
     const comment = mediaComments[r.partId];
@@ -1231,11 +1243,16 @@ if(r && r.type === "rect"){
     }
   }
 
-  if(tool === "select"){
-    canvas.setActiveObject(r);
-  }
   return;
 }
+
+
+// 📱 Mobile : target souvent null → recherche manuelle
+if(!r && opt.e && opt.e.touches){
+  const p = canvas.getPointer(opt.e, true);
+  r = findZoneAtPointer(p);
+}
+
 
   /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
   if(tool==="draw"){
