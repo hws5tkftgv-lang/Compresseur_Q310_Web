@@ -587,16 +587,29 @@ const canvas = new fabric.Canvas("c", {
   preserveObjectStacking: true,
   enablePointerEvents: true   // ✅ OBLIGATOIRE POUR MOBILE
 });
-  // ===== iOS : BLOQUER LE SCROLL SUR LE CANVAS =====
+// ===== iOS SAFARI : BLOQUER SCROLL PAGE QUAND ON TOUCHE LE CANVAS =====
+function lockBodyScroll(){
+  document.body.style.overflow = "hidden";
+  document.body.style.position = "fixed";
+}
+
+function unlockBodyScroll(){
+  document.body.style.overflow = "";
+  document.body.style.position = "";
+}
+
 const uc = canvas.upperCanvasEl;
 
-// empêcher le scroll / pan de la page sur mobile
-uc.addEventListener("touchstart", (e)=>{
-  e.preventDefault();
+uc.addEventListener("touchstart", ()=>{
+  lockBodyScroll();
 }, { passive: false });
 
-uc.addEventListener("touchmove", (e)=>{
-  e.preventDefault();
+uc.addEventListener("touchend", ()=>{
+  unlockBodyScroll();
+}, { passive: false });
+
+uc.addEventListener("touchcancel", ()=>{
+  unlockBodyScroll();
 }, { passive: false });
 
 
