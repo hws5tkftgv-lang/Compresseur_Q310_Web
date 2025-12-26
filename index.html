@@ -1044,33 +1044,7 @@ function applyHoverStyle(r, on){
 let mobilePressTimer = null;
 const MOBILE_PRESS_DELAY = 600; // ms
 
-canvas.on("mouse:down", (opt)=>{
-  // Mobile seulement (largeur écran)
-  if (window.innerWidth > 900) return;
-  if (isTeacher) return;
-  if (tool !== "select") return;
 
-  const r = opt.target;
-  if (!r || r.type !== "rect") return;
-
-  mobilePressTimer = setTimeout(()=>{
-    const mediaComments = COMMENTS.images[currentMediaKey] || {};
-    const comment = mediaComments[r.partId];
-    if (!comment || !comment.text) return;
-
-    const pt = fabric.util.transformPoint(
-      r.getCenterPoint(),
-      canvas.viewportTransform
-    );
-
-    showBubble(
-      comment.text,
-      pt.x + 12,
-      pt.y + 12,
-      comment.duration || 5000
-    );
-  }, MOBILE_PRESS_DELAY);
-});
 
 canvas.on("mouse:up", ()=>{
   if (mobilePressTimer){
@@ -1116,41 +1090,7 @@ showBubble(
   pt.y + 12,
   comment.duration || 5000);
 });
-  canvas.on("mouse:down", (opt)=>{
-  if (isTeacher) return;
-  if (tool !== "select") return;
-
-  const r = opt.target;
-  if (!r || r.type !== "rect") return;
-
-  // ✅ TAP SIMPLE = ouvrir fiche (PC + mobile)
-  setPanelForZone(r);
-
-  // 📱 LONG PRESS = bulle (mobile seulement)
-  if (opt.e && opt.e.touches) {
-    longPressTarget = r;
-
-    longPressTimer = setTimeout(()=>{
-      const mediaComments = COMMENTS.images[currentMediaKey] || {};
-      const comment = mediaComments[r.partId];
-      if (!comment || !comment.text) return;
-
-      applyHoverStyle(r, true);
-
-      const pt = fabric.util.transformPoint(
-        r.getCenterPoint(),
-        canvas.viewportTransform
-      );
-
-      showBubble(
-        comment.text,
-        pt.x + 12,
-        pt.y + 12,
-        comment.duration || 5000
-      );
-    }, LONG_PRESS_DELAY);
-  }
-});
+ 
 
 canvas.on("mouse:up", ()=>{
   clearTimeout(longPressTimer);
@@ -1176,74 +1116,69 @@ canvas.on("mouse:out", (opt)=>{
 /* ================= CLIC DROIT = SUPPRIMER (enseignant + ✏️) ================= */
 canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
 
-canvas.on("mouse:down", (opt)=>{
-  if(opt.e && opt.e.button === 2){
-    if(isTeacher && tool === "draw" && opt.target && opt.target.type === "rect"){
-      canvas.remove(opt.target);
-      canvas.discardActiveObject();
-      saveZones();
-      clearPanel();
-      canvas.requestRenderAll();
-    }
-    return;
-  }
-});
 
 /* ================= CANVAS EVENTS (select/draw/pan) ================= */
 canvas.on("mouse:down", (opt)=>{
+  const e = opt.e;
   const t = opt.target;
 
-  /* ===== PAN ===== */
-  if(tool==="pan"){
+  /* ================= PAN ================= */
+  if(tool === "pan"){
     isPanning = true;
-    lastClient = { x:opt.e.clientX, y:opt.e.clientY };
+    lastClient = { x: e.clientX, y: e.clientY };
     canvas.defaultCursor = "grabbing";
     return;
   }
 
-  /* ===== CLIC SUR ZONE ===== */
-/* ===== CLIC / TAP SUR ZONE ===== */
-/* ===== CLIC / TAP SUR ZONE (PC + MOBILE) ===== */
-let r = t;
+  /* ================= CLIC / TAP SUR ZONE ================= */
+  let r = t;
 
-// 📱 Mobile : Fabric ne trouve pas toujours la zone → recherche manuelle
-if(!r && opt.e && opt.e.touches){
-  const p = canvas.getPointer(opt.e, true);
-  r = findZoneAtPointer(p);
-}
-
-if(r && r.type === "rect"){
-  setPanelForZone(r);
-
-  // ✅ feedback visuel (mobile)
-  if(tool === "select"){
-    canvas.setActiveObject(r);
-    applyHoverStyle(r, true);
-
-    setTimeout(()=>{
-      applyHoverStyle(r, false);
-    }, 600);
+  // 📱 Mobile : target souvent null
+  if(!r && e && e.touches){
+    const p = canvas.getPointer(e, true);
+    r = findZoneAtPointer(p);
   }
 
-  // 🔵 bulle élève (si définie)
-  if(!isTeacher && tool === "select"){
-    const mediaComments = COMMENTS.images[currentMediaKey] || {};
-    const comment = mediaComments[r.partId];
+  if(r && r.type === "rect"){
+    setPanelForZone(r);
 
-    if(comment){
-      const pt = fabric.util.transformPoint(
-        r.getCenterPoint(),
-        canvas.viewportTransform
-      );
-
-      showBubble(
-        comment.text,
-        pt.x + 12,
-        pt.y + 12,
-        comment.duration || 5000
-      );
+    if(tool === "select"){
+      canvas.setActiveObject(r);
+      applyHoverStyle(r, true);
+      setTimeout(()=>applyHoverStyle(r, false), 600);
     }
+
+    // 🔵 bulle élève
+    if(!isTeacher && tool === "select"){
+      const mediaComments = COMMENTS.images[currentMediaKey] || {};
+      const comment = mediaComments[r.partId];
+      if(comment){
+        const pt = fabric.util.transformPoint(
+          r.getCenterPoint(),
+          canvas.viewportTransform
+        );
+        showBubble(
+          comment.text,
+          pt.x + 12,
+          pt.y + 12,
+          comment.duration || 5000
+        );
+      }
+    }
+    return;
   }
+
+  /* ================= DESSIN ================= */
+  if(tool === "draw" && isTeacher){
+    drawing = true;
+    startPt = canvas.getPointer(e, true);
+    curRect = makeZoneRect();
+    curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
+    canvas.add(curRect);
+    canvas.setActiveObject(curRect);
+  }
+});
+
 
   return;
 }
