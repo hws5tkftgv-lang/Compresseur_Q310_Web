@@ -262,6 +262,21 @@
 canvas {
   pointer-events: auto !important;
 }
+/* ================= MOBILE HOTSPOTS ================= */
+#mobileHotspots{
+  position:absolute;
+  inset:0;
+  z-index:5;
+  pointer-events:none; /* désactivé par défaut */
+}
+
+.mobile-hotspot{
+  position:absolute;
+  border:2px solid rgba(255,255,255,0.35);
+  background:rgba(255,255,255,0.08);
+  pointer-events:auto;
+  touch-action:manipulation;
+}
 
 </style>
 </head>
@@ -298,6 +313,8 @@ canvas {
       <video id="videoLayer" controls playsinline></video>
     </div>
     <canvas id="c"></canvas>
+    <div id="mobileHotspots"></div>
+
   </div>
 
   <aside class="panel">
@@ -578,6 +595,8 @@ let drawing=false, startPt=null, curRect=null;
 let isPanning=false, lastClient=null;
 
 let isTeacher = (localStorage.getItem(TEACHER_SESSION_KEY) === "1");
+const IS_MOBILE = /iphone|ipad|android/i.test(navigator.userAgent);
+  
 
 /* Parts */
 let partsBase = [];
@@ -691,6 +710,9 @@ function setActiveTool(t){
   }
 
   canvas.requestRenderAll();
+  document.getElementById("mobileHotspots").style.pointerEvents =
+  (IS_MOBILE && !isTeacher) ? "auto" : "none";
+
 }
 
 /* ================= MEDIA FIT ================= */
@@ -860,7 +882,55 @@ function loadZones(){
   updateZonesVisibility();
   canvas.requestRenderAll();
   refreshZoneList();
+  rebuildMobileHotspots();
+
 }
+  function rebuildMobileHotspots(){
+  const wrap = document.getElementById("mobileHotspots");
+  if(!wrap) return;
+
+  wrap.innerHTML = "";
+
+  if(!IS_MOBILE || isTeacher) return;
+
+  wrap.style.pointerEvents = "auto";
+
+  getZones().forEach(r=>{
+    if(!r._imgBox) return;
+
+    const z = r._imgBox;
+
+    const x = mediaLeft + z.x * mediaScale;
+    const y = mediaTop  + z.y * mediaScale;
+    const w = z.w * mediaScale;
+    const h = z.h * mediaScale;
+
+    const d = document.createElement("div");
+    d.className = "mobile-hotspot";
+    d.style.left = x + "px";
+    d.style.top  = y + "px";
+    d.style.width  = w + "px";
+    d.style.height = h + "px";
+
+    d.addEventListener("click", ()=>{
+      setPanelForZone(r);
+
+      const mediaComments = COMMENTS.images[currentMediaKey] || {};
+      const comment = mediaComments[r.partId];
+      if(comment && comment.text){
+        showBubble(
+          comment.text,
+          x + w/2,
+          y,
+          comment.duration || 5000
+        );
+      }
+    });
+
+    wrap.appendChild(d);
+  });
+}
+
 canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
 
 /* ================= SURVOL (PC uniquement) ================= */
@@ -1145,6 +1215,8 @@ $("btnFit").onclick = ()=>{
   fitZonesToMedia();
   clearPanel();
   canvas.requestRenderAll();
+  rebuildMobileHotspots();
+
 };
 
 $("btnFs").onclick = async ()=>{
