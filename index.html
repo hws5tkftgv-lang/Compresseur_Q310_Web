@@ -857,7 +857,14 @@ canvas.on("mouse:down", (opt)=>{
   }
 
   // cible
-  const t = opt.target;
+let t = opt.target;
+
+// 🔒 SAFARI iOS FIX : retrouver la zone sous le doigt
+if(!t){
+  const p = canvas.getPointer(e, true);
+  t = canvas.findTarget(p, true);
+}
+
 
   // clic/tap sur zone
   if(t && t.type === "rect"){
