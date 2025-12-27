@@ -69,7 +69,25 @@ html,body{
   line-height:1.4;
   opacity:.9;
 }
-  
+  #btnEditor{
+  position:fixed;
+  bottom:8px;
+  left:8px;
+  width:34px;
+  height:34px;
+  border-radius:6px;
+  background:rgba(255,255,255,.15);
+  color:#fff;
+  border:1px solid rgba(255,255,255,.3);
+  font-size:16px;
+  opacity:.35;
+  z-index:9999;
+}
+#btnEditor.active{
+  opacity:.9;
+  background:#0078ff;
+}
+
 </style>
 </head>
 
@@ -151,6 +169,18 @@ lockRotation:true
     
   });
   r.comment = text;
+  r.on("mousedown", ()=>{
+  document.getElementById("infoTitle").textContent = r.comment;
+
+  if(isEditor){
+    const n = prompt("Nom de la pièce :", r.comment);
+    if(n){
+      r.comment = n;
+      document.getElementById("infoTitle").textContent = n;
+    }
+  }
+});
+
   canvas.add(r);
   r.on("mousedown", ()=>{
   document.getElementById("infoTitle").textContent = r.comment;
@@ -242,7 +272,38 @@ const ZONES_PC = [
   { x:0.444, y:0.428, w:0.087, h:0.086, text:"Bielle" }
 ];
 
+/* ================== MODE ÉDITEUR ================== */
+let isEditor = false;
+const EDITOR_PASSWORD = "comp";
+
+document.getElementById("btnEditor").addEventListener("click", ()=>{
+  if(!isEditor){
+    const p = prompt("Mot de passe éditeur");
+    if(p !== EDITOR_PASSWORD) return;
+    enableEditor(true);
+  }else{
+    enableEditor(false);
+  }
+});
+
+function enableEditor(on){
+  isEditor = on;
+  document.getElementById("btnEditor").classList.toggle("active", on);
+
+  canvas.forEachObject(o=>{
+    o.selectable = on;
+    o.evented = true;
+    o.hasControls = on;
+    o.hasBorders  = on;
+    o.lockRotation = true;
+    o.lockScalingFlip = true;
+  });
+
+  canvas.selection = on;
+  canvas.requestRenderAll();
+}
 
 </script>
+  <button id="btnEditor">✎</button>
 </body>
 </html>
