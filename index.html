@@ -125,12 +125,15 @@
      ====================================================== */
   .stage{ position: relative; }
 
-  .canvas-container{
-    position: absolute !important;
-    inset: 0;
-    z-index: 2;
-    pointer-events: auto;
-  }
+ .canvas-container{
+  position: absolute !important;
+  inset: 0;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: none;              /* 🔑 CRITIQUE */
+  overscroll-behavior: none;       /* 🔑 SAFARI */
+}
+
 
   .media-layer{
     z-index: 1;
