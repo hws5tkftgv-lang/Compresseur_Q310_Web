@@ -518,6 +518,14 @@ const canvas = new fabric.Canvas("c", {
   selection: true,
   preserveObjectStacking: true
 });
+canvas.upperCanvasEl.addEventListener("touchstart", (e)=>{
+  const d = document.getElementById("touchDebug");
+  if(d){
+    d.textContent = "TOUCH CANVAS OK";
+    d.style.background = "blue";
+  }
+  e.preventDefault();
+}, { passive:false });
 
 // 🔴 CRITIQUE iOS SAFARI
 canvas.upperCanvasEl.style.touchAction = "none";
