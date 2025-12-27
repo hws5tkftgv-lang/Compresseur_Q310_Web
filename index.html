@@ -271,6 +271,27 @@
 #panelStudent .zoneItem span{
   font-size: 12px;
 }
+/* ================= MOBILE HOTSPOTS (iPhone/iPad) ================= */
+#mobileHotspots{
+  position:absolute;
+  inset:0;
+  z-index: 5;            /* au-dessus du canvas */
+  pointer-events:none;   /* désactivé par défaut */
+}
+
+/* les zones cliquables */
+.mobile-hotspot{
+  position:absolute;
+  pointer-events:auto;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid rgba(255,255,255,0.35);
+  touch-action: manipulation; /* important iOS */
+}
+
+/* sur iOS, l'image/vidéo ne doit PAS capter les taps */
+#imgLayer, #videoLayer{
+  pointer-events:none;
+}
 
 </style>
 </head>
@@ -307,7 +328,8 @@
       <video id="videoLayer" controls playsinline></video>
     </div>
     <canvas id="c"></canvas>
- 
+ <div id="mobileHotspots"></div>
+
 
   </div>
 
@@ -597,6 +619,7 @@ let drawing=false, startPt=null, curRect=null;
 let isPanning=false, lastClient=null;
 
 let isTeacher = (sessionStorage.getItem(TEACHER_SESSION_KEY) === "1");
+const IS_MOBILE = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
 
 /* Parts */
 let partsBase = [];
@@ -641,6 +664,7 @@ function applyModeUI(){
   if(lock){
     setActiveTool("select");
   }
+  rebuildMobileHotspots();
 }
 
 /* Bouton mode */
@@ -751,13 +775,6 @@ function setActiveTool(t){
 
 
 
-  // Vidéo: si on touche un outil, on désactive "Play cliquable"
-  if(mediaType==="video"){
-    stageEl.classList.remove("video-media");
-    $("btnVideo").classList.remove("active");
- 
-
-  canvas.requestRenderAll(); }
 
 /* ================= MEDIA FIT ================= */
 function applyMediaBaseFit(){
@@ -795,6 +812,7 @@ function resizeAll(){
   canvas.setHeight(stageEl.clientHeight);
   applyMediaBaseFit();
   canvas.requestRenderAll();
+  rebuildMobileHotspots();
 }
 window.addEventListener("resize", resizeAll);
 
@@ -940,9 +958,61 @@ function loadZones(){
   updateZonesVisibility();
   canvas.requestRenderAll();
   refreshZoneList();
+   rebuildMobileHotspots();
 }
 
 canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
+function rebuildMobileHotspots(){
+  const wrap = document.getElementById("mobileHotspots");
+  if(!wrap) return;
+
+  wrap.innerHTML = "";
+
+  // Actif seulement sur mobile ET en mode élève
+  if(!IS_MOBILE || isTeacher){
+    wrap.style.pointerEvents = "none";
+    return;
+  }
+
+  wrap.style.pointerEvents = "auto";
+
+  getZones().forEach(r=>{
+    if(!r._imgBox) return;
+
+    const z = r._imgBox;
+
+    // convertir imgBox -> pixels écran (dans .stage)
+    const x = mediaLeft + z.x * mediaScale;
+    const y = mediaTop  + z.y * mediaScale;
+    const w = z.w * mediaScale;
+    const h = z.h * mediaScale;
+
+    const d = document.createElement("div");
+    d.className = "mobile-hotspot";
+    d.style.left = x + "px";
+    d.style.top  = y + "px";
+    d.style.width  = w + "px";
+    d.style.height = h + "px";
+
+    // tap/click
+    d.addEventListener("click", ()=>{
+      setPanelForZone(r);
+
+      // si commentaire bulle existe
+      const mediaComments = COMMENTS.images[currentMediaKey] || {};
+      const comment = mediaComments[r.partId];
+      if(comment && comment.text){
+        showBubble(comment.text, x + w/2, y + 10, comment.duration || 5000);
+      }
+
+      // petit halo visuel (optionnel)
+      applyHoverStyle(r, true);
+      setTimeout(()=>applyHoverStyle(r, false), 600);
+    });
+
+    wrap.appendChild(d);
+  });
+}
 
 /* ================= SURVOL INTELLIGENT (mode élève) ================= */
 function applyHoverStyle(r, on){
@@ -966,93 +1036,6 @@ function applyHoverStyle(r, on){
   }
   canvas.requestRenderAll();
 }
-let longPressTimer = null;
-let longPressTarget = null;
-const LONG_PRESS_DELAY = 500; // ms
-
-canvas.on("mouse:over", (opt)=>{
-  const r = opt.target;
-  if(!r || r.type !== "rect") return;
-  if(isTeacher) return;
-  if(tool !== "select") return;
-
-  // 🔒 Vidéo en lecture = pas de survol
-  if(mediaType === "video" && !videoEl.paused) return;
-
-  applyHoverStyle(r, true);
-
-const mediaComments = COMMENTS.images[currentMediaKey] || {};
-const comment = mediaComments[r.partId];
-
-console.log("SURVOL OK", {
-  media: currentMediaKey,
-  partId: r.partId,
-  comment
-});
-
-if(!comment || !comment.text) return;
-
-const pt = fabric.util.transformPoint(
-  r.getCenterPoint(),
-  canvas.viewportTransform
-);
-
-showBubble(
-  comment.text,
-  pt.x + 12,
-  pt.y + 12,
-  comment.duration || 5000);
-});
-canvas.on("mouse:down", (opt)=>{
-  if (isTeacher) return;
-  if (tool !== "select") return;
-
-  const r = opt.target;
-  if (!r || r.type !== "rect") return;
-
-  // mobile uniquement
-  if (!opt.e.touches) return;
-
-  longPressTarget = r;
-
-  longPressTimer = setTimeout(()=>{
-    const mediaComments = COMMENTS.images[currentMediaKey] || {};
-    const comment = mediaComments[r.partId];
-    if (!comment || !comment.text) return;
-
-    applyHoverStyle(r, true);
-
-    const pt = fabric.util.transformPoint(
-      r.getCenterPoint(),
-      canvas.viewportTransform
-    );
-
-    showBubble(
-      comment.text,
-      pt.x + 12,
-      pt.y + 12,
-      comment.duration || 5000
-    );
-  }, LONG_PRESS_DELAY);
-});
-canvas.on("mouse:up", ()=>{
-  clearTimeout(longPressTimer);
-  longPressTimer = null;
-  longPressTarget = null;
-});
-
-
-canvas.on("mouse:out", (opt)=>{
-  const r = opt.target;
-  if(!r || r.type !== "rect") return;
-  if(isTeacher) return;
-  if(tool !== "select") return;
-
-  applyHoverStyle(r, false);
-
-
-});
-  
 
   
 
@@ -1085,8 +1068,37 @@ canvas.on("mouse:down", (opt)=>{
   }
 
   /* ===== CLIC SUR ZONE ===== */
-  if(t && t.type==="rect"){
-    setPanelForZone(t);
+if(t && t.type==="rect"){
+  // Sur mobile, on ignore Fabric (c'est le DOM qui gère)
+  if(IS_MOBILE && !isTeacher) return;
+
+  setPanelForZone(t);
+
+  if(!isTeacher && tool==="select"){
+    const mediaComments = COMMENTS.images[currentMediaKey] || {};
+    const comment = mediaComments[t.partId];
+
+    if(comment){
+      const pt = fabric.util.transformPoint(
+        t.getCenterPoint(),
+        canvas.viewportTransform
+      );
+
+      showBubble(
+        comment.text,
+        pt.x + 12,
+        pt.y + 12,
+        comment.duration || 5000
+      );
+    }
+  }
+
+  if(tool==="select"){
+    canvas.setActiveObject(t);
+  }
+  return;
+}
+
 
     // 🔵 BULLE ÉLÈVE (IMAGE)
     if(!isTeacher && tool==="select"){
@@ -1350,6 +1362,7 @@ $("btnFit").onclick = ()=>{
   fitZonesToMedia();
   clearPanel();
   canvas.requestRenderAll();
+   rebuildMobileHotspots();
 };
 
 $("btnFs").onclick = ()=>{
