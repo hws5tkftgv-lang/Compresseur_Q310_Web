@@ -87,6 +87,19 @@ html,body{
   opacity:.9;
   background:#0078ff;
 }
+#editorBadge{
+  position:fixed;
+  top:8px;
+  right:8px;
+  padding:6px 10px;
+  background:#ff9800;
+  color:#000;
+  font-weight:700;
+  font-size:13px;
+  border-radius:4px;
+  display:none;
+  z-index:9999;
+}
 
 </style>
 </head>
@@ -289,6 +302,8 @@ document.getElementById("btnEditor").addEventListener("click", ()=>{
 });
 
 function enableEditor(on){
+  document.getElementById("editorBadge").style.display = on ? "block" : "none";
+
   isEditor = on;
 
   const btn = document.getElementById("btnEditor");
@@ -309,6 +324,9 @@ function enableEditor(on){
 
     o.lockRotation = true;
     o.lockScalingFlip = true;
+    o.stroke = on ? "rgba(255,165,0,1)" : "rgba(255,255,255,.8)";
+o.strokeWidth = on ? 3 : 2;
+
 
     // 👉 TRÈS IMPORTANT SUR MOBILE
     o.perPixelTargetFind = true;
@@ -319,6 +337,7 @@ function enableEditor(on){
 
 
 </script>
- 
+ <div id="editorBadge">MODE ÉDITEUR</div>
+
 </body>
 </html>
