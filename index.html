@@ -1182,6 +1182,8 @@ canvas.on("mouse:down", (opt)=>{
 
 
 // 📱 Mobile : target souvent null → recherche manuelle
+  const r = opt.target;
+
 if(!r && opt.e && opt.e.touches){
   const p = canvas.getPointer(opt.e, true);
   r = findZoneAtPointer(p);
