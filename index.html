@@ -84,6 +84,16 @@
     position:absolute; inset:0;
     width:100%; height:100%;
   }
+/* 🔴 iOS Safari : donner le touch AU CANVAS, pas à l'image/vidéo */
+#imgLayer,
+#videoLayer{
+  pointer-events: none !important;
+}
+
+.canvas-container,
+#c{
+  pointer-events: auto !important;
+}
 
   #imgLayer, #videoLayer{
     position:absolute;
@@ -483,20 +493,26 @@ function slugify(s){
 }
 
 /* ================= STATE ================= */
+/* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", {
   selection: true,
-  preserveObjectStacking: true,
+  preserveObjectStacking: true
 });
+
+// 🔴 CRITIQUE iOS SAFARI
 canvas.upperCanvasEl.style.touchAction = "none";
+canvas.upperCanvasEl.style.pointerEvents = "auto";
 
-
-
-if (canvas.upperCanvasEl) {
-  canvas.upperCanvasEl.style.touchAction = "none";
-}
+// debug temporaire (on enlèvera après)
+canvas.upperCanvasEl.addEventListener(
+  "touchstart",
+  () => console.log("✅ TOUCH SUR CANVAS"),
+  { passive: false }
+);
 
 window.canvas = canvas;
 canvas.targetFindTolerance = 8;
+
 
 // ✅ iOS Safari: empêcher le scroll de la page via Fabric
 
