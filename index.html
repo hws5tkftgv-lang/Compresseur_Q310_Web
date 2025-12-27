@@ -888,6 +888,14 @@ function loadZones(){
   function rebuildMobileHotspots(){
   const wrap = document.getElementById("mobileHotspots");
   if(!wrap) return;
+    console.log("HOTSPOTS REBUILD", {
+    IS_MOBILE,
+    isTeacher,
+    zones: getZones().length
+  });
+
+  wrap.style.background = "rgba(255,0,0,0.15)";
+  
 
   wrap.innerHTML = "";
 
@@ -907,6 +915,13 @@ function loadZones(){
 
     const d = document.createElement("div");
     d.className = "mobile-hotspot";
+    d.innerHTML = "ZONE";
+d.style.color = "white";
+d.style.fontSize = "12px";
+d.style.display = "flex";
+d.style.alignItems = "center";
+d.style.justifyContent = "center";
+
     d.style.left = x + "px";
     d.style.top  = y + "px";
     d.style.width  = w + "px";
