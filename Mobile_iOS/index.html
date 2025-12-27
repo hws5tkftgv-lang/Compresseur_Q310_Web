@@ -111,6 +111,8 @@ html,body{
  <button id="btnEditor">✎</button>
 
 <script>
+  let editorPanDisabled = false;
+
 /* ================== CONFIG ================== */
 const IMAGE_URL = "../actif/compresseur_bg.png";
 const ZONES_KEY = "q310_ios_zones";
@@ -288,20 +290,33 @@ document.getElementById("btnEditor").addEventListener("click", ()=>{
 
 function enableEditor(on){
   isEditor = on;
-  document.getElementById("btnEditor").classList.toggle("active", on);
+
+  const btn = document.getElementById("btnEditor");
+  btn.classList.toggle("active", on);
+
+  // 🔒 Pan désactivé en mode éditeur
+  editorPanDisabled = on;
+
+  canvas.discardActiveObject();
+  canvas.selection = on;
 
   canvas.forEachObject(o=>{
     o.selectable = on;
     o.evented = true;
+
     o.hasControls = on;
     o.hasBorders  = on;
+
     o.lockRotation = true;
     o.lockScalingFlip = true;
+
+    // 👉 TRÈS IMPORTANT SUR MOBILE
+    o.perPixelTargetFind = true;
   });
 
-  canvas.selection = on;
   canvas.requestRenderAll();
 }
+
 
 </script>
  
