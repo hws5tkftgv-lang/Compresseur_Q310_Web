@@ -228,6 +228,15 @@
     touch-action: none;
     overscroll-behavior: none;
   }
+  /* ===============================
+   SAFARI iOS – FABRIC TOUCH FIX
+   =============================== */
+.canvas-container,
+.canvas-container canvas {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
 </style>
 </head>
 
@@ -250,7 +259,8 @@
   </div>
 
   <button id="btnFit" class="btn" title="Ajuster">⤡ Ajuster</button>
-  <button id="btnFs" class="btn" title="Plein écran">⤢ Plein écran</button>
+<button id="btnFs" class="btn" title="Plein écran" disabled>⤢ Plein écran</button>
+
 
   <button id="btnMode" class="btn" title="Mode élève / enseignant (mot de passe)">🔒 Mode élève</button>
 </div>
@@ -469,7 +479,17 @@ function slugify(s){
 }
 
 /* ================= STATE ================= */
-const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
+const canvas = new fabric.Canvas("c", {
+  selection: true,
+  preserveObjectStacking: true,
+  enablePointerEvents: true
+});
+canvas.allowTouchScrolling = false;
+
+if (canvas.upperCanvasEl) {
+  canvas.upperCanvasEl.style.touchAction = "none";
+}
+
 window.canvas = canvas;
 canvas.targetFindTolerance = 8;
 
@@ -495,7 +515,7 @@ let mediaLeft = 0, mediaTop = 0, mediaScale = 1;
 let drawing=false, startPt=null, curRect=null;
 let isPanning=false, lastClient=null;
 
-let isTeacher = (sessionStorage.getItem(TEACHER_SESSION_KEY) === "1");
+let isTeacher = (localStorage.getItem(TEACHER_SESSION_KEY) === "1");
 
 /* Parts */
 let partsBase = [];
@@ -534,14 +554,16 @@ function applyModeUI(){
 $("btnMode").addEventListener("click", ()=>{
   if(isTeacher){
     isTeacher = false;
-    sessionStorage.setItem(TEACHER_SESSION_KEY, "0");
+   localStorage.setItem(TEACHER_SESSION_KEY, "0");
+
     applyModeUI();
     return;
   }
   const p = prompt("Mot de passe enseignant :");
   if(p === TEACHER_PASSWORD){
     isTeacher = true;
-    sessionStorage.setItem(TEACHER_SESSION_KEY, "1");
+ localStorage.setItem(TEACHER_SESSION_KEY, "1");
+
     applyModeUI();
     setActiveTool("draw");
   }else if(p !== null){
@@ -1007,6 +1029,7 @@ async function showMedia(url){
 }
 
 /* ================= BUTTONS ================= */
+
 $("btnVideo").onclick = ()=>{
   if(mediaType !== "video") return;
   stageEl.classList.add("video-media");
@@ -1324,6 +1347,44 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
   { t: 2.5, text: "Entrée d’air", duration: 4000 },
   { t: 7.0, text: "Premier étage", duration: 6000 }
 ];
+  // ===============================
+// TAP ZONE – VERSION STABLE (PC + SAFARI)
+// ===============================
+canvas.on("mouse:down", (opt)=>{
+  if (isTeacher) return;
+  if (tool !== "select") return;
+
+  let r = opt.target;
+
+  // Safari iOS : target parfois null
+  if (!r) {
+    const p = canvas.getPointer(opt.e, true);
+    r = canvas.findTarget(p, true);
+  }
+
+  if (!r || r.type !== "rect") return;
+
+  // Afficher fiche élève
+  setPanelForZone(r);
+
+  // Afficher bulle si présente
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[r.partId];
+  if (!comment || !comment.text) return;
+
+  const pt = fabric.util.transformPoint(
+    r.getCenterPoint(),
+    canvas.viewportTransform
+  );
+
+  showBubble(
+    comment.text,
+    pt.x + 12,
+    pt.y + 12,
+    comment.duration || 5000
+  );
+});
+
 </script>
 
 <div id="bubble" style="
