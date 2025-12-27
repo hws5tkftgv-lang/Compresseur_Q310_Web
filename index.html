@@ -1146,7 +1146,7 @@ canvas.on("mouse:down", (opt) => {
   }
 
   /* ================= CLIC / TAP SUR ZONE ================= */
-  let r = t;
+let r = opt.target;
 
   // 📱 Mobile : target souvent null
   if(!r && e && e.touches){
