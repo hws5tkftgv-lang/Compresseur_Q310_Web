@@ -1451,6 +1451,69 @@ canvas.on("mouse:up", (opt) => {
     comment.duration || 5000
   );
 });
+canvas.upperCanvasEl.addEventListener("touchend", (e) => {
+
+  // Mode élève seulement
+  if (isTeacher) return;
+  if (tool !== "select") return;
+
+  e.preventDefault();
+
+  const touch = e.changedTouches[0];
+  if (!touch) return;
+
+  // Coordonnées écran → canvas
+  const rect = canvas.upperCanvasEl.getBoundingClientRect();
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+
+  // Convertir en coordonnées monde Fabric
+  const p = fabric.util.transformPoint(
+    new fabric.Point(x, y),
+    fabric.util.invertTransform(canvas.viewportTransform)
+  );
+
+  // 🔍 Recherche manuelle de zone
+  const zones = canvas.getObjects("rect");
+  let hit = null;
+
+  for (const r of zones) {
+    if (!r._imgBox) continue;
+
+    const left   = r.left;
+    const top    = r.top;
+    const right  = left + r.width * r.scaleX;
+    const bottom = top  + r.height * r.scaleY;
+
+    if (p.x >= left && p.x <= right && p.y >= top && p.y <= bottom) {
+      hit = r;
+      break;
+    }
+  }
+
+  if (!hit) return;
+
+  // 👉 Fiche élève
+  setPanelForZone(hit);
+
+  // 👉 Bulle
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[hit.partId];
+  if (!comment || !comment.text) return;
+
+  const pt = fabric.util.transformPoint(
+    hit.getCenterPoint(),
+    canvas.viewportTransform
+  );
+
+  showBubble(
+    comment.text,
+    pt.x + 12,
+    pt.y + 12,
+    comment.duration || 5000
+  );
+
+}, { passive:false });
 
 </script>
 
