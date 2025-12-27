@@ -1190,7 +1190,8 @@ if(!r && opt.e && opt.e.touches){
 
   /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
   if(tool==="draw"){
-    if(!isTeacher) return;
+    if(!isTeacher){
+} 
 
     drawing = true;
     startPt = canvas.getPointer(opt.e, true);
