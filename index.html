@@ -88,8 +88,6 @@
   .stage{
     background:#0b1536; overflow:hidden;
     min-height:78vh; position:relative;
-    touch-action: none;  
-    overscroll-behavior: contain;
   }
 
   /* Media layer + Canvas overlay */
@@ -406,11 +404,7 @@
 </div>
 
 <script>
-  alert("VERSION MODIFIÉE OK");
-
   console.log("SCRIPT QUINCY CHARGÉ");
-
-
 
  
 
@@ -584,66 +578,7 @@ const img    = document.getElementById("imgLayer");
 const video  = document.getElementById("videoLayer");
 
 /* ================= STATE ================= */
-const canvas = new fabric.Canvas("c", {
-  selection: true,
-  preserveObjectStacking: true,
-  enablePointerEvents: true   // ✅ OBLIGATOIRE POUR MOBILE
-});
-// ===== iOS SAFARI : BLOQUER SCROLL PAGE QUAND ON TOUCHE LE CANVAS =====
-function lockBodyScroll(){
-  document.body.style.overflow = "hidden";
-  document.body.style.position = "fixed";
-}
-
-function unlockBodyScroll(){
-  document.body.style.overflow = "";
-  document.body.style.position = "";
-}
-
-const uc = canvas.upperCanvasEl;
-
-// ===== iOS SAFARI : BLOQUER SCROLL UNIQUEMENT EN MODE PAN =====
-function lockBodyScroll(){
-  document.body.style.overflow = "hidden";
-  document.body.style.position = "fixed";
-}
-
-function unlockBodyScroll(){
-  document.body.style.overflow = "";
-  document.body.style.position = "";
-}
-
-
-
-uc.addEventListener("touchstart", (e)=>{
-  if(tool === "pan"){
-    lockBodyScroll();
-  }
-}, { passive: false });
-
-uc.addEventListener("touchmove", (e)=>{
-  if(tool === "pan"){
-    e.preventDefault(); // empêche le scroll navigateur
-  }
-}, { passive: false });
-
-uc.addEventListener("touchend", ()=>{
-  unlockBodyScroll();
-}, { passive: false });
-
-uc.addEventListener("touchcancel", ()=>{
-  unlockBodyScroll();
-}, { passive: false });
-
-uc.addEventListener("touchend", ()=>{
-  unlockBodyScroll();
-}, { passive: false });
-
-uc.addEventListener("touchcancel", ()=>{
-  unlockBodyScroll();
-}, { passive: false });
-
-
+const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 window.canvas = canvas;
 canvas.targetFindTolerance = 8;  
 
@@ -949,15 +884,6 @@ function makeZoneRect(){
     hoverCursor: 'pointer'
   });
 }
-function findZoneAtPointer(pointer){
-  const zones = getZones();
-  for(let i = zones.length - 1; i >= 0; i--){
-    const r = zones[i];
-    if(!r || r.type !== "rect") continue;
-    if(r.containsPoint(pointer)) return r;
-  }
-  return null;
-}
 
 
 
@@ -1040,19 +966,6 @@ function applyHoverStyle(r, on){
   }
   canvas.requestRenderAll();
 }
-/* ================= MOBILE – TAP LONG (LECTURE SIMPLE) ================= */
-let mobilePressTimer = null;
-const MOBILE_PRESS_DELAY = 600; // ms
-
-
-
-canvas.on("mouse:up", ()=>{
-  if (mobilePressTimer){
-    clearTimeout(mobilePressTimer);
-    mobilePressTimer = null;
-  }
-});
-  
 let longPressTimer = null;
 let longPressTarget = null;
 const LONG_PRESS_DELAY = 500; // ms
@@ -1090,8 +1003,38 @@ showBubble(
   pt.y + 12,
   comment.duration || 5000);
 });
- 
+canvas.on("mouse:down", (opt)=>{
+  if (isTeacher) return;
+  if (tool !== "select") return;
 
+  const r = opt.target;
+  if (!r || r.type !== "rect") return;
+
+  // mobile uniquement
+  if (!opt.e.touches) return;
+
+  longPressTarget = r;
+
+  longPressTimer = setTimeout(()=>{
+    const mediaComments = COMMENTS.images[currentMediaKey] || {};
+    const comment = mediaComments[r.partId];
+    if (!comment || !comment.text) return;
+
+    applyHoverStyle(r, true);
+
+    const pt = fabric.util.transformPoint(
+      r.getCenterPoint(),
+      canvas.viewportTransform
+    );
+
+    showBubble(
+      comment.text,
+      pt.x + 12,
+      pt.y + 12,
+      comment.duration || 5000
+    );
+  }, LONG_PRESS_DELAY);
+});
 canvas.on("mouse:up", ()=>{
   clearTimeout(longPressTimer);
   longPressTimer = null;
@@ -1116,62 +1059,46 @@ canvas.on("mouse:out", (opt)=>{
 /* ================= CLIC DROIT = SUPPRIMER (enseignant + ✏️) ================= */
 canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
 
+canvas.on("mouse:down", (opt)=>{
+  if(opt.e && opt.e.button === 2){
+    if(isTeacher && tool === "draw" && opt.target && opt.target.type === "rect"){
+      canvas.remove(opt.target);
+      canvas.discardActiveObject();
+      saveZones();
+      clearPanel();
+      canvas.requestRenderAll();
+    }
+    return;
+  }
+});
 
 /* ================= CANVAS EVENTS (select/draw/pan) ================= */
-canvas.on("mouse:down", (opt) => {
+canvas.on("mouse:down", (opt)=>{
+  const t = opt.target;
 
-  const r = opt.target;   // ✅ opt EXISTE ICI
-
-  // Mobile : target souvent null
-  if (!r && opt.e && opt.e.touches) {
-    const p = canvas.getPointer(opt.e, true);
-    const r2 = findZoneAtPointer(p);
-    if (!r2) return;
-    setPanelForZone(r2);
+  /* ===== PAN ===== */
+  if(tool==="pan"){
+    isPanning = true;
+    lastClient = { x:opt.e.clientX, y:opt.e.clientY };
+    canvas.defaultCursor = "grabbing";
     return;
   }
 
-  if (!r || r.type !== "rect") return;
+  /* ===== CLIC SUR ZONE ===== */
+  if(t && t.type==="rect"){
+    setPanelForZone(t);
 
-  setPanelForZone(r);
-});
-
-
-  /* ================= PAN ================= */
-  if(tool === "pan"){
-    isPanning = true;
-    lastClient = { x: e.clientX, y: e.clientY };
-    canvas.defaultCursor = "grabbing";
-    
-  }
-
-  /* ================= CLIC / TAP SUR ZONE ================= */
-let r = opt.target;
-
-  // 📱 Mobile : target souvent null
-  if(!r && e && e.touches){
-    const p = canvas.getPointer(e, true);
-    r = findZoneAtPointer(p);
-  }
-
-  if(r && r.type === "rect"){
-    setPanelForZone(r);
-
-    if(tool === "select"){
-      canvas.setActiveObject(r);
-      applyHoverStyle(r, true);
-      setTimeout(()=>applyHoverStyle(r, false), 600);
-    }
-
-    // 🔵 bulle élève
-    if(!isTeacher && tool === "select"){
+    // 🔵 BULLE ÉLÈVE (IMAGE)
+    if(!isTeacher && tool==="select"){
       const mediaComments = COMMENTS.images[currentMediaKey] || {};
-      const comment = mediaComments[r.partId];
+      const comment = mediaComments[t.partId];
+
       if(comment){
         const pt = fabric.util.transformPoint(
-          r.getCenterPoint(),
+          t.getCenterPoint(),
           canvas.viewportTransform
         );
+
         showBubble(
           comment.text,
           pt.x + 12,
@@ -1180,34 +1107,16 @@ let r = opt.target;
         );
       }
     }
-    
+
+    if(tool==="select"){
+      canvas.setActiveObject(t);
+    }
+    return;
   }
-
-  /* ================= DESSIN ================= */
-  if(tool === "draw" && isTeacher){
-    drawing = true;
-    startPt = canvas.getPointer(e, true);
-    curRect = makeZoneRect();
-    curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
-    canvas.add(curRect);
-    canvas.setActiveObject(curRect);
-  }
-
-
-
-// 📱 Mobile : target souvent null → recherche manuelle
-
-
-if(!r && opt.e && opt.e.touches){
-  const p = canvas.getPointer(opt.e, true);
-  r = findZoneAtPointer(p);
-}
-
 
   /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
   if(tool==="draw"){
-    if(!isTeacher){
-} 
+    if(!isTeacher) return;
 
     drawing = true;
     startPt = canvas.getPointer(opt.e, true);
@@ -1215,8 +1124,8 @@ if(!r && opt.e && opt.e.touches){
     curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
     canvas.add(curRect);
     canvas.setActiveObject(curRect);
-  } 
-  
+  }
+});
 
 
 canvas.on("mouse:move", (opt)=>{
@@ -1745,8 +1654,6 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
   { t: 2.5, text: "Entrée d’air", duration: 4000 },
   { t: 7.0, text: "Premier étage", duration: 6000 }
 ];
-
-
 
 </script>
 
