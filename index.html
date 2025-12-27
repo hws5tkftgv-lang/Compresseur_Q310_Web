@@ -391,6 +391,14 @@ canvas {
 
 <script>
   console.log("SCRIPT QUINCY CHARGÉ");
+  document.addEventListener("touchstart", (e)=>{
+  const d = document.getElementById("touchDebug");
+  if(d){
+    d.textContent = "TOUCH PAGE OK";
+    d.style.background = "green";
+  }
+}, { passive:false });
+
 
 /* ================= CONFIG ================= */
 let videoBubbles = JSON.parse(localStorage.getItem("videoBubbles") || "{}");
@@ -1565,6 +1573,19 @@ stageEl.addEventListener("touchstart", (e)=>{
   z-index:100000;
   pointer-events:none;
 "></div>
+<div id="touchDebug" style="
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  padding:10px 14px;
+  background:red;
+  color:white;
+  font-size:14px;
+  z-index:999999;
+  pointer-events:none;
+">
+  NO TOUCH
+</div>
 
 </body>
 </html>
