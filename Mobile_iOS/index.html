@@ -35,7 +35,7 @@ html,body{
 
 .stage{
   position:relative;
-  height:75vh;
+  height:65vh;
   background:#0b1536;
   overflow:hidden;
 }
@@ -56,16 +56,42 @@ html,body{
   z-index:9999;
   pointer-events:none;
 }
+#infoPanel{
+  padding:10px 12px;
+  background:#0f1a44;
+  border-bottom:1px solid rgba(255,255,255,.15);
+}
+
+#infoTitle{
+  font-size:18px;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+#infoRole{
+  font-size:15px;
+  opacity:.95;
+  margin-bottom:4px;
+}
+
+#infoDesc{
+  font-size:15px;
+  line-height:1.4;
+  opacity:.9;
+}
+  
 </style>
 </head>
 
 <body>
 <meta name="apple-mobile-web-app-capable" content="yes">
 
-<div class="topbar">
-  <button id="btnPan" class="btn">✋ Déplacer</button>
-  <button id="btnFit" class="btn">⤡ Ajuster</button>
+<div id="infoPanel">
+  <div id="infoTitle">Sélectionne une zone</div>
+  <div id="infoRole"></div>
+  <div id="infoDesc"></div>
 </div>
+
 
 <div class="stage" id="stage">
   <div class="media-layer">
@@ -136,6 +162,12 @@ lockRotation:true
   });
   r.comment = text;
   canvas.add(r);
+  r.on("mousedown", ()=>{
+  document.getElementById("infoTitle").textContent = r.comment;
+  document.getElementById("infoRole").textContent = "Rôle à définir";
+  document.getElementById("infoDesc").textContent = "";
+});
+
 }
 
 function loadZones(){
