@@ -487,6 +487,10 @@ const canvas = new fabric.Canvas("c", {
   preserveObjectStacking: true,
   enablePointerEvents: true
 });
+  canvas.upperCanvasEl.addEventListener("touchstart", (e)=>{
+  e.preventDefault();
+}, { passive:false });
+
 canvas.allowTouchScrolling = false;
 
 if (canvas.upperCanvasEl) {
