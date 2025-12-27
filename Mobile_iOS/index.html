@@ -94,8 +94,9 @@ const stage = document.getElementById("stage");
 imgEl.src = IMAGE_URL;
 imgEl.onload = ()=>{
   resizeAll();
-  loadZones();
+  loadRealZones();
 };
+
 
 function resizeAll(){
   canvas.setWidth(stage.clientWidth);
@@ -103,6 +104,18 @@ function resizeAll(){
 
   imgEl.style.width = stage.clientWidth+"px";
   imgEl.style.height = stage.clientHeight+"px";
+}
+function loadRealZones(){
+  canvas.clear();
+  ZONES_PC.forEach(z=>{
+    makeZone(
+      z.x * stage.clientWidth,
+      z.y * stage.clientHeight,
+      z.w * stage.clientWidth,
+      z.h * stage.clientHeight,
+      z.text
+    );
+  });
 }
 
 /* ================== ZONES ================== */
@@ -188,9 +201,19 @@ canvas.upperCanvasEl.addEventListener("touchend", () => {
 }, { passive: false });
 
 
-/* ================== DEMO ZONES ================== */
-makeZone(120,120,140,90,"Filtre à air – rôle pédagogique");
-makeZone(300,260,160,110,"Soupape unloader");
+/* ================== ZONES RÉELLES (PC → iPhone) ================== */
+const ZONES_PC = [
+  { x:0.263, y:0.553, w:0.283, h:0.077, text:"Carter" },
+  { x:0.120, y:0.263, w:0.213, h:0.282, text:"Intercooler" },
+  { x:0.646, y:0.293, w:0.201, h:0.183, text:"Cylindre basse pression" },
+  { x:0.309, y:0.056, w:0.160, h:0.116, text:"Unloader" },
+  { x:0.784, y:0.553, w:0.226, h:0.158, text:"Filtre à huile" },
+  { x:0.001, y:0.367, w:0.123, h:0.196, text:"Volant" },
+  { x:0.642, y:0.547, w:0.113, h:0.086, text:"Manomètre pression d’huile" },
+  { x:0.432, y:0.309, w:0.104, h:0.094, text:"Cylindre haute pression" },
+  { x:0.444, y:0.428, w:0.087, h:0.086, text:"Bielle" }
+];
+
 
 </script>
 </body>
