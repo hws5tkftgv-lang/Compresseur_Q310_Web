@@ -723,6 +723,24 @@ canvas.on("mouse:wheel", (opt)=>{
 
 /* ================= ZONES ================= */
 function getZones(){ return canvas.getObjects().filter(o=>o && o.type==="rect"); }
+function findZoneAtPointer(pointer) {
+  const zones = getZones();
+
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const r = zones[i];
+    const bounds = r.getBoundingRect(true);
+
+    if (
+      pointer.x >= bounds.left &&
+      pointer.x <= bounds.left + bounds.width &&
+      pointer.y >= bounds.top &&
+      pointer.y <= bounds.top + bounds.height
+    ) {
+      return r;
+    }
+  }
+  return null;
+}
 
 function makeZoneRect(){
   return new fabric.Rect({
@@ -1370,50 +1388,37 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
 // SAFARI iOS – TAP ZONE PAR COORDONNÉES (FINAL)
 // ===============================
   
-canvas.on("mouse:down", (opt)=>{
+canvas.on("mouse:down", (opt) => {
   if (isTeacher) return;
   if (tool !== "select") return;
 
   const e = opt.e;
-  if (!e) return;
+  const pointer = canvas.getPointer(e, true);
 
-  const p = canvas.getPointer(e, true);
+  const r = findZoneAtPointer(pointer);
+  if (!r) return;
 
-  // convertir en coordonnées image
-  const ix = (p.x - mediaLeft) / mediaScale;
-  const iy = (p.y - mediaTop) / mediaScale;
+  // fiche élève
+  setPanelForZone(r);
 
-  const zones = canvas.getObjects().filter(o => o.type === "rect" && o._imgBox);
+  // bulle
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[r.partId];
+  if (!comment || !comment.text) return;
 
-  for (const r of zones) {
-    const b = r._imgBox;
-    if (
-      ix >= b.x &&
-      ix <= b.x + b.w &&
-      iy >= b.y &&
-      iy <= b.y + b.h
-    ) {
-      // ZONE TROUVÉE
-      setPanelForZone(r);
+  const pt = fabric.util.transformPoint(
+    r.getCenterPoint(),
+    canvas.viewportTransform
+  );
 
-      const mediaComments = COMMENTS.images[currentMediaKey] || {};
-      const comment = mediaComments[r.partId];
-      if (comment && comment.text) {
-        const pt = fabric.util.transformPoint(
-          r.getCenterPoint(),
-          canvas.viewportTransform
-        );
-        showBubble(
-          comment.text,
-          pt.x + 12,
-          pt.y + 12,
-          comment.duration || 5000
-        );
-      }
-      break;
-    }
-  }
+  showBubble(
+    comment.text,
+    pt.x + 12,
+    pt.y + 12,
+    comment.duration || 5000
+  );
 });
+
 canvas.on("mouse:up", (opt) => {
 
   // Mode élève seulement
