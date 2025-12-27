@@ -125,8 +125,14 @@ function makeZone(x,y,w,h,text){
     fill:"rgba(0,0,0,0)",
     stroke:"rgba(255,255,255,.8)",
     strokeWidth:2,
-    selectable:false,
-    evented:true
+    selectable:true,
+    evented:true,
+    hasControls:false,
+hasBorders:true,
+lockScalingX:true,
+lockScalingY:true,
+lockRotation:true
+    
   });
   r.comment = text;
   canvas.add(r);
@@ -185,10 +191,10 @@ canvas.upperCanvasEl.addEventListener("touchmove", e => {
   const dy = t.clientY - lastTouch.y;
 
   // 👉 PAN DU CANVAS
-  const vpt = canvas.viewportTransform;
-  vpt[4] += dx;
-  vpt[5] += dy;
-  canvas.setViewportTransform(vpt);
+ // const vpt = canvas.viewportTransform;
+  //vpt[4] += dx;
+  //vpt[5] += dy;
+  //canvas.setViewportTransform(vpt);
 
   lastTouch = { x: t.clientX, y: t.clientY };
   isPanning = true;
