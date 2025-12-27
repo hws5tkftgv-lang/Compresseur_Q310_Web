@@ -1546,6 +1546,9 @@ canvas.upperCanvasEl.addEventListener("touchend", (e) => {
   );
 
 }, { passive:false });
+stageEl.addEventListener("touchstart", (e)=>{
+  console.log("✅ TOUCH STAGE REÇU", e.touches[0].clientX, e.touches[0].clientY);
+}, { passive:false });
 
 </script>
 
