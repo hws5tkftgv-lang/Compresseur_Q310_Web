@@ -132,8 +132,9 @@ const ZONES_KEY = "q310_ios_zones";
 
 /* ================== CANVAS ================== */
 const canvas = new fabric.Canvas("c",{
-  selection:false,
+  selection:true,
   allowTouchScrolling:false
+  preserveObjectStacking:true
 });
 
 const imgEl = document.getElementById("imgLayer");
@@ -197,6 +198,8 @@ lockRotation:true
 });
 
   canvas.add(r);
+  r.bringToFront();
+
   r.on("mousedown", ()=>{
   document.getElementById("infoTitle").textContent = r.comment;
   document.getElementById("infoRole").textContent = "Rôle à définir";
@@ -231,6 +234,7 @@ let isPanning = false;
 let longPressTimer = null;
 
 canvas.upperCanvasEl.addEventListener("touchstart", e => {
+  if(isEditor) return;
   e.preventDefault();
 
   const t = e.touches[0];
@@ -248,6 +252,7 @@ canvas.upperCanvasEl.addEventListener("touchstart", e => {
 }, { passive: false });
 
 canvas.upperCanvasEl.addEventListener("touchmove", e => {
+  if(isEditor) return;
   e.preventDefault();
   clearTimeout(longPressTimer);
 
@@ -268,6 +273,7 @@ canvas.upperCanvasEl.addEventListener("touchmove", e => {
 }, { passive: false });
 
 canvas.upperCanvasEl.addEventListener("touchend", () => {
+  if(isEditor) return;
   clearTimeout(longPressTimer);
   lastTouch = null;
   isPanning = false;
@@ -292,6 +298,7 @@ let isEditor = false;
 const EDITOR_PASSWORD = "comp";
 
 document.getElementById("btnEditor").addEventListener("click", ()=>{
+  if(isEditor) return;
   if(!isEditor){
     const p = prompt("Mot de passe éditeur");
     if(p !== EDITOR_PASSWORD) return;
@@ -302,17 +309,11 @@ document.getElementById("btnEditor").addEventListener("click", ()=>{
 });
 
 function enableEditor(on){
-  document.getElementById("editorBadge").style.display = on ? "block" : "none";
-
   isEditor = on;
 
-  const btn = document.getElementById("btnEditor");
-  btn.classList.toggle("active", on);
+  document.getElementById("btnEditor").classList.toggle("active", on);
+  document.getElementById("editorBadge").style.display = on ? "block" : "none";
 
-  // 🔒 Pan désactivé en mode éditeur
-  editorPanDisabled = on;
-
-  canvas.discardActiveObject();
   canvas.selection = on;
 
   canvas.forEachObject(o=>{
@@ -324,16 +325,20 @@ function enableEditor(on){
 
     o.lockRotation = true;
     o.lockScalingFlip = true;
-    o.stroke = on ? "rgba(255,165,0,1)" : "rgba(255,255,255,.8)";
-o.strokeWidth = on ? 3 : 2;
 
-
-    // 👉 TRÈS IMPORTANT SUR MOBILE
+    // 🔑 CLÉ MOBILE
     o.perPixelTargetFind = true;
+    o.targetFindTolerance = 15;
+
+    // feedback visuel
+    o.stroke = on ? "orange" : "rgba(255,255,255,.8)";
+    o.strokeWidth = on ? 3 : 2;
   });
 
+  canvas.discardActiveObject();
   canvas.requestRenderAll();
 }
+
 
 
 </script>
