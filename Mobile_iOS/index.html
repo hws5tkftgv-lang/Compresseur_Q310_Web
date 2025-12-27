@@ -139,34 +139,54 @@ function showBubble(text,x,y){
   bubbleTimer=setTimeout(()=>b.style.display="none",4000);
 }
 
-/* ================== TOUCH LOGIC ================== */
-let touchStart=null;
-let longPressTimer=null;
+/* ================== TOUCH LOGIC (PAN + TAP LONG) ================== */
+let lastTouch = null;
+let isPanning = false;
+let longPressTimer = null;
 
-canvas.upperCanvasEl.addEventListener("touchstart",e=>{
+canvas.upperCanvasEl.addEventListener("touchstart", e => {
   e.preventDefault();
-  const t=e.touches[0];
-  touchStart={x:t.clientX,y:t.clientY};
 
-  const p=canvas.getPointer(t);
-  const target=canvas.findTarget(t);
+  const t = e.touches[0];
+  lastTouch = { x: t.clientX, y: t.clientY };
+  isPanning = false;
 
-  if(target){
-    longPressTimer=setTimeout(()=>{
-      const pt=canvas.getPointer(t);
-      showBubble(target.comment,pt.x+10,pt.y+10);
-    },500);
+  const target = canvas.findTarget(t);
+
+  if (target) {
+    longPressTimer = setTimeout(() => {
+      const pt = canvas.getPointer(t);
+      showBubble(target.comment, pt.x + 10, pt.y + 10);
+    }, 600);
   }
-},{passive:false});
+}, { passive: false });
 
-canvas.upperCanvasEl.addEventListener("touchmove",e=>{
+canvas.upperCanvasEl.addEventListener("touchmove", e => {
   e.preventDefault();
   clearTimeout(longPressTimer);
-},{passive:false});
 
-canvas.upperCanvasEl.addEventListener("touchend",()=>{
+  const t = e.touches[0];
+  if (!lastTouch) return;
+
+  const dx = t.clientX - lastTouch.x;
+  const dy = t.clientY - lastTouch.y;
+
+  // 👉 PAN DU CANVAS
+  const vpt = canvas.viewportTransform;
+  vpt[4] += dx;
+  vpt[5] += dy;
+  canvas.setViewportTransform(vpt);
+
+  lastTouch = { x: t.clientX, y: t.clientY };
+  isPanning = true;
+}, { passive: false });
+
+canvas.upperCanvasEl.addEventListener("touchend", () => {
   clearTimeout(longPressTimer);
-},{passive:false});
+  lastTouch = null;
+  isPanning = false;
+}, { passive: false });
+
 
 /* ================== DEMO ZONES ================== */
 makeZone(120,120,140,90,"Filtre à air – rôle pédagogique");
