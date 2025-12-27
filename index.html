@@ -486,13 +486,10 @@ function slugify(s){
 const canvas = new fabric.Canvas("c", {
   selection: true,
   preserveObjectStacking: true,
-  enablePointerEvents: true
 });
-  canvas.upperCanvasEl.addEventListener("touchstart", (e)=>{
-  e.preventDefault();
-}, { passive:false });
+canvas.upperCanvasEl.style.touchAction = "none";
 
-canvas.allowTouchScrolling = false;
+
 
 if (canvas.upperCanvasEl) {
   canvas.upperCanvasEl.style.touchAction = "none";
@@ -502,7 +499,7 @@ window.canvas = canvas;
 canvas.targetFindTolerance = 8;
 
 // ✅ iOS Safari: empêcher le scroll de la page via Fabric
-canvas.allowTouchScrolling = false;
+
 
 // ✅ iOS Safari: force touch-action none sur la couche supérieure Fabric
 if(canvas.upperCanvasEl){
@@ -1389,6 +1386,7 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
 // ===============================
   
 canvas.on("mouse:down", (opt) => {
+   console.log("MOUSE DOWN REÇU", opt.e?.type);
   if (isTeacher) return;
   if (tool !== "select") return;
 
