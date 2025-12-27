@@ -7,7 +7,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
-
 <style>
   :root { color-scheme: dark; }
   *{ box-sizing:border-box; }
@@ -16,48 +15,37 @@
   /* === PAS DE COINS RONDS === */
   .btn, .select, .zoom, .stage, .panel, textarea, input { border-radius:0 !important; }
 
- .topbar{
-  display:flex;
-  align-items:stretch;           /* 🔑 boutons pleine hauteur */
-  gap:6px;
-  padding:8px;
-  background:#0f1a3f;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  position:sticky;
-  top:0;
-  z-index:9999;
-}
-.topbar{
-  display:flex;
-  align-items:stretch;           /* 🔑 boutons pleine hauteur */
-  gap:6px;
-  padding:8px;
-  background:#0f1a3f;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  position:sticky;
-  top:0;
-  z-index:9999;
-}
+  .topbar{
+    display:flex;
+    align-items:stretch;
+    gap:6px;
+    padding:8px;
+    background:#0f1a3f;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    position:sticky;
+    top:0;
+    z-index:9999;
+  }
 
-.btn{
-  padding:12px 10px;             /* 🔑 plus gros */
-  background:#1b2553;
-  color:#fff;
-  border:1px solid rgba(255,255,255,.18);
-  cursor:pointer;
-  font-weight:700;
-  font-size:15px;                /* 🔑 plus lisible */
-  min-height:44px;               /* 🔑 ergonomie tactile */
-}
+  .btn{
+    padding:12px 10px;
+    background:#1b2553;
+    color:#fff;
+    border:1px solid rgba(255,255,255,.18);
+    cursor:pointer;
+    font-weight:700;
+    font-size:15px;
+    min-height:44px;
+  }
 
   .topbar .btn,
-.topbar .select,
-.topbar .zoom{
-  flex:1;                        /* 🔑 partage automatique */
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
+  .topbar .select,
+  .topbar .zoom{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
 
   .btn:hover{ filter:brightness(1.06); }
   .btn.active{ background:#0078ff; border-color:#0053ad; }
@@ -187,91 +175,59 @@
   .zoneItem span{ font-size:11px; opacity:.75; white-space:nowrap; }
 
   /* ===== Mini fiche élève (lecture) ===== */
- .studentCard{
-  border:1px solid rgba(255,255,255,.10);
-  padding:15px;
-  background:#0f1a44;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
+  .studentCard{
+    border:1px solid rgba(255,255,255,.10);
+    padding:15px;
+    background:#0f1a44;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
 
-.studentCard .title{
-  font-weight:800;
-  font-size:15px;   /* ⬆️ */
-}
+  .studentCard .title{ font-weight:800; font-size:15px; }
+  .studentCard .meta{ font-size:15px; opacity:.95; }
+  .studentCard .txt{
+    font-size:15px;
+    opacity:.95;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
 
-.studentCard .meta{
-  font-size:15px;   /* ⬆️ */
-  opacity:.95;
-}
+  /* ===== Timeline vidéo ===== */
+  #videoTimeline{
+    position:relative;
+    height:34px;
+    background:#101a40;
+    border:1px solid rgba(255,255,255,.18);
+    margin:6px 0 8px;
+  }
 
-.studentCard .txt{
-  font-size:15px;   /* ⬆️ lisibilité élève */
-  opacity:.95;
-  line-height:1.5;  /* ⬆️ confort lecture */
-  white-space:pre-wrap;
-}
+  .videoMark{
+    position:absolute;
+    top:0;
+    width:8px;
+    height:100%;
+    background:#00a2ff;
+    cursor:pointer;
+  }
+  .videoMark:hover{ background:#ffd166; }
 
-/* ===== Timeline vidéo ===== */
-#videoTimeline{
-  position:relative;
-  height:34px;
-  background:#101a40;
-  border:1px solid rgba(255,255,255,.18);
-  margin:6px 0 8px;
-}
+  /* ===============================
+     MODE ÉLÈVE – LISIBILITÉ FICHE
+     =============================== */
+  #panelStudent .studentCard{ font-size:14px; line-height:1.6; padding:14px; }
+  #panelStudent .studentCard .title{ font-size:16px; font-weight:800; margin-bottom:6px; }
+  #panelStudent .studentCard .meta{ font-size:13px; margin-bottom:6px; }
+  #panelStudent .studentCard .txt{ font-size:14px; line-height:1.6; }
+  #panelStudent .zoneItem{ padding:8px 10px; }
+  #panelStudent .zoneItem b{ font-size:14px; }
+  #panelStudent .zoneItem span{ font-size:12px; }
 
-.videoMark{
-  position:absolute;
-  top:0;
-  width:8px;
-  height:100%;
-  background:#00a2ff;
-  cursor:pointer;
-}
-
-.videoMark:hover{
-  background:#ffd166;
-}
-/* ===============================
-   MODE ÉLÈVE – LISIBILITÉ FICHE
-   =============================== */
-
-#panelStudent .studentCard{
-  font-size: 14px;
-  line-height: 1.6;
-  padding: 14px;
-}
-
-#panelStudent .studentCard .title{
-  font-size: 16px;
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-
-#panelStudent .studentCard .meta{
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-
-#panelStudent .studentCard .txt{
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-#panelStudent .zoneItem{
-  padding: 8px 10px;
-}
-
-#panelStudent .zoneItem b{
-  font-size: 14px;
-}
-
-#panelStudent .zoneItem span{
-  font-size: 12px;
-}
-
+  /* ===== iOS SAFARI : empêcher scroll/pinch de la PAGE sur le canvas ===== */
+  #c{
+    touch-action: none;
+    overscroll-behavior: none;
+  }
 </style>
 </head>
 
@@ -296,7 +252,6 @@
   <button id="btnFit" class="btn" title="Ajuster">⤡ Ajuster</button>
   <button id="btnFs" class="btn" title="Plein écran">⤢ Plein écran</button>
 
-  <!-- Mode -->
   <button id="btnMode" class="btn" title="Mode élève / enseignant (mot de passe)">🔒 Mode élève</button>
 </div>
 
@@ -307,8 +262,6 @@
       <video id="videoLayer" controls playsinline></video>
     </div>
     <canvas id="c"></canvas>
- 
-
   </div>
 
   <aside class="panel">
@@ -320,7 +273,6 @@
 
     <div class="hr"></div>
 
-    <!-- ====== Panneau ÉLÈVE (lecture) ====== -->
     <div id="panelStudent" style="display:block">
       <div class="studentCard">
         <div class="title" id="stuNom">Aucune zone sélectionnée</div>
@@ -337,7 +289,6 @@
       </div>
     </div>
 
-    <!-- ====== Panneau ENSEIGNANT (édition) : TON FORMULAIRE ORIGINAL ====== -->
     <div id="panelTeacher" style="display:none">
       <div class="small">
         ✔ Mode enseignant : édition zones + création pièces.<br>
@@ -375,24 +326,23 @@
       </div>
 
       <div>
-      <label>Durée affichage (ms)</label>
-      <input id="commentDuration" type="number" value="5000">
+        <label>Durée affichage (ms)</label>
+        <input id="commentDuration" type="number" value="5000">
       </div>
 
-     
       <div>
         <label>Circuit</label>
         <input id="circuit" placeholder="LP / HP / LUB / CTRL / TR">
       </div>
+
       <div id="videoTimelineWrap" style="display:none;">
-  <label>Timeline vidéo (bulles)</label>
-  <div id="videoTimeline"></div>
+        <label>Timeline vidéo (bulles)</label>
+        <div id="videoTimeline"></div>
 
-  <button id="btnAddVideoComment" class="btn">
-    ➕ Ajouter une bulle à la position actuelle
-  </button>
-</div>
-
+        <button id="btnAddVideoComment" class="btn">
+          ➕ Ajouter une bulle à la position actuelle
+        </button>
+      </div>
 
       <button id="btnSavePart" class="btn">💾 Ajouter / Mettre à jour la pièce</button>
 
@@ -406,80 +356,44 @@
 <script>
   console.log("SCRIPT QUINCY CHARGÉ");
 
- 
-
 /* ================= CONFIG ================= */
-let videoBubbles = JSON.parse(localStorage.getItem("videoBubbles") || "{}");  
+let videoBubbles = JSON.parse(localStorage.getItem("videoBubbles") || "{}");
 const JSON_URL = "quincy_310L_parts.json";
 const PARTS_CUSTOM_KEY = "q310_parts_custom_v1";
 const TEACHER_PASSWORD = "comp";
 const TEACHER_SESSION_KEY = "q310_teacher_mode_v1";
 const VIDEO_COMMENTS_KEY = "q310_video_comments_v1";
 
-  
-
-
-  
-  /* ================= COMMENTAIRES (IMAGE + VIDÉO) =================
-   images : bulles déclenchées par clic sur une zone
-   videos : bulles déclenchées automatiquement par le temps
-*/
-const COMMENTS = {
-  images: {
-    // mediaKey : { partId : { text, duration } }
-  },
-  videos: {
-    // videoFile : [ { t, text, duration } ]
-  }
-};
+/* ================= COMMENTAIRES (IMAGE + VIDÉO) ================= */
+const COMMENTS = { images: {}, videos: {} };
 const IMAGE_COMMENTS_KEY = "q310_image_comments_v1";
 
 function loadImageComments(){
   try{
     const raw = localStorage.getItem(IMAGE_COMMENTS_KEY);
-    if(raw){
-      COMMENTS.images = JSON.parse(raw) || {};
-    }
+    if(raw) COMMENTS.images = JSON.parse(raw) || {};
   }catch(e){
     console.error("Erreur chargement bulles image", e);
     COMMENTS.images = {};
   }
 }
-
 function saveImageComments(){
-  try{
-    localStorage.setItem(
-      IMAGE_COMMENTS_KEY,
-      JSON.stringify(COMMENTS.images)
-    );
-  }catch(e){
-    console.error("Erreur sauvegarde bulles image", e);
-  }
+  try{ localStorage.setItem(IMAGE_COMMENTS_KEY, JSON.stringify(COMMENTS.images)); }
+  catch(e){ console.error("Erreur sauvegarde bulles image", e); }
 }
-  
 function loadVideoComments(){
   try{
     const raw = localStorage.getItem(VIDEO_COMMENTS_KEY);
-    if(raw){
-      COMMENTS.videos = JSON.parse(raw) || {};
-    }
+    if(raw) COMMENTS.videos = JSON.parse(raw) || {};
   }catch(e){
     console.error("Erreur chargement commentaires vidéo", e);
     COMMENTS.videos = {};
   }
 }
-
 function saveVideoComments(){
-  try{
-    localStorage.setItem(
-      VIDEO_COMMENTS_KEY,
-      JSON.stringify(COMMENTS.videos)
-    );
-  }catch(e){
-    console.error("Erreur sauvegarde commentaires vidéo", e);
-  }
+  try{ localStorage.setItem(VIDEO_COMMENTS_KEY, JSON.stringify(COMMENTS.videos)); }
+  catch(e){ console.error("Erreur sauvegarde commentaires vidéo", e); }
 }
-
 
 const MEDIAS = [
   { label: "Fond référence", url: "actif/compresseur_bg.png" },
@@ -505,85 +419,70 @@ const mediaLayer = $("mediaLayer");
 const imgEl = $("imgLayer");
 const videoEl = $("videoLayer");
 const LS_ZONES = (mediaKey)=>"q310_zones_v4::"+mediaKey;
-  /* ================= BULLE DE COMMENTAIRE ================= */
-let bubbleTimer = null;
 
+/* ✅ utilitaire clientX/clientY compatible TouchEvent (Safari iOS) */
+function getClientXY(e){
+  if(!e) return {x:0,y:0};
+  if(e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  if(e.changedTouches && e.changedTouches[0]) return {x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY};
+  return {x:e.clientX, y:e.clientY};
+}
+
+/* ================= BULLE ================= */
+let bubbleTimer = null;
 function showBubble(text, canvasX, canvasY, duration = 5000){
   const bubble = document.getElementById("bubble");
   if(!bubble) return;
-
   bubble.textContent = text;
-
-  // ✅ POSITION RELATIVE À .stage
   bubble.style.left = Math.round(canvasX) + "px";
   bubble.style.top  = Math.round(canvasY) + "px";
-
   bubble.style.display = "block";
   bubble.style.transform = "scale(1)";
   bubble.style.maxWidth = "320px";
-
   clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(()=>{
-    bubble.style.display = "none";
-  }, duration);
+  bubbleTimer = setTimeout(()=>{ bubble.style.display = "none"; }, duration);
 }
 
-
 /* ================= VIDÉO : BULLES AUTOMATIQUES ================= */
-
 let lastVideoComment = null;
-
 videoEl.addEventListener("timeupdate", ()=>{
-  if(isTeacher) return; // enseignant = pas d’auto lecture
-
+  if(isTeacher) return;
   const file = videoEl.src.split("/").pop();
   const list = COMMENTS.videos[file];
   if(!list) return;
-
   const now = videoEl.currentTime;
-
   list.forEach(c=>{
     if(lastVideoComment === c) return;
-
     if(Math.abs(now - c.t) < 0.25){
       lastVideoComment = c;
-
       videoEl.pause();
-
-      showBubble(
-        c.text,
-        stageEl.clientWidth * 0.5,
-        stageEl.clientHeight * 0.15,
-        c.duration || 5000
-      );
-
-      setTimeout(()=>{
-        videoEl.play();
-      }, c.duration || 5000);
+      showBubble(c.text, stageEl.clientWidth*0.5, stageEl.clientHeight*0.15, c.duration||5000);
+      setTimeout(()=>{ videoEl.play(); }, c.duration || 5000);
     }
   });
 });
 
-
 function slugify(s){
-  return (s||"")
-    .toString().trim().toLowerCase()
+  return (s||"").toString().trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9]+/g,"_")
-    .replace(/^_+|_+$/g,"");
+    .replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
 }
-const bubble = document.getElementById("bubble");
-const stage  = document.getElementById("stage");
-const img    = document.getElementById("imgLayer");
-const video  = document.getElementById("videoLayer");
 
 /* ================= STATE ================= */
 const canvas = new fabric.Canvas("c", { selection:true, preserveObjectStacking:true });
 window.canvas = canvas;
-canvas.targetFindTolerance = 8;  
+canvas.targetFindTolerance = 8;
 
-let zonesVisible = false; // invisible par défaut en mode sélection
-let tool = "select";      // select | draw | pan
+// ✅ iOS Safari: empêcher le scroll de la page via Fabric
+canvas.allowTouchScrolling = false;
+
+// ✅ iOS Safari: force touch-action none sur la couche supérieure Fabric
+if(canvas.upperCanvasEl){
+  canvas.upperCanvasEl.style.touchAction = "none";
+}
+
+let zonesVisible = false;
+let tool = "select";
 let zoom = 1;
 
 let currentMedia = MEDIAS[0].url;
@@ -616,34 +515,22 @@ function updateZonesVisibility(){
   canvas.requestRenderAll();
 }
 
-/* ================= MODE UI (ÉLÈVE / ENSEIGNANT) ================= */
+/* ================= MODE UI ================= */
 function applyModeUI(){
   $("panelStudent").style.display = isTeacher ? "none" : "block";
   $("panelTeacher").style.display = isTeacher ? "block" : "none";
   $("panelTitle").textContent = isTeacher ? "🧑‍🏫 Fiche (mode enseignant)" : "🟦 Fiche (mode élève)";
   $("btnMode").textContent = isTeacher ? "🔓 Mode enseignant" : "🔒 Mode élève";
-  // 🔕 Message d’aide : visible seulement en mode enseignant
-  if ($("modeHint")) {
-    $("modeHint").style.display = isTeacher ? "block" : "none";
-  }
+  if ($("modeHint")) $("modeHint").style.display = isTeacher ? "block" : "none";
 
-
-  // En élève: verrouiller outils d'édition
   const lock = !isTeacher;
-
   $("btnDraw").classList.toggle("locked", lock);
   $("btnErase").classList.toggle("locked", lock);
-
-  // Pan autorisé en élève
   $("btnPan").classList.toggle("locked", false);
 
-  // En élève: forcer select (lecture) + zones invisibles
-  if(lock){
-    setActiveTool("select");
-  }
+  if(lock) setActiveTool("select");
 }
 
-/* Bouton mode */
 $("btnMode").addEventListener("click", ()=>{
   if(isTeacher){
     isTeacher = false;
@@ -656,23 +543,15 @@ $("btnMode").addEventListener("click", ()=>{
     isTeacher = true;
     sessionStorage.setItem(TEACHER_SESSION_KEY, "1");
     applyModeUI();
-    // En enseignant, on passe en édition (zones visibles) automatiquement
     setActiveTool("draw");
   }else if(p !== null){
     alert("Mot de passe incorrect.");
   }
 });
 
-/* ================= TOOL UI (LOGIQUE FINALE) =================
-   🖱 select = zones invisibles mais cliquables
-   ✏️ draw   = zones visibles + édition (enseignant seulement)
-   ✋ pan    = garde la visibilité actuelle
-*/
+/* ================= TOOL UI ================= */
 function setActiveTool(t){
-
-  // 🔒 Interdire le mode édition en élève
   if(!isTeacher && t === "draw") t = "select";
-
   tool = t;
 
   $("btnSelect").classList.toggle("active", t==="select");
@@ -681,66 +560,47 @@ function setActiveTool(t){
 
   canvas.discardActiveObject();
 
-  // visibilité des zones
   if(t === "select") zonesVisible = false;
   if(t === "draw")   zonesVisible = true;
   updateZonesVisibility();
 
-  /* ===== MODE SÉLECTION (ÉLÈVE) ===== */
   if(t === "select"){
     canvas.selection = false;
     canvas.skipTargetFind = false;
     canvas.defaultCursor = "pointer";
-
     canvas.forEachObject(o=>{
       o.selectable = false;
       o.evented = true;
-
-      o.lockMovementX = true;
-      o.lockMovementY = true;
-      o.lockScalingX  = true;
-      o.lockScalingY  = true;
+      o.lockMovementX = true; o.lockMovementY = true;
+      o.lockScalingX  = true; o.lockScalingY  = true;
       o.lockRotation  = true;
-
       o.hasControls = false;
       o.hasBorders  = false;
     });
-  }
-
-  /* ===== MODE ÉDITION (ENSEIGNANT) ===== */
-  else if(t === "draw"){
+  }else if(t === "draw"){
     canvas.selection = false;
     canvas.skipTargetFind = false;
     canvas.defaultCursor = "crosshair";
-
     canvas.forEachObject(o=>{
       o.selectable = true;
       o.evented = true;
-
-      o.lockMovementX = false;
-      o.lockMovementY = false;
-      o.lockScalingX  = false;
-      o.lockScalingY  = false;
+      o.lockMovementX = false; o.lockMovementY = false;
+      o.lockScalingX  = false; o.lockScalingY  = false;
       o.lockRotation  = true;
-
       o.hasControls = true;
       o.hasBorders  = true;
     });
-  }
-
-  /* ===== MODE PAN ===== */
-  else {
+  }else{
     canvas.selection = false;
     canvas.skipTargetFind = true;
     canvas.defaultCursor = "grab";
-
     canvas.forEachObject(o=>{
       o.selectable = false;
       o.evented = true;
     });
   }
 
-  // 🔥 CE BLOC DOIT ÊTRE ICI
+  // vidéo: garder logique existante
   if(mediaType === "video"){
     stageEl.classList.remove("video-media");
     $("btnVideo").classList.remove("active");
@@ -748,16 +608,6 @@ function setActiveTool(t){
 
   canvas.requestRenderAll();
 }
-
-
-
-  // Vidéo: si on touche un outil, on désactive "Play cliquable"
-  if(mediaType==="video"){
-    stageEl.classList.remove("video-media");
-    $("btnVideo").classList.remove("active");
- 
-
-  canvas.requestRenderAll(); }
 
 /* ================= MEDIA FIT ================= */
 function applyMediaBaseFit(){
@@ -812,7 +662,7 @@ function resetViewToFit(){
   applyMediaBaseFit();
 }
 
-/* ================= ZOOM (centré sur l’image, même après pan) ================= */
+/* ================= ZOOM ================= */
 function getImageCenterScreenPoint(){
   const w = mediaNaturalW * mediaScale;
   const h = mediaNaturalH * mediaScale;
@@ -820,26 +670,18 @@ function getImageCenterScreenPoint(){
   const vpt = canvas.viewportTransform || [1,0,0,1,0,0];
   return fabric.util.transformPoint(worldCenter, vpt);
 }
-
 function setZoom(z){
   zoom = Math.max(0.5, Math.min(3, z));
-
   const centerScreen = (mediaNaturalW && mediaNaturalH)
     ? getImageCenterScreenPoint()
     : new fabric.Point(canvas.getWidth()/2, canvas.getHeight()/2);
-
   canvas.zoomToPoint(centerScreen, zoom);
-
   $("zoomRange").value = String(Math.round(zoom*100));
   $("zoomLabel").textContent = Math.round(zoom*100) + "%";
-
   syncMediaTransformToCanvas();
   canvas.requestRenderAll();
 }
-
-$("zoomRange").addEventListener("input", ()=>{
-  setZoom(parseInt($("zoomRange").value,10)/100);
-});
+$("zoomRange").addEventListener("input", ()=>{ setZoom(parseInt($("zoomRange").value,10)/100); });
 
 canvas.on("mouse:wheel", (opt)=>{
   const e = opt.e;
@@ -854,39 +696,22 @@ function getZones(){ return canvas.getObjects().filter(o=>o && o.type==="rect");
 
 function makeZoneRect(){
   return new fabric.Rect({
-    left: 0,
-    top: 0,
-    width: 100,
-    height: 100,
-
-    // invisible en mode élève
+    left: 0, top: 0, width: 100, height: 100,
     fill: 'rgba(0,0,0.001)',
-
-    // visible seulement pour l’enseignant
     stroke: isTeacher ? '#4da3ff' : 'transparent',
     strokeWidth: isTeacher ? 1 : 0,
-
-    // 🔒 VERROUILLAGE TOTAL EN MODE ÉLÈVE
     selectable: isTeacher,
     evented: true,
-
     hasControls: isTeacher,
     hasBorders: isTeacher,
-
     lockMovementX: !isTeacher,
     lockMovementY: !isTeacher,
     lockScalingX: !isTeacher,
     lockScalingY: !isTeacher,
     lockRotation: true,
-
-    // confort
-   
     hoverCursor: 'pointer'
   });
 }
-
-
-
 
 function updateImgBoxFromRect(r){
   const x = (r.left - mediaLeft) / mediaScale;
@@ -895,7 +720,6 @@ function updateImgBoxFromRect(r){
   const h = (r.height * r.scaleY) / mediaScale;
   r._imgBox = {x,y,w,h};
 }
-
 function fitZonesToMedia(){
   getZones().forEach(r=>{
     if(!r._imgBox) return;
@@ -910,7 +734,6 @@ function fitZonesToMedia(){
     r.setCoords();
   });
 }
-
 function saveZones(){
   const zones = getZones().map(r=>{
     updateImgBoxFromRect(r);
@@ -919,179 +742,80 @@ function saveZones(){
   localStorage.setItem(LS_ZONES(currentMediaKey), JSON.stringify(zones));
   refreshZoneList();
 }
-
 function loadZones(){
   getZones().forEach(r=>canvas.remove(r));
-
   const raw = localStorage.getItem(LS_ZONES(currentMediaKey));
   if(!raw){ canvas.requestRenderAll(); refreshZoneList(); return; }
-
   let zones;
   try{ zones = JSON.parse(raw); }catch{ return; }
-
   zones.forEach(z=>{
     const r = makeZoneRect();
     r.partId = z.partId || "";
     r._imgBox = z.imgBox || null;
     canvas.add(r);
   });
-
   fitZonesToMedia();
   updateZonesVisibility();
   canvas.requestRenderAll();
   refreshZoneList();
 }
-
 canvas.on("object:modified", (e)=>{ if(e.target) saveZones(); });
 
-/* ================= SURVOL INTELLIGENT (mode élève) ================= */
+/* ================= SURVOL (PC uniquement) ================= */
 function applyHoverStyle(r, on){
   if(!r || r.type !== "rect") return;
-  if(isTeacher) return;        // pas besoin en enseignant
-  if(tool !== "select") return;// seulement en lecture
+  if(isTeacher) return;
+  if(tool !== "select") return;
 
   if(on){
-    r.set({
-      stroke: "rgba(255,255,255,0.90)",
-      fill: "rgba(255,255,255,0.06)",
-      strokeWidth: 2
-    });
+    r.set({ stroke:"rgba(255,255,255,0.90)", fill:"rgba(255,255,255,0.06)", strokeWidth:2 });
   }else{
-    // revenir à l'état "lecture" (invisible)
-    r.set({
-      stroke: "rgba(0,0,0,0)",
-      fill: "rgba(0,0,0,0)",
-      strokeWidth: 2
-    });
+    r.set({ stroke:"rgba(0,0,0,0)", fill:"rgba(0,0,0,0)", strokeWidth:2 });
   }
   canvas.requestRenderAll();
 }
-let longPressTimer = null;
-let longPressTarget = null;
-const LONG_PRESS_DELAY = 500; // ms
 
 canvas.on("mouse:over", (opt)=>{
   const r = opt.target;
   if(!r || r.type !== "rect") return;
   if(isTeacher) return;
   if(tool !== "select") return;
-
-  // 🔒 Vidéo en lecture = pas de survol
   if(mediaType === "video" && !videoEl.paused) return;
 
   applyHoverStyle(r, true);
 
-const mediaComments = COMMENTS.images[currentMediaKey] || {};
-const comment = mediaComments[r.partId];
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[r.partId];
+  if(!comment || !comment.text) return;
 
-console.log("SURVOL OK", {
-  media: currentMediaKey,
-  partId: r.partId,
-  comment
+  const pt = fabric.util.transformPoint(r.getCenterPoint(), canvas.viewportTransform);
+  showBubble(comment.text, pt.x + 12, pt.y + 12, comment.duration || 5000);
 });
-
-if(!comment || !comment.text) return;
-
-const pt = fabric.util.transformPoint(
-  r.getCenterPoint(),
-  canvas.viewportTransform
-);
-
-showBubble(
-  comment.text,
-  pt.x + 12,
-  pt.y + 12,
-  comment.duration || 5000);
-});
-canvas.on("mouse:down", (opt) => {
-
-  // ===== GARDES DE BASE (PC + mobile) =====
-  if (isTeacher) return;
-  if (tool !== "select") return;
-
-  let r = opt.target;
-
-  // ===== MOBILE : target parfois null → recherche manuelle =====
-  if (!r && opt.e && opt.e.touches) {
-    const p = canvas.getPointer(opt.e, true);
-    r = canvas.findTarget(p, true);
-  }
-
-  if (!r || r.type !== "rect") return;
-
-  // ===== PC : clic immédiat =====
-  if (!opt.e || !opt.e.touches) {
-    const mediaComments = COMMENTS.images[currentMediaKey] || {};
-    const comment = mediaComments[r.partId];
-    if (!comment || !comment.text) return;
-
-    applyHoverStyle(r, true);
-
-    const pt = fabric.util.transformPoint(
-      r.getCenterPoint(),
-      canvas.viewportTransform
-    );
-
-    showBubble(
-      comment.text,
-      pt.x + 12,
-      pt.y + 12,
-      comment.duration || 5000
-    );
-
-    return;
-  }
-
-  // ===== MOBILE : TAP LONG =====
-  longPressTarget = r;
-
-  longPressTimer = setTimeout(() => {
-    const mediaComments = COMMENTS.images[currentMediaKey] || {};
-    const comment = mediaComments[r.partId];
-    if (!comment || !comment.text) return;
-
-    applyHoverStyle(r, true);
-
-    const pt = fabric.util.transformPoint(
-      r.getCenterPoint(),
-      canvas.viewportTransform
-    );
-
-    showBubble(
-      comment.text,
-      pt.x + 12,
-      pt.y + 12,
-      comment.duration || 5000
-    );
-  }, LONG_PRESS_DELAY);
-});
-
-canvas.on("mouse:up", ()=>{
-  clearTimeout(longPressTimer);
-  longPressTimer = null;
-  longPressTarget = null;
-});
-
 
 canvas.on("mouse:out", (opt)=>{
   const r = opt.target;
   if(!r || r.type !== "rect") return;
   if(isTeacher) return;
   if(tool !== "select") return;
-
   applyHoverStyle(r, false);
-
-
 });
-  
 
-  
-
-/* ================= CLIC DROIT = SUPPRIMER (enseignant + ✏️) ================= */
+/* ================= CLIC DROIT (enseignant) ================= */
 canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
 
+/* ==========================================================
+   ✅ ÉVÉNEMENTS CANVAS CENTRALISÉS (UN SEUL FLUX)
+   - PC : clic zone => fiche + bulle
+   - iPhone Safari : tap zone => fiche + bulle
+   - Pan : drag => déplace la vue
+   - Draw : drag => crée zone
+   ========================================================== */
+
 canvas.on("mouse:down", (opt)=>{
-  if(opt.e && opt.e.button === 2){
+  const e = opt.e || null;
+
+  // clic droit suppression (PC)
+  if(e && e.button === 2){
     if(isTeacher && tool === "draw" && opt.target && opt.target.type === "rect"){
       canvas.remove(opt.target);
       canvas.discardActiveObject();
@@ -1101,56 +825,40 @@ canvas.on("mouse:down", (opt)=>{
     }
     return;
   }
-});
 
-/* ================= CANVAS EVENTS (select/draw/pan) ================= */
-canvas.on("mouse:down", (opt)=>{
-  const t = opt.target;
-
-  /* ===== PAN ===== */
-  if(tool==="pan"){
+  // PAN
+  if(tool === "pan"){
     isPanning = true;
-    lastClient = { x:opt.e.clientX, y:opt.e.clientY };
+    lastClient = getClientXY(e);
     canvas.defaultCursor = "grabbing";
     return;
   }
 
-  /* ===== CLIC SUR ZONE ===== */
-  if(t && t.type==="rect"){
+  // cible
+  const t = opt.target;
+
+  // clic/tap sur zone
+  if(t && t.type === "rect"){
     setPanelForZone(t);
 
-    // 🔵 BULLE ÉLÈVE (IMAGE)
-    if(!isTeacher && tool==="select"){
+    if(!isTeacher && tool === "select"){
       const mediaComments = COMMENTS.images[currentMediaKey] || {};
       const comment = mediaComments[t.partId];
-
-      if(comment){
-        const pt = fabric.util.transformPoint(
-          t.getCenterPoint(),
-          canvas.viewportTransform
-        );
-
-        showBubble(
-          comment.text,
-          pt.x + 12,
-          pt.y + 12,
-          comment.duration || 5000
-        );
+      if(comment && comment.text){
+        const pt = fabric.util.transformPoint(t.getCenterPoint(), canvas.viewportTransform);
+        showBubble(comment.text, pt.x + 12, pt.y + 12, comment.duration || 5000);
       }
     }
 
-    if(tool==="select"){
-      canvas.setActiveObject(t);
-    }
+    if(tool === "select") canvas.setActiveObject(t);
     return;
   }
 
-  /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
-  if(tool==="draw"){
+  // DRAW (enseignant)
+  if(tool === "draw"){
     if(!isTeacher) return;
-
     drawing = true;
-    startPt = canvas.getPointer(opt.e, true);
+    startPt = canvas.getPointer(e, true);
     curRect = makeZoneRect();
     curRect.set({ left:startPt.x, top:startPt.y, width:1, height:1 });
     canvas.add(curRect);
@@ -1158,15 +866,11 @@ canvas.on("mouse:down", (opt)=>{
   }
 });
 
-
 canvas.on("mouse:move", (opt)=>{
-  if (longPressTimer) {
-  clearTimeout(longPressTimer);
-  longPressTimer = null;
-}
+  const e = opt.e || null;
 
   if(drawing && curRect){
-    const p = canvas.getPointer(opt.e, true);
+    const p = canvas.getPointer(e, true);
     const left = Math.min(p.x, startPt.x);
     const top  = Math.min(p.y, startPt.y);
     const w = Math.abs(p.x - startPt.x);
@@ -1177,11 +881,11 @@ canvas.on("mouse:move", (opt)=>{
   }
 
   if(isPanning){
-    const e = opt.e;
+    const cur = getClientXY(e);
     const vpt = canvas.viewportTransform.slice();
-    vpt[4] += (e.clientX - lastClient.x);
-    vpt[5] += (e.clientY - lastClient.y);
-    lastClient = {x:e.clientX, y:e.clientY};
+    vpt[4] += (cur.x - lastClient.x);
+    vpt[5] += (cur.y - lastClient.y);
+    lastClient = cur;
     canvas.setViewportTransform(vpt);
     syncMediaTransformToCanvas();
     canvas.requestRenderAll();
@@ -1219,9 +923,7 @@ canvas.on("mouse:up", ()=>{
 function renderVideoTimeline(){
   const wrap = document.getElementById("videoTimeline");
   if(!wrap) return;
-
   wrap.innerHTML = "";
-
   if(mediaType !== "video") return;
 
   const file = videoEl.src.split("/").pop();
@@ -1233,23 +935,15 @@ function renderVideoTimeline(){
     mark.className = "videoMark";
     mark.style.left = ((c.t / duration) * 100) + "%";
     mark.title = `⏱ ${c.t.toFixed(1)} s`;
-
     mark.onclick = ()=>{
       videoEl.currentTime = c.t;
-      showBubble(
-        c.text,
-        stageEl.clientWidth * 0.5,
-        stageEl.clientHeight * 0.15,
-        c.duration || 5000
-      );
+      showBubble(c.text, stageEl.clientWidth*0.5, stageEl.clientHeight*0.15, c.duration || 5000);
     };
-
     wrap.appendChild(mark);
   });
 }
 
-  async function showMedia(url){
-
+async function showMedia(url){
   lastVideoComment = null;
   currentMedia = url;
   currentMediaKey = url;
@@ -1265,13 +959,6 @@ function renderVideoTimeline(){
 
   stageEl.classList.remove("video-media");
   $("btnVideo").classList.remove("active");
-  // 🔓 Autoriser le survol en mode image (élève)
-if (mediaType === "image") {
-  stageEl.classList.remove("video-media");
-  canvas.upperCanvasEl.style.pointerEvents = "auto";
-}
-  
-
 
   if(mediaType==="image"){
     imgEl.src = url;
@@ -1304,35 +991,26 @@ if (mediaType === "image") {
     applyMediaBaseFit();
     loadZones();
 
-    // Vidéo dispo en mode élève aussi: on garde le bouton Vidéo identique
     stageEl.classList.add("video-media");
     $("btnVideo").classList.add("active");
   }
 
   setTimeout(()=>{ resizeAll(); }, 0);
   renderVideoTimeline();
-    // 🔒 Sécurité : en mode élève, on verrouille toujours les zones
-if(!isTeacher){
-  setActiveTool("select");
-}
 
-    // 🎥 Affichage timeline vidéo (enseignant seulement)
-const wrap = document.getElementById("videoTimelineWrap");
-if(wrap){
-  wrap.style.display =
-    (isTeacher && mediaType === "video") ? "block" : "none";
-}
+  if(!isTeacher) setActiveTool("select");
 
-
+  const wrap = document.getElementById("videoTimelineWrap");
+  if(wrap){
+    wrap.style.display = (isTeacher && mediaType === "video") ? "block" : "none";
+  }
 }
 
 /* ================= BUTTONS ================= */
 $("btnVideo").onclick = ()=>{
   if(mediaType !== "video") return;
-
   stageEl.classList.add("video-media");
   $("btnVideo").classList.add("active");
-
   if (videoEl.paused) videoEl.play();
   else videoEl.pause();
 };
@@ -1340,30 +1018,6 @@ $("btnVideo").onclick = ()=>{
 $("btnSelect").onclick = ()=>setActiveTool("select");
 $("btnDraw").onclick   = ()=>{ if(isTeacher) setActiveTool("draw"); };
 $("btnPan").onclick    = ()=>setActiveTool("pan");
-$("btnAddVideoComment").addEventListener("click", ()=>{
-  if(mediaType !== "video") return;
-
-  const file = videoEl.src.split("/").pop();
-   // 🆕 init stockage local si absent
-  if(!videoBubbles[file]) videoBubbles[file] = [];
-  if(!COMMENTS.videos[file]) COMMENTS.videos[file] = [];
-
-  COMMENTS.videos[file].push({
-    t: videoEl.currentTime,
-    text: $("commentText").value.trim() || "Nouveau commentaire",
-    duration: parseInt($("commentDuration").value,10) || 5000
-  });
-  // 🆕 ajouter à la mémoire persistante
-  videoBubbles[file].push(bubble);
-   // 🆕 sauvegarde locale
-  localStorage.setItem("videoBubbles", JSON.stringify(videoBubbles));
-  // (optionnel mais utile)
-  COMMENTS.videos[file] = videoBubbles[file];
-  saveVideoComments();
-  renderVideoTimeline();
- 
-
-});
 
 $("btnErase").onclick  = ()=>{
   if(!isTeacher) return;
@@ -1383,9 +1037,18 @@ $("btnFit").onclick = ()=>{
   canvas.requestRenderAll();
 };
 
-$("btnFs").onclick = ()=>{
-  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
-  else document.exitFullscreen();
+$("btnFs").onclick = async ()=>{
+  try{
+    if(!document.fullscreenElement){
+      await document.documentElement.requestFullscreen();
+    }else{
+      await document.exitFullscreen();
+    }
+  }catch(err){
+    // iOS Safari peut refuser fullscreen
+    console.warn("Fullscreen refusé:", err);
+    alert("Plein écran non supporté sur ce navigateur/appareil.");
+  }
 };
 
 document.addEventListener("fullscreenchange", ()=>{
@@ -1404,7 +1067,6 @@ function fillMediaSelect(){
   });
   $("imgSelect").value = currentMedia;
 }
-
 $("imgSelect").addEventListener("change", ()=>{
   showMedia($("imgSelect").value);
   clearPanel();
@@ -1454,7 +1116,6 @@ function clearPanel(){
     $("stuDesc").textContent = "—";
   }
 }
-
 function setStudentCard(part, pid){
   $("stuNom").textContent = (part && (part.nom||part.id)) ? (part.nom||part.id) : (pid ? "(Pièce introuvable)" : "Aucune zone sélectionnée");
   $("stuCircuit").textContent = (part && part.circuit) ? part.circuit : "—";
@@ -1462,7 +1123,6 @@ function setStudentCard(part, pid){
   $("stuRole").textContent = (part && part.role) ? part.role : "—";
   $("stuDesc").textContent = (part && part.desc) ? part.desc : "—";
 }
-
 function setPanelFromPart(part){
   $("pieceSelect").value = part.id || "";
   $("partIdLabel").textContent = part.id || "—";
@@ -1471,17 +1131,14 @@ function setPanelFromPart(part){
   $("desc").value = part.desc || "";
   $("circuit").value = part.circuit || "";
 }
-
 function getPartById(id){
   if(!id) return null;
   return partsMerged.find(p=>p.id===id) || null;
 }
-
 function setPanelForZone(r){
   if(!r){ clearPanel(); return; }
   const pid = (r.partId||"").toString();
   const p = getPartById(pid);
-
   if(isTeacher){
     if(p) setPanelFromPart(p);
     else{
@@ -1503,29 +1160,21 @@ function zoneLabelFrom(r){
   const circuit = (p && p.circuit) ? p.circuit : "-";
   return { nom, circuit, pid };
 }
-
 function focusZone(r){
   if(!r) return;
   const center = r.getCenterPoint();
-
-  // Pan pour centrer la zone dans le canvas
   const vpt = canvas.viewportTransform.slice();
   const cw = canvas.getWidth();
   const ch = canvas.getHeight();
-
-  // Calculer le delta pour amener le centre au milieu écran
   vpt[4] = (cw/2) - (center.x * vpt[0]);
   vpt[5] = (ch/2) - (center.y * vpt[3]);
-
   canvas.setViewportTransform(vpt);
   syncMediaTransformToCanvas();
   canvas.requestRenderAll();
 }
-
 function refreshZoneList(){
   const list = $("zoneList");
   if(!list) return;
-
   const q = ($("zoneSearch").value || "").trim().toLowerCase();
   list.innerHTML = "";
 
@@ -1536,7 +1185,7 @@ function refreshZoneList(){
     return A.localeCompare(B,"fr");
   });
 
-  zones.forEach((r, idx)=>{
+  zones.forEach((r)=>{
     const info = zoneLabelFrom(r);
     const hay = `${info.nom} ${info.circuit} ${info.pid}`.toLowerCase();
     if(q && !hay.includes(q)) return;
@@ -1545,12 +1194,9 @@ function refreshZoneList(){
     item.className = "zoneItem";
     item.innerHTML = `<b>${info.nom}</b><span>${info.circuit}</span>`;
     item.addEventListener("click", ()=>{
-      // lecture: sélectionner + fiche + focus
       canvas.setActiveObject(r);
       setPanelForZone(r);
       focusZone(r);
-
-      // halo momentané pour bien voir en élève
       if(!isTeacher && tool==="select"){
         applyHoverStyle(r, true);
         setTimeout(()=>applyHoverStyle(r, false), 700);
@@ -1566,7 +1212,6 @@ function refreshZoneList(){
     list.appendChild(empty);
   }
 }
-
 $("zoneSearch").addEventListener("input", refreshZoneList);
 
 async function loadParts(){
@@ -1644,20 +1289,18 @@ $("btnSavePart").addEventListener("click", ()=>{
 
   setPanelFromPart(partsCustom[id]);
   refreshZoneList();
-    if(canvas.getActiveObject() && canvas.getActiveObject().type === "rect"){
+
+  if(canvas.getActiveObject() && canvas.getActiveObject().type === "rect"){
     const pid = canvas.getActiveObject().partId;
     if(pid){
-      if(!COMMENTS.images[currentMediaKey]){
-        COMMENTS.images[currentMediaKey] = {};
-      }
+      if(!COMMENTS.images[currentMediaKey]) COMMENTS.images[currentMediaKey] = {};
       COMMENTS.images[currentMediaKey][pid] = {
         text: $("commentText").value.trim(),
         duration: parseInt($("commentDuration").value,10) || 5000
       };
-      saveImageComments(); // ← OBLIGATOIRE
+      saveImageComments();
     }
   }
-
 });
 
 /* ================= INIT ================= */
@@ -1671,12 +1314,8 @@ $("btnSavePart").addEventListener("click", ()=>{
   resizeAll();
   await showMedia(currentMedia);
 
-  // outil par défaut: sélection -> invisible
   setActiveTool("select");
-
-  // appliquer mode actuel (session)
   applyModeUI();
- 
 
   setTimeout(()=>{ resizeAll(); }, 120);
 })();
@@ -1685,7 +1324,6 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
   { t: 2.5, text: "Entrée d’air", duration: 4000 },
   { t: 7.0, text: "Premier étage", duration: 6000 }
 ];
-
 </script>
 
 <div id="bubble" style="
