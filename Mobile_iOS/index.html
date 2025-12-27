@@ -45,17 +45,7 @@ html,body{
   inset:0;
 }
 
-#bubble{
-  position:fixed;
-  max-width:300px;
-  padding:12px;
-  background:#101a40;
-  border:1px solid rgba(255,255,255,.25);
-  font-size:14px;
-  display:none;
-  z-index:9999;
-  pointer-events:none;
-}
+
 #infoPanel{
   padding:10px 12px;
   background:#0f1a44;
@@ -100,7 +90,7 @@ html,body{
   <canvas id="c"></canvas>
 </div>
 
-<div id="bubble"></div>
+
 
 <script>
 /* ================== CONFIG ================== */
@@ -180,15 +170,15 @@ function loadZones(){
 
 /* ================== BULLE ================== */
 let bubbleTimer=null;
-function showBubble(text,x,y){
-  const b=document.getElementById("bubble");
-  b.textContent=text;
-  b.style.left=x+"px";
-  b.style.top=y+"px";
-  b.style.display="block";
-  clearTimeout(bubbleTimer);
-  bubbleTimer=setTimeout(()=>b.style.display="none",4000);
-}
+//function showBubble(text,x,y){
+  //const b=document.getElementById("bubble");
+  //b.textContent=text;
+  //b.style.left=x+"px";
+  //b.style.top=y+"px";
+  //b.style.display="block";
+  //clearTimeout(bubbleTimer);
+  //bubbleTimer=setTimeout(()=>b.style.display="none",4000);
+//}
 
 /* ================== TOUCH LOGIC (PAN + TAP LONG) ================== */
 let lastTouch = null;
@@ -207,7 +197,7 @@ canvas.upperCanvasEl.addEventListener("touchstart", e => {
   if (target) {
     longPressTimer = setTimeout(() => {
       const pt = canvas.getPointer(t);
-      showBubble(target.comment, pt.x + 10, pt.y + 10);
+     // showBubble(target.comment, pt.x + 10, pt.y + 10);
     }, 600);
   }
 }, { passive: false });
