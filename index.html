@@ -1100,32 +1100,7 @@ if(t && t.type==="rect"){
 }
 
 
-    // 🔵 BULLE ÉLÈVE (IMAGE)
-    if(!isTeacher && tool==="select"){
-      const mediaComments = COMMENTS.images[currentMediaKey] || {};
-      const comment = mediaComments[t.partId];
-
-      if(comment){
-        const pt = fabric.util.transformPoint(
-          t.getCenterPoint(),
-          canvas.viewportTransform
-        );
-
-        showBubble(
-          comment.text,
-          pt.x + 12,
-          pt.y + 12,
-          comment.duration || 5000
-        );
-      }
-    }
-
-    if(tool==="select"){
-      canvas.setActiveObject(t);
-    }
-    return;
-  }
-
+  
   /* ===== DESSIN (ENSEIGNANT SEULEMENT) ===== */
   if(tool==="draw"){
     if(!isTeacher) return;
