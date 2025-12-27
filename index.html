@@ -1003,19 +1003,49 @@ showBubble(
   pt.y + 12,
   comment.duration || 5000);
 });
-canvas.on("mouse:down", (opt)=>{
+canvas.on("mouse:down", (opt) => {
+
+  // ===== GARDES DE BASE (PC + mobile) =====
   if (isTeacher) return;
   if (tool !== "select") return;
 
-  const r = opt.target;
+  let r = opt.target;
+
+  // ===== MOBILE : target parfois null → recherche manuelle =====
+  if (!r && opt.e && opt.e.touches) {
+    const p = canvas.getPointer(opt.e, true);
+    r = canvas.findTarget(p, true);
+  }
+
   if (!r || r.type !== "rect") return;
 
-  // mobile uniquement
-  if (!opt.e.touches) return;
+  // ===== PC : clic immédiat =====
+  if (!opt.e || !opt.e.touches) {
+    const mediaComments = COMMENTS.images[currentMediaKey] || {};
+    const comment = mediaComments[r.partId];
+    if (!comment || !comment.text) return;
 
+    applyHoverStyle(r, true);
+
+    const pt = fabric.util.transformPoint(
+      r.getCenterPoint(),
+      canvas.viewportTransform
+    );
+
+    showBubble(
+      comment.text,
+      pt.x + 12,
+      pt.y + 12,
+      comment.duration || 5000
+    );
+
+    return;
+  }
+
+  // ===== MOBILE : TAP LONG =====
   longPressTarget = r;
 
-  longPressTimer = setTimeout(()=>{
+  longPressTimer = setTimeout(() => {
     const mediaComments = COMMENTS.images[currentMediaKey] || {};
     const comment = mediaComments[r.partId];
     if (!comment || !comment.text) return;
@@ -1035,6 +1065,7 @@ canvas.on("mouse:down", (opt)=>{
     );
   }, LONG_PRESS_DELAY);
 });
+
 canvas.on("mouse:up", ()=>{
   clearTimeout(longPressTimer);
   longPressTimer = null;
