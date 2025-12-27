@@ -888,6 +888,11 @@ function loadZones(){
   function rebuildMobileHotspots(){
   const wrap = document.getElementById("mobileHotspots");
   if(!wrap) return;
+    // 🔴 DEBUG VISUEL ABSOLU (iPhone)
+wrap.innerHTML = "<div style='color:white;font-size:22px;padding:20px'>HOTSPOTS ACTIFS</div>";
+wrap.style.pointerEvents = "auto";
+wrap.style.background = "rgba(255,0,0,0.35)";
+
     console.log("HOTSPOTS REBUILD", {
     IS_MOBILE,
     isTeacher,
