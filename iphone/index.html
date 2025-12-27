@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Quincy 310L – iPhone</title>
+
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+
+<style>
+html,body{
+  margin:0;
+  background:#0b1436;
+  color:#eaf1ff;
+  font-family:Arial,Segoe UI,sans-serif;
+  overscroll-behavior:none;
+  touch-action:none;
+}
+
+.topbar{
+  display:flex;
+  gap:6px;
+  padding:8px;
+  background:#0f1a3f;
+}
+
+.btn{
+  flex:1;
+  min-height:44px;
+  font-size:15px;
+  background:#1b2553;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.2);
+}
+
+.stage{
+  position:relative;
+  height:75vh;
+  background:#0b1536;
+  overflow:hidden;
+}
+
+.media-layer,canvas{
+  position:absolute;
+  inset:0;
+}
+
+#bubble{
+  position:fixed;
+  max-width:300px;
+  padding:12px;
+  background:#101a40;
+  border:1px solid rgba(255,255,255,.25);
+  font-size:14px;
+  display:none;
+  z-index:9999;
+  pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <button id="btnPan" class="btn">✋ Déplacer</button>
+  <button id="btnFit" class="btn">⤡ Ajuster</button>
+</div>
+
+<div class="stage" id="stage">
+  <div class="media-layer">
+    <img id="imgLayer">
+  </div>
+  <canvas id="c"></canvas>
+</div>
+
+<div id="bubble"></div>
+
+<script>
+/* ================== CONFIG ================== */
+const IMAGE_URL = "actif/VUE_GENERAL.jpeg";
+const ZONES_KEY = "q310_ios_zones";
+
+/* ================== CANVAS ================== */
+const canvas = new fabric.Canvas("c",{
+  selection:false,
+  allowTouchScrolling:false
+});
+
+const imgEl = document.getElementById("imgLayer");
+const stage = document.getElementById("stage");
+
+/* ================== IMAGE ================== */
+imgEl.src = IMAGE_URL;
+imgEl.onload = ()=>{
+  resizeAll();
+  loadZones();
+};
+
+function resizeAll(){
+  canvas.setWidth(stage.clientWidth);
+  canvas.setHeight(stage.clientHeight);
+
+  imgEl.style.width = stage.clientWidth+"px";
+  imgEl.style.height = stage.clientHeight+"px";
+}
+
+/* ================== ZONES ================== */
+function makeZone(x,y,w,h,text){
+  const r = new fabric.Rect({
+    left:x, top:y, width:w, height:h,
+    fill:"rgba(0,0,0,0)",
+    stroke:"rgba(255,255,255,.8)",
+    strokeWidth:2,
+    selectable:false,
+    evented:true
+  });
+  r.comment = text;
+  canvas.add(r);
+}
+
+function loadZones(){
+  const raw = localStorage.getItem(ZONES_KEY);
+  if(!raw) return;
+  JSON.parse(raw).forEach(z=>{
+    makeZone(z.x,z.y,z.w,z.h,z.text);
+  });
+}
+
+/* ================== BULLE ================== */
+let bubbleTimer=null;
+function showBubble(text,x,y){
+  const b=document.getElementById("bubble");
+  b.textContent=text;
+  b.style.left=x+"px";
+  b.style.top=y+"px";
+  b.style.display="block";
+  clearTimeout(bubbleTimer);
+  bubbleTimer=setTimeout(()=>b.style.display="none",4000);
+}
+
+/* ================== TOUCH LOGIC ================== */
+let touchStart=null;
+let longPressTimer=null;
+
+canvas.upperCanvasEl.addEventListener("touchstart",e=>{
+  e.preventDefault();
+  const t=e.touches[0];
+  touchStart={x:t.clientX,y:t.clientY};
+
+  const p=canvas.getPointer(t);
+  const target=canvas.findTarget(t);
+
+  if(target){
+    longPressTimer=setTimeout(()=>{
+      const pt=canvas.getPointer(t);
+      showBubble(target.comment,pt.x+10,pt.y+10);
+    },500);
+  }
+},{passive:false});
+
+canvas.upperCanvasEl.addEventListener("touchmove",e=>{
+  e.preventDefault();
+  clearTimeout(longPressTimer);
+},{passive:false});
+
+canvas.upperCanvasEl.addEventListener("touchend",()=>{
+  clearTimeout(longPressTimer);
+},{passive:false});
+
+/* ================== DEMO ZONES ================== */
+makeZone(120,120,140,90,"Filtre à air – rôle pédagogique");
+makeZone(300,260,160,110,"Soupape unloader");
+
+</script>
+</body>
+</html>
