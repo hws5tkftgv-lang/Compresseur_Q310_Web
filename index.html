@@ -1361,6 +1361,7 @@ COMMENTS.videos["compresseur_2_stages.mp4"] = [
 // ===============================
 // SAFARI iOS – TAP ZONE PAR COORDONNÉES (FINAL)
 // ===============================
+  
 canvas.on("mouse:down", (opt)=>{
   if (isTeacher) return;
   if (tool !== "select") return;
@@ -1404,6 +1405,44 @@ canvas.on("mouse:down", (opt)=>{
       break;
     }
   }
+});
+canvas.on("mouse:up", (opt) => {
+
+  // Mode élève seulement
+  if (isTeacher) return;
+  if (tool !== "select") return;
+
+  const e = opt.e;
+  if (!e) return;
+
+  // 🔒 Mobile uniquement
+  if (!("ontouchstart" in window)) return;
+
+  // 🔍 Retrouver la zone sous le doigt (Safari-safe)
+  const p = canvas.getPointer(e, true);
+  const r = canvas.findTarget(p, true);
+
+  if (!r || r.type !== "rect") return;
+
+  // 👉 Afficher fiche élève
+  setPanelForZone(r);
+
+  // 👉 Afficher bulle si présente
+  const mediaComments = COMMENTS.images[currentMediaKey] || {};
+  const comment = mediaComments[r.partId];
+  if (!comment || !comment.text) return;
+
+  const pt = fabric.util.transformPoint(
+    r.getCenterPoint(),
+    canvas.viewportTransform
+  );
+
+  showBubble(
+    comment.text,
+    pt.x + 12,
+    pt.y + 12,
+    comment.duration || 5000
+  );
 });
 
 </script>
