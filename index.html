@@ -250,6 +250,18 @@
   touch-action: none;
   overscroll-behavior: none;
 }
+/* ===== iOS SAFARI FIX ABSOLU ===== */
+.stage,
+.media-layer,
+#imgLayer,
+#videoLayer {
+  pointer-events: none !important;
+}
+
+.canvas-container,
+canvas {
+  pointer-events: auto !important;
+}
 
 </style>
 </head>
