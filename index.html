@@ -1118,9 +1118,24 @@ canvas.upperCanvasEl.addEventListener("contextmenu", (e)=>e.preventDefault());
 
 
 /* ================= CANVAS EVENTS (select/draw/pan) ================= */
-canvas.on("mouse:down", (opt)=>{
-  const e = opt.e;
-  const t = opt.target;
+canvas.on("mouse:down", (opt) => {
+
+  const r = opt.target;   // ✅ opt EXISTE ICI
+
+  // Mobile : target souvent null
+  if (!r && opt.e && opt.e.touches) {
+    const p = canvas.getPointer(opt.e, true);
+    const r2 = findZoneAtPointer(p);
+    if (!r2) return;
+    setPanelForZone(r2);
+    return;
+  }
+
+  if (!r || r.type !== "rect") return;
+
+  setPanelForZone(r);
+});
+
 
   /* ================= PAN ================= */
   if(tool === "pan"){
